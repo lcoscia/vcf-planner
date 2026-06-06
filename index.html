@@ -1,0 +1,2853 @@
+<!DOCTYPE html>
+<html lang="en" x-data="vcfPlanner()" x-init="init()" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VCF 9.1 Planning & Preparation Workbook</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'vcf-navy':   '#0E223A',
+            'vcf-navy2':  '#002439',
+            'vcf-input':  '#E5F7FF',
+            'vcf-sample': '#F2F8F9',
+            'vcf-output': '#EFFDE3',
+            'vcf-missing':'#F9CBAD',
+            'vcf-amber':  '#FFBD29',
+            'vcf-gray':   '#4F5F69',
+            'vcf-steel':  '#9BC2E6',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    [x-cloak] { display: none !important; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .sidebar-item { transition: background .15s; }
+    .sidebar-item:hover { background: rgba(255,255,255,.08); }
+    .sidebar-item.active { background: rgba(255,255,255,.15); border-left: 3px solid #9BC2E6; }
+    .field-row { border-bottom: 1px solid #e5e7eb; }
+    .field-row:hover { background: #fafafa; }
+    .field-row.excluded { opacity: .45; pointer-events: none; }
+    input[type=text], input[type=number], input[type=email], input[type=password], select, textarea {
+      background: #E5F7FF; border: 1px solid #b3d9f0; border-radius: 4px;
+      padding: 3px 6px; width: 100%; font-size: 13px; outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: #0E223A; box-shadow: 0 0 0 2px rgba(14,34,58,.15); }
+    input.missing, select.missing { background: #F9CBAD !important; border-color: #e07d4a; }
+    .sample-cell { background: #F2F8F9; color: #556; font-style: italic; font-size: 12px; }
+    .output-cell { background: #EFFDE3; color: #2a4a1a; font-size: 13px; font-weight: 500; }
+    .section-header { background: #0E223A; color: white; }
+    .sub-header { background: #4F5F69; color: white; }
+    .amber-header { background: #FFBD29; color: #3a2200; }
+    .toggle-btn { border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+    .toggle-include { background: #22c55e; color: white; }
+    .toggle-exclude { background: #9ca3af; color: white; }
+    .toggle-selected { background: #3b82f6; color: white; }
+    .toggle-unselected { background: #9ca3af; color: white; }
+    .calc-result { background: #EFFDE3; border: 1px solid #86c44a; border-radius: 6px; padding: 12px 16px; }
+    .missing-badge { background: #F9CBAD; color: #9a3412; border-radius: 3px; padding: 1px 6px; font-size: 11px; font-weight: 600; }
+    @media print {
+      #sidebar, #topbar { display: none !important; }
+      #main-content { margin-left: 0 !important; padding-top: 0 !important; }
+      .no-print { display: none !important; }
+      .field-row { page-break-inside: avoid; }
+      [x-collapse] { display: block !important; height: auto !important; overflow: visible !important; }
+      .section-header, .sub-header, .amber-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 1.5cm; }
+      h1, .section-header { page-break-after: avoid; }
+      table { page-break-inside: auto; }
+    }
+    input.ip-error, input.cidr-error { border-color: #ef4444 !important; background: #fef2f2 !important; }
+    .asbuilt-card { border-left: 4px solid #0E223A; }
+    .asbuilt-card.warning { border-left-color: #f97316; }
+    .asbuilt-card.ok { border-left-color: #22c55e; }
+    .progress-bar { height: 6px; border-radius: 3px; background: #e5e7eb; }
+    .progress-fill { height: 100%; border-radius: 3px; background: #22c55e; transition: width .3s; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+    /* Skip nav */
+    .skip-nav { position:absolute; top:-99px; left:4px; z-index:9999; background:#0E223A; color:white; padding:8px 16px; text-decoration:none; border-radius:0 0 4px 4px; transition:top .15s; font-size:13px; }
+    .skip-nav:focus { top:52px; }
+    /* FQDN validation warning */
+    input.fqdn-error { border-color: #f59e0b !important; background: #fffbeb !important; }
+    /* Inline validation banners */
+    .warn-banner { background:#fef3c7; border:1px solid #fbbf24; border-radius:6px; padding:8px 12px; font-size:12px; color:#92400e; }
+    .err-banner  { background:#fef2f2; border:1px solid #f87171; border-radius:6px; padding:8px 12px; font-size:12px; color:#991b1b; }
+    /* Copy feedback toast */
+    .copy-toast { position:fixed; bottom:24px; right:24px; background:#0E223A; color:white; padding:10px 18px; border-radius:8px; font-size:13px; z-index:9999; box-shadow:0 4px 12px rgba(0,0,0,.3); pointer-events:none; }
+    /* Sidebar mini progress */
+    .sidebar-progress { height:3px; border-radius:2px; background:rgba(255,255,255,.15); overflow:hidden; }
+    .sidebar-progress-fill { height:100%; border-radius:2px; background:#9BC2E6; transition:width .4s; }
+    /* Sizing bar chart */
+    .size-bar { height:14px; border-radius:3px; min-width:2px; transition:width .4s; }
+    /* Page toolbar */
+    .page-toolbar { display:flex; align-items:center; gap:8px; padding:8px 16px; background:#f8fafc; border-bottom:1px solid #e5e7eb; }
+    .page-toolbar button { font-size:11px; padding:3px 10px; border-radius:4px; border:1px solid #d1d5db; background:white; color:#374151; cursor:pointer; transition:all .15s; }
+    .page-toolbar button:hover { background:#f3f4f6; }
+    /* Dark mode overrides */
+    .dark body { background:#0f172a !important; color:#e2e8f0; }
+    .dark #sidebar { background:#071120 !important; }
+    .dark #topbar { background:#071120 !important; }
+    .dark #main-content { background:#0f172a !important; }
+    .dark .bg-white { background:#1e293b !important; }
+    .dark .bg-gray-50 { background:#0f172a !important; }
+    .dark .bg-amber-50 { background:#2d2000 !important; }
+    .dark .border-gray-100, .dark .border-gray-200 { border-color:#334155 !important; }
+    .dark .text-gray-800 { color:#e2e8f0 !important; }
+    .dark .text-gray-700 { color:#cbd5e1 !important; }
+    .dark .text-gray-600 { color:#94a3b8 !important; }
+    .dark .text-gray-500 { color:#64748b !important; }
+    .dark .text-gray-400 { color:#475569 !important; }
+    .dark .divide-gray-100 { --tw-divide-opacity:1; border-color:rgb(51 65 85/var(--tw-divide-opacity)) !important; }
+    .dark input[type=text], .dark input[type=number], .dark input[type=email], .dark input[type=password], .dark select, .dark textarea {
+      background:#1e3a5f; border-color:#2d5a8e; color:#e2e8f0;
+    }
+    .dark .sample-cell { background:#1a2740 !important; color:#64748b; }
+    .dark .output-cell { background:#1a3320 !important; color:#86efac; }
+    .dark .field-row:hover { background:#1e293b !important; }
+    .dark .section-header { background:#071120 !important; }
+    .dark .sub-header { background:#1e293b !important; }
+    .dark .page-toolbar { background:#1e293b !important; border-color:#334155 !important; }
+    .dark .page-toolbar button { background:#334155 !important; border-color:#475569 !important; color:#cbd5e1 !important; }
+    .dark .calc-result { background:#1a3320 !important; border-color:#2d5a3e !important; }
+    .dark .asbuilt-card { background:#1e293b !important; }
+    .dark .bg-orange-50 { background:#2d1600 !important; }
+    .dark .warn-banner { background:#2d2000 !important; border-color:#78350f !important; color:#fcd34d !important; }
+    .dark .err-banner { background:#2d0000 !important; border-color:#7f1d1d !important; color:#fca5a5 !important; }
+    .dark ::-webkit-scrollbar-track { background:#0f172a; }
+    .dark ::-webkit-scrollbar-thumb { background:#334155; }
+  </style>
+</head>
+<body class="h-full bg-gray-50" x-cloak :class="darkMode?'dark':''">
+
+<a href="#main-content" class="skip-nav">Skip to main content</a>
+<div x-show="copyFeedback" x-transition class="copy-toast" x-text="copyFeedback"></div>
+
+<!-- TOP BAR -->
+<header id="topbar" class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 text-white shadow-lg" style="background:#0E223A; height:52px;">
+  <div class="flex items-center gap-3">
+    <div class="text-xs font-bold px-2 py-1 rounded" style="background:#9BC2E6; color:#0E223A;">VMware</div>
+    <div>
+      <div class="font-bold text-sm leading-tight">VCF 9.1 Planning & Preparation</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.9.1.001</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2 no-print">
+    <!-- Completion -->
+    <div class="hidden sm:flex items-center gap-2 text-xs mr-2">
+      <span class="opacity-70" x-text="completionText()"></span>
+      <div class="progress-bar w-24"><div class="progress-fill" :style="'width:'+completionPct()+'%'"></div></div>
+    </div>
+    <button @click="importTrigger()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Import JSON">⬆ Import</button>
+    <button @click="exportJSON()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export JSON">⬇ JSON</button>
+    <button @click="exportMarkdown()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export Markdown As-Built">📄 MD</button>
+    <button @click="exportCsv()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export CSV IPAM table">📊 CSV</button>
+    <button @click="shareUrl()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Copy shareable URL to clipboard">🔗 Share</button>
+    <button @click="window.print()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Print / PDF">🖨 Print</button>
+    <button @click="toggleDark()" class="px-2 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" :title="darkMode?'Switch to light mode':'Switch to dark mode'" x-text="darkMode?'☀️':'🌙'"></button>
+    <button @click="confirmReset()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(220,38,38,.4);" title="Reset all data">↺ Reset</button>
+    <input type="file" id="import-file" accept=".json" class="hidden" @change="importJSON($event)">
+    <!-- Save indicator -->
+    <div x-show="saveIndicator" x-transition class="text-xs opacity-70 ml-1">✓ Saved</div>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<nav id="sidebar" class="fixed left-0 text-white overflow-y-auto z-40 shadow-xl" style="background:#0E223A; top:52px; bottom:0; width:252px;">
+  <div class="py-2">
+    <template x-for="group in navGroups" :key="group.id">
+      <div>
+        <!-- Group header -->
+        <button @click="toggleGroup(group.id)" class="w-full flex items-center justify-between px-4 py-2.5 text-left sidebar-item" :class="openGroups.includes(group.id)?'':'opacity-80'">
+          <span class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider opacity-70">
+            <span x-text="group.icon"></span>
+            <span x-text="group.title"></span>
+          </span>
+          <span class="text-xs opacity-50" x-text="openGroups.includes(group.id)?'▼':'▶'"></span>
+        </button>
+        <!-- Group items -->
+        <div x-show="openGroups.includes(group.id)" x-collapse>
+          <template x-for="item in group.items" :key="item.id">
+            <button
+              @click="navigate(item.id)"
+              class="w-full text-left px-6 py-2 text-sm sidebar-item"
+              :class="currentPage===item.id?'active':''"
+              x-show="isPageVisible(item.id)"
+            >
+              <div class="flex items-center gap-2">
+                <span x-text="item.icon" class="text-base"></span>
+                <span x-text="item.title" class="leading-tight"></span>
+              </div>
+              <!-- Per-page progress bar + missing count -->
+              <div class="ml-7 mt-1" x-show="isPageVisible(item.id)">
+                <div x-show="getMissingCount(item.id) > 0" class="flex items-center gap-1.5">
+                  <div class="sidebar-progress flex-1"><div class="sidebar-progress-fill" :style="'width:'+getPagePct(item.id)+'%'"></div></div>
+                  <span class="text-xs shrink-0" style="color:#F9CBAD;" x-text="getMissingCount(item.id)+'★'"></span>
+                </div>
+                <div x-show="getMissingCount(item.id) === 0">
+                  <span class="text-xs" style="color:#86efac;">✓</span>
+                </div>
+              </div>
+            </button>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main id="main-content" class="overflow-y-auto" style="margin-left:252px; margin-top:52px; min-height:calc(100vh - 52px);">
+
+  <!-- WELCOME PAGE -->
+  <div x-show="currentPage==='welcome'" class="p-8 max-w-4xl">
+    <div class="rounded-xl overflow-hidden shadow-lg mb-6" style="background:#0E223A;">
+      <div class="p-8 text-white">
+        <div class="text-5xl font-bold mb-1">9.1</div>
+        <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.9.1.001 · Released May 4, 2026</div>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div class="bg-white rounded-lg p-5 shadow border border-gray-100">
+        <div class="text-lg font-bold text-gray-800 mb-3">Getting Started</div>
+        <ol class="text-sm text-gray-600 space-y-2">
+          <li><span class="font-semibold text-vcf-navy">1. Planning</span> — Select your VCF version, product type and deployment mode</li>
+          <li><span class="font-semibold text-vcf-navy">2. Prerequisites</span> — Verify hardware and software requirements</li>
+          <li><span class="font-semibold text-vcf-navy">3. Sizing</span> — Calculate management domain host requirements</li>
+          <li><span class="font-semibold text-vcf-navy">4. Deploy</span> — Fill in all deployment configuration values</li>
+          <li><span class="font-semibold text-vcf-navy">5. As-Built</span> — Review and export your completed configuration</li>
+        </ol>
+      </div>
+      <div class="bg-white rounded-lg p-5 shadow border border-gray-100">
+        <div class="text-lg font-bold text-gray-800 mb-3">About this Tool</div>
+        <ul class="text-sm text-gray-600 space-y-2">
+          <li>✓ Faithfully reproduces the official Broadcom VCF 9.1 workbook</li>
+          <li>✓ Auto-saves to browser localStorage</li>
+          <li>✓ Cascading conditional logic (VCF vs VVF, deployment modes)</li>
+          <li>✓ Live sizing calculator with host count formulas</li>
+          <li>✓ "Value Missing" validation on required fields</li>
+          <li>✓ Export to JSON · Print / As-Built PDF</li>
+        </ul>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg p-5 shadow border border-gray-100">
+      <div class="text-sm font-bold text-gray-700 mb-2">Version History</div>
+      <table class="text-sm w-full">
+        <thead><tr class="text-left text-gray-500 border-b"><th class="pb-1 pr-4">Version</th><th class="pb-1 pr-4">Date</th><th class="pb-1">Details</th></tr></thead>
+        <tbody><tr><td class="py-1 pr-4 font-mono">v1.9.1.001</td><td class="py-1 pr-4">May 4, 2026</td><td class="py-1">Initial Release for VCF 9.1.0.0</td></tr></tbody>
+      </table>
+    </div>
+    <div class="mt-6 text-center">
+      <button @click="navigate('planning')" class="px-8 py-3 rounded-lg text-white font-semibold text-sm shadow-md hover:opacity-90" style="background:#0E223A;">
+        Start Planning →
+      </button>
+    </div>
+  </div>
+
+  <!-- GENERIC FORM PAGE RENDERER -->
+  <template x-for="page in allPages" :key="page.id">
+    <div x-show="currentPage===page.id && isPageVisible(page.id)">
+
+      <!-- Page header -->
+      <div class="section-header px-6 py-4 flex items-center justify-between">
+        <div>
+          <div class="text-lg font-bold text-white" x-text="page.icon+' '+page.title"></div>
+          <div class="text-xs opacity-60 text-white mt-0.5" x-text="page.subtitle||''"></div>
+        </div>
+        <div class="text-xs opacity-50 text-white no-print" x-show="page.id!=='sizing' && page.id!=='prerequisites'">
+          <span x-text="getPageMissingCount(page.id)+' required fields missing'"></span>
+        </div>
+      </div>
+
+      <!-- Sizing page is special -->
+      <template x-if="page.id==='sizing'">
+        <div class="p-6 max-w-5xl">
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-800">
+            ⚠️ This sizing calculator is standalone. Results inform hardware selection but do not feed other form sections automatically.
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Inputs left -->
+            <div class="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
+              <div class="sub-header px-4 py-2 text-sm font-semibold">Host Specifications</div>
+              <div class="p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-gray-700">Host CPU Cores</label>
+                  <input type="number" x-model.number="sizing.hostCores" min="8" max="256" class="w-28 text-right" placeholder="e.g. 36">
+                </div>
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-gray-700">Host RAM (GB)</label>
+                  <input type="number" x-model.number="sizing.hostRAM" min="64" max="6144" class="w-28 text-right" placeholder="e.g. 512">
+                </div>
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-gray-700">CPU Oversubscription</label>
+                  <select x-model.number="sizing.cpuOverSub" class="w-28">
+                    <option value="1">1:1</option>
+                    <option value="1.5">1.5:1</option>
+                    <option value="2">2:1</option>
+                  </select>
+                </div>
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-gray-700">Storage Type</label>
+                  <select x-model="sizing.storageType" class="w-28">
+                    <option>vSAN-ESA</option>
+                    <option>vSAN-OSA</option>
+                  </select>
+                </div>
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-gray-700">Storage Growth %</label>
+                  <input type="number" x-model.number="sizing.growthPct" min="0" max="100" class="w-28 text-right" placeholder="10">
+                </div>
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-gray-700">Ops Reserve %</label>
+                  <input type="number" x-model.number="sizing.opsReservePct" min="0" max="50" class="w-28 text-right" placeholder="30">
+                </div>
+              </div>
+              <div class="sub-header px-4 py-2 text-sm font-semibold">Cluster Model</div>
+              <div class="p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-gray-700">Cluster Model</label>
+                  <select x-model="sizing.clusterModel" class="w-48">
+                    <option>High Availability (Three-Node)</option>
+                    <option>Simple</option>
+                  </select>
+                </div>
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-gray-700">Workload Domains</label>
+                  <input type="number" x-model.number="sizing.wldCount" min="0" max="24" class="w-28 text-right" placeholder="0">
+                </div>
+              </div>
+              <div class="sub-header px-4 py-2 text-sm font-semibold">Component Inclusions</div>
+              <div class="p-4 space-y-3 text-sm">
+                <template x-for="comp in sizingComponents" :key="comp.key">
+                  <div class="flex items-center justify-between">
+                    <label class="font-medium text-gray-700" x-text="comp.label"></label>
+                    <div class="flex items-center gap-2">
+                      <button @click="toggleSizingComp(comp.key)" class="toggle-btn" :class="sizing.components[comp.key]?'toggle-include':'toggle-exclude'" x-text="sizing.components[comp.key]?'Include':'Exclude'"></button>
+                      <select x-show="sizing.components[comp.key] && comp.sizes" x-model="sizing.compSizes[comp.key]" class="w-24 text-xs">
+                        <template x-for="sz in (comp.sizes||[])" :key="sz"><option x-text="sz"></option></template>
+                      </select>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <!-- Results right -->
+            <div class="space-y-4">
+              <div class="calc-result">
+                <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Calculated Results</div>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div class="text-gray-500 text-xs mb-1">Required Hosts</div>
+                    <div class="text-3xl font-bold text-vcf-navy" x-text="calcHosts()"></div>
+                    <div class="text-xs text-gray-500 mt-1">min 4 for HA, 1 for Simple</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500 text-xs mb-1">Total vCPU Required</div>
+                    <div class="text-2xl font-bold text-blue-700" x-text="calcTotalCPU()"></div>
+                    <div class="text-xs text-gray-500 mt-1">incl. ops reserve</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500 text-xs mb-1">Total RAM Required</div>
+                    <div class="text-2xl font-bold text-purple-700" x-text="calcTotalRAM()+' GB'"></div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500 text-xs mb-1">Total Disk Required</div>
+                    <div class="text-2xl font-bold text-orange-700" x-text="calcTotalDisk()+' GB'"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="calc-result" x-show="sizing.hostCores>0 && sizing.hostRAM>0">
+                <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Per-Host Requirements</div>
+                <div class="text-sm space-y-2">
+                  <div class="flex justify-between"><span class="text-gray-600">Disk per host (<span x-text="sizing.storageType"></span>)</span><span class="font-bold" x-text="calcDiskPerHost()+' GB'"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-600">vSAN overhead factor</span><span class="font-bold" x-text="sizing.storageType==='vSAN-ESA'?'1.5×':'2.0×'"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-600">Utilization CPU</span><span class="font-bold" x-text="(sizing.hostCores>0 && calcHostsSafe()>0) ? Math.round(calcTotalCPU()/(parseFloat(sizing.cpuOverSub)||1)/sizing.hostCores/calcHostsSafe()*100)+'%' : '—'"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-600">Utilization RAM</span><span class="font-bold" x-text="(sizing.hostRAM>0 && calcHostsSafe()>0) ? Math.round(calcTotalRAM()/sizing.hostRAM/calcHostsSafe()*100)+'%' : '—'"></span></div>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
+                <div class="sub-header px-4 py-2 text-sm font-semibold">Component Breakdown</div>
+                <table class="w-full text-xs">
+                  <thead><tr class="bg-gray-50 text-gray-500"><th class="text-left px-3 py-1.5">Component</th><th class="text-right px-3 py-1.5">vCPU</th><th class="text-right px-3 py-1.5">RAM (GB)</th><th class="text-right px-3 py-1.5">Disk (GB)</th></tr></thead>
+                  <tbody>
+                    <template x-for="row in sizingBreakdown()" :key="row.name">
+                      <tr class="border-t border-gray-100" :class="row.excluded?'text-gray-300':''">
+                        <td class="px-3 py-1.5" x-text="row.name"></td>
+                        <td class="text-right px-3 py-1.5" x-text="row.excluded?'—':row.vcpu"></td>
+                        <td class="text-right px-3 py-1.5" x-text="row.excluded?'—':row.ram"></td>
+                        <td class="text-right px-3 py-1.5" x-text="row.excluded?'—':row.disk"></td>
+                      </tr>
+                    </template>
+                    <tr class="border-t-2 border-gray-300 font-bold bg-gray-50">
+                      <td class="px-3 py-1.5">TOTAL (incl. reserve)</td>
+                      <td class="text-right px-3 py-1.5" x-text="calcTotalCPU()"></td>
+                      <td class="text-right px-3 py-1.5" x-text="calcTotalRAM()"></td>
+                      <td class="text-right px-3 py-1.5" x-text="calcTotalDisk()"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <!-- CPU bar chart -->
+              <div x-show="calcTotalCPU()>0" class="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
+                <div class="sub-header px-4 py-2 text-sm font-semibold">vCPU Distribution</div>
+                <div class="p-3 space-y-2">
+                  <template x-for="row in sizingBreakdown().filter(r=>!r.excluded&&r.vcpu>0)" :key="'bar-'+row.name">
+                    <div class="flex items-center gap-2 text-xs">
+                      <div class="w-32 text-gray-600 shrink-0 truncate" x-text="row.name"></div>
+                      <div class="flex-1 bg-gray-100 rounded" style="height:14px;">
+                        <div class="size-bar rounded" style="background:#9BC2E6;" :style="'width:'+Math.min(100,Math.round(row.vcpu/calcRawCPU()*100))+'%'"></div>
+                      </div>
+                      <div class="w-10 text-right text-gray-500 shrink-0" x-text="row.vcpu+' vC'"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Prerequisites page is special -->
+      <template x-if="page.id==='prerequisites'">
+        <div class="p-6 max-w-4xl">
+          <div class="bg-white rounded-lg shadow border overflow-hidden">
+            <template x-for="(section, si) in prerequisiteData" :key="si">
+              <div>
+                <div class="sub-header px-4 py-2 text-sm font-semibold" x-text="section.title"></div>
+                <table class="w-full text-sm">
+                  <thead><tr class="bg-gray-50 text-xs text-gray-500 border-b"><th class="text-left px-4 py-2 w-1/4">Component</th><th class="text-left px-4 py-2 w-2/5">Minimum Requirement</th><th class="text-left px-4 py-2">Notes</th></tr></thead>
+                  <tbody>
+                    <template x-for="(row, ri) in section.rows" :key="ri">
+                      <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="px-4 py-2 font-medium text-gray-800" x-text="row.component"></td>
+                        <td class="px-4 py-2 text-gray-600" x-text="row.requirement"></td>
+                        <td class="px-4 py-2 text-gray-500 text-xs" x-text="row.notes"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- Standard form page -->
+      <template x-if="page.id!=='sizing' && page.id!=='prerequisites'">
+        <div class="max-w-full">
+          <!-- Page toolbar -->
+          <div class="page-toolbar no-print" x-show="page.id!=='welcome' && page.id!=='asbuilt'">
+            <button @click="expandAllSections(page.id)" title="Expand all sections">▼▼ Expand all</button>
+            <button @click="collapseAllSections(page.id)" title="Collapse all sections">▲▲ Collapse all</button>
+            <template x-if="getMissingCount(page.id) > 0">
+              <button @click="jumpToFirstMissing(page.id)" style="color:#c05621; border-color:#fbbf24; background:#fffbeb;" title="Jump to first required empty field">
+                ⚑ Jump to missing (<span x-text="getMissingCount(page.id)"></span>)
+              </button>
+            </template>
+          </div>
+          <div class="p-4">
+          <template x-for="section in page.sections" :key="section.title">
+            <div x-show="isSectionVisible(section)" class="mb-4 bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
+              <!-- Section title -->
+              <div class="px-4 py-2.5 flex items-center gap-2 cursor-pointer select-none"
+                   :class="section.amber?'amber-header':'sub-header'"
+                   @click="toggleSection(page.id+':'+section.title)">
+                <span class="text-sm font-semibold flex-1" x-text="section.title"></span>
+                <span x-show="section.amber" class="text-xs font-normal opacity-80">API-only values</span>
+                <!-- Section action buttons (no-print) -->
+                <div class="flex items-center gap-1 no-print" @click.stop>
+                  <template x-if="getSectionHostPrefix(section)">
+                    <button @click="fillHostIps(getSectionHostPrefix(section))" class="text-xs px-2 py-0.5 rounded" style="background:rgba(255,255,255,.2); color:inherit;" title="Auto-fill sequential IP addresses for hosts">⚡ Fill IPs</button>
+                  </template>
+                  <button @click="copySection(section.fields, section.title)" class="text-xs px-2 py-0.5 rounded" style="background:rgba(255,255,255,.2); color:inherit;" title="Copy section values to clipboard">⎘</button>
+                </div>
+                <span class="text-xs opacity-70" x-text="openSections.includes(page.id+':'+section.title)?'▼':'▶'"></span>
+              </div>
+              <div x-show="openSections.includes(page.id+':'+section.title)" x-collapse>
+                <!-- Section description -->
+                <div x-show="section.description" class="px-4 py-2 text-xs text-gray-500 bg-gray-50 border-b" x-text="section.description"></div>
+                <!-- Fields table -->
+                <table class="w-full">
+                  <thead>
+                    <tr class="text-xs bg-gray-50 border-b border-gray-200">
+                      <th class="text-left px-4 py-2 text-gray-600 w-64">Configuration</th>
+                      <th class="text-left px-3 py-2 text-gray-400 w-48 hidden md:table-cell">Sample (Rainpole)</th>
+                      <th class="text-left px-3 py-2 text-gray-600 w-56">Your Value</th>
+                      <th class="text-left px-3 py-2 text-gray-400 hidden lg:table-cell">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="field in section.fields" :key="field.key">
+                      <tr class="field-row"
+                          x-show="isFieldVisible(field)"
+                          :class="isExcluded(field) ? 'excluded' : ''">
+                        <td class="px-4 py-2 text-sm font-medium text-gray-800">
+                          <span x-text="field.label"></span>
+                          <span x-show="field.required" class="text-red-400 ml-1 text-xs">*</span>
+                        </td>
+                        <td class="px-3 py-2 sample-cell hidden md:table-cell" x-text="field.sample||''"></td>
+                        <td class="px-3 py-2">
+                          <!-- Toggle field -->
+                          <template x-if="field.type==='toggle'">
+                            <button @click="cycleToggle(field)" class="toggle-btn"
+                              :class="getToggleClass(field)"
+                              x-text="form[field.key]||(field.options&&field.options[0])||'Include'"></button>
+                          </template>
+                          <!-- Select field -->
+                          <template x-if="field.type==='select'">
+                            <select :id="'field-'+field.key" x-model="form[field.key]" @change="save()" :class="field.required&&!form[field.key]?'missing':''" :aria-label="field.label">
+                              <option value="">— select —</option>
+                              <template x-for="opt in getFieldOptions(field)" :key="opt"><option :value="opt" x-text="opt"></option></template>
+                            </select>
+                          </template>
+                          <!-- Text / IP / CIDR / number -->
+                          <template x-if="field.type==='text'||field.type==='ip'||field.type==='cidr'||field.type==='number'||field.type==='password'">
+                            <input :id="'field-'+field.key"
+                                   :type="field.type==='password'?'password':(field.type==='number'?'number':'text')"
+                                   x-model="form[field.key]"
+                                   @input="save()"
+                                   :placeholder="field.sample||''"
+                                   :aria-label="field.label"
+                                   :class="{
+                                     'missing': field.required && !form[field.key],
+                                     'ip-error': field.type==='ip' && form[field.key] && !isValidIp(form[field.key]),
+                                     'cidr-error': field.type==='cidr' && form[field.key] && !isValidCidr(form[field.key]),
+                                     'fqdn-error': field.type==='text' && field.label && field.label.includes('FQDN') && form[field.key] && !isFqdn(form[field.key])
+                                   }">
+                          </template>
+                          <!-- Textarea -->
+                          <template x-if="field.type==='textarea'">
+                            <textarea x-model="form[field.key]" @input="save()" :placeholder="field.sample||''" rows="2" class="w-full text-xs" style="background:#E5F7FF;border:1px solid #b3d9f0;border-radius:4px;padding:3px 6px;"></textarea>
+                          </template>
+                          <!-- Readonly / calculated -->
+                          <template x-if="field.type==='readonly'||field.type==='calculated'">
+                            <div class="output-cell rounded px-2 py-1 text-xs" x-text="field.calc ? field.calc(form,sizing) : (form[field.key]||field.sample||'—')"></div>
+                          </template>
+                        </td>
+                        <td class="px-3 py-2 text-xs text-gray-400 hidden lg:table-cell" x-text="field.notes||''"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </template>
+          </div><!-- end p-4 -->
+        </div>
+      </template>
+
+    </div>
+  </template>
+
+  <!-- AS-BUILT / RECAP PAGE -->
+  <div x-show="currentPage==='asbuilt'">
+    <div class="section-header px-6 py-4 no-print">
+      <div class="text-lg font-bold text-white">📋 Configuration Summary — As-Built</div>
+      <div class="text-xs opacity-60 text-white mt-0.5">Complete recap of all entered values · Green = filled · Orange = missing required · Gray = using sample default</div>
+    </div>
+
+    <div class="p-6 max-w-6xl">
+
+      <!-- ── COMPLETION DASHBOARD ── -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 no-print">
+        <div class="bg-white rounded-xl p-4 shadow border border-gray-100 text-center asbuilt-card ok">
+          <div class="text-3xl font-bold text-green-600" x-text="completionFilled()"></div>
+          <div class="text-xs text-gray-500 mt-1">Fields filled in</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow border border-gray-100 text-center" :class="completionRequired()>0 ? 'asbuilt-card warning' : 'asbuilt-card ok'">
+          <div class="text-3xl font-bold" :class="completionRequired()>0 ? 'text-orange-500' : 'text-green-600'" x-text="completionRequired()"></div>
+          <div class="text-xs text-gray-500 mt-1">Required missing</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow border border-gray-100 text-center asbuilt-card">
+          <div class="text-3xl font-bold text-vcf-navy" x-text="completionPct()+'%'"></div>
+          <div class="text-xs text-gray-500 mt-1">Completion rate</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow border border-gray-100 text-center asbuilt-card">
+          <div class="text-lg font-bold text-vcf-navy truncate" x-text="form.deploymentType==='VMware vSphere Foundation'?'VVF':'VCF '+('9.1')"></div>
+          <div class="text-xs text-gray-500 mt-1" x-text="form.deploymentMode||'Mode not set'"></div>
+        </div>
+      </div>
+
+      <!-- ── IDENTITY CARD ── -->
+      <div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden mb-6">
+        <div class="section-header px-5 py-3 flex items-center gap-3">
+          <span class="text-lg">🏷️</span>
+          <div>
+            <div class="font-bold text-white text-sm">Deployment Identity</div>
+            <div class="text-xs opacity-60 text-white">Core selectors — drive all conditional sections</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-0 divide-x divide-y divide-gray-100">
+          <template x-for="key in ['vcfVersion','deploymentType','deploymentMode','deploymentInstance','primarySiteName','domainName']" :key="'id-'+key">
+            <div class="px-4 py-3">
+              <div class="text-xs text-gray-400 uppercase tracking-wide mb-1" x-text="{'vcfVersion':'VCF Version','deploymentType':'Product','deploymentMode':'Mode','deploymentInstance':'Instance','primarySiteName':'Site','domainName':'DNS Domain'}[key]||key"></div>
+              <div class="text-sm font-semibold" :class="form[key]?'text-gray-800':'text-gray-400 italic'" x-text="form[key]||'not set'"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- ── PER-PAGE GROUPED TABLES ── -->
+      <template x-for="page in allPages.filter(p=>p.id!=='sizing'&&p.id!=='prerequisites')" :key="'ab-'+page.id">
+        <div x-show="isPageVisible(page.id)" class="mb-4 bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+
+          <!-- Page header with missing badge -->
+          <div class="section-header px-5 py-3 flex items-center justify-between cursor-pointer"
+               @click="toggleSection('ab:'+page.id)">
+            <div class="flex items-center gap-2">
+              <span x-text="page.icon" class="text-base"></span>
+              <span class="font-semibold text-white text-sm" x-text="page.title"></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span x-show="getMissingCount(page.id)>0"
+                    class="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style="background:rgba(249,203,173,.35);color:#F9CBAD;"
+                    x-text="getMissingCount(page.id)+' missing'"></span>
+              <span x-show="getMissingCount(page.id)===0"
+                    class="text-xs px-2 py-0.5 rounded-full font-semibold no-print"
+                    style="background:rgba(34,197,94,.25);color:#86efac;">✓ complete</span>
+              <span class="text-white opacity-50 text-xs no-print"
+                    x-text="openSections.includes('ab:'+page.id)?'▼':'▶'"></span>
+            </div>
+          </div>
+
+          <div x-show="openSections.includes('ab:'+page.id)" x-collapse>
+            <template x-for="section in page.sections" :key="'abs-'+section.title">
+              <div x-show="isSectionVisible(section)">
+
+                <!-- Section sub-header -->
+                <div class="px-5 py-1.5 text-xs font-semibold text-white sub-header border-t border-gray-600"
+                     x-text="section.title"></div>
+
+                <table class="w-full text-xs">
+                  <tbody>
+                    <template x-for="field in section.fields.filter(f=>f.type!=='readonly'&&f.type!=='calculated')" :key="'abf-'+field.key">
+                      <tr x-show="isFieldVisible(field)"
+                          class="border-b border-gray-50 hover:bg-gray-50"
+                          :class="(!form[field.key] && field.required) ? 'bg-orange-50' : (form[field.key] ? '' : '')">
+                        <td class="px-4 py-2 w-56 text-gray-600 font-medium" x-text="field.label"></td>
+                        <td class="px-4 py-2 w-64">
+                          <!-- Filled by user -->
+                          <template x-if="form[field.key]">
+                            <div class="flex items-center gap-2">
+                              <span class="w-2 h-2 rounded-full bg-green-500 shrink-0"></span>
+                              <span class="font-semibold text-gray-800" x-text="field.type==='password'?'••••••••':form[field.key]"></span>
+                            </div>
+                          </template>
+                          <!-- Not filled — use sample -->
+                          <template x-if="!form[field.key] && field.sample">
+                            <div class="flex items-center gap-2">
+                              <span class="w-2 h-2 rounded-full bg-gray-300 shrink-0"></span>
+                              <span class="text-gray-400 italic" x-text="'[sample] '+field.sample"></span>
+                            </div>
+                          </template>
+                          <!-- Not filled — required missing -->
+                          <template x-if="!form[field.key] && !field.sample && field.required">
+                            <div class="flex items-center gap-2">
+                              <span class="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
+                              <span class="missing-badge">Value Missing</span>
+                            </div>
+                          </template>
+                          <!-- Not filled — optional -->
+                          <template x-if="!form[field.key] && !field.sample && !field.required">
+                            <span class="text-gray-300">—</span>
+                          </template>
+                        </td>
+                        <td class="px-4 py-2 text-gray-400 hidden lg:table-cell" x-text="field.notes||''"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- ── SIZING SUMMARY ── -->
+      <div class="mb-4 bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+        <div class="section-header px-5 py-3 flex items-center justify-between cursor-pointer"
+             @click="toggleSection('ab:sizing-summary')">
+          <div class="flex items-center gap-2">
+            <span>📐</span>
+            <span class="font-semibold text-white text-sm">Management Domain Sizing</span>
+          </div>
+          <span class="text-white opacity-50 text-xs no-print" x-text="openSections.includes('ab:sizing-summary')?'▼':'▶'"></span>
+        </div>
+        <div x-show="openSections.includes('ab:sizing-summary')" x-collapse>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-0 divide-x divide-y divide-gray-100 text-sm">
+            <div class="px-4 py-3 text-center">
+              <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Required Hosts</div>
+              <div class="text-2xl font-bold text-vcf-navy" x-text="calcHosts()"></div>
+            </div>
+            <div class="px-4 py-3 text-center">
+              <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Total vCPU</div>
+              <div class="text-2xl font-bold text-blue-700" x-text="calcTotalCPU()"></div>
+            </div>
+            <div class="px-4 py-3 text-center">
+              <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Total RAM</div>
+              <div class="text-2xl font-bold text-purple-700" x-text="calcTotalRAM()+' GB'"></div>
+            </div>
+            <div class="px-4 py-3 text-center">
+              <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Disk / Host</div>
+              <div class="text-2xl font-bold text-orange-700" x-text="calcDiskPerHost()+(calcDiskPerHost()!=='—'?' GB':'')"></div>
+            </div>
+          </div>
+          <div class="border-t border-gray-100 px-4 py-3 text-xs text-gray-500 grid grid-cols-3 gap-4">
+            <div><span class="text-gray-400">Host CPU Cores:</span> <span class="font-medium" x-text="sizing.hostCores||'—'"></span></div>
+            <div><span class="text-gray-400">Host RAM:</span> <span class="font-medium" x-text="sizing.hostRAM?sizing.hostRAM+' GB':'—'"></span></div>
+            <div><span class="text-gray-400">Storage Type:</span> <span class="font-medium" x-text="sizing.storageType"></span></div>
+            <div><span class="text-gray-400">CPU Oversubscription:</span> <span class="font-medium" x-text="sizing.cpuOverSub+'×'"></span></div>
+            <div><span class="text-gray-400">Cluster Model:</span> <span class="font-medium" x-text="sizing.clusterModel"></span></div>
+            <div><span class="text-gray-400">Workload Domains:</span> <span class="font-medium" x-text="sizing.wldCount"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VALIDATION PANELS ── -->
+
+      <!-- VLAN conflicts -->
+      <div x-show="vlanWarnings().length > 0" class="mb-4 no-print">
+        <div class="err-banner">
+          <div class="font-semibold mb-1">⚠️ VLAN Conflicts (<span x-text="vlanWarnings().length"></span>)</div>
+          <ul class="list-disc list-inside space-y-0.5">
+            <template x-for="w in vlanWarnings()" :key="w"><li x-text="w"></li></template>
+          </ul>
+        </div>
+      </div>
+
+      <!-- IP conflicts -->
+      <div x-show="ipConflicts().length > 0" class="mb-4 no-print">
+        <div class="err-banner">
+          <div class="font-semibold mb-1">⚠️ IP Address Conflicts (<span x-text="ipConflicts().length"></span>)</div>
+          <ul class="list-disc list-inside space-y-0.5">
+            <template x-for="c in ipConflicts()" :key="c"><li x-text="c"></li></template>
+          </ul>
+        </div>
+      </div>
+
+      <!-- CIDR overlaps -->
+      <div x-show="cidrOverlaps().length > 0" class="mb-4 no-print">
+        <div class="warn-banner">
+          <div class="font-semibold mb-1">⚠️ CIDR Overlaps (<span x-text="cidrOverlaps().length"></span>)</div>
+          <ul class="list-disc list-inside space-y-0.5">
+            <template x-for="o in cidrOverlaps()" :key="o"><li x-text="o"></li></template>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ── VLAN TOPOLOGY TABLE ── -->
+      <div class="mb-4 bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+        <div class="section-header px-5 py-3 flex items-center justify-between cursor-pointer"
+             @click="toggleSection('ab:vlan-topology')">
+          <div class="flex items-center gap-2">
+            <span>🔌</span>
+            <span class="font-semibold text-white text-sm">VLAN Topology</span>
+          </div>
+          <span class="text-white opacity-50 text-xs no-print" x-text="openSections.includes('ab:vlan-topology')?'▼':'▶'"></span>
+        </div>
+        <div x-show="openSections.includes('ab:vlan-topology')" x-collapse>
+          <table class="w-full text-xs">
+            <thead><tr class="bg-gray-50 text-gray-500 border-b border-gray-100">
+              <th class="text-left px-4 py-2 w-10">#</th>
+              <th class="text-left px-4 py-2">Network</th>
+              <th class="text-left px-4 py-2 w-24">VLAN ID</th>
+              <th class="text-left px-4 py-2 hidden md:table-cell">Page</th>
+            </tr></thead>
+            <tbody>
+              <template x-for="(v,i) in vlanTopology()" :key="'vt-'+v.vlan+v.name">
+                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                  <td class="px-4 py-1.5 text-gray-400" x-text="i+1"></td>
+                  <td class="px-4 py-1.5 font-medium text-gray-800" x-text="v.name"></td>
+                  <td class="px-4 py-1.5">
+                    <span class="inline-block px-2 py-0.5 rounded font-mono font-bold text-xs" style="background:#e0f2fe; color:#0369a1;" x-text="v.vlan"></span>
+                  </td>
+                  <td class="px-4 py-1.5 text-gray-400 hidden md:table-cell" x-text="v.page"></td>
+                </tr>
+              </template>
+              <tr x-show="vlanTopology().length===0">
+                <td colspan="4" class="px-4 py-4 text-center text-gray-400">No VLAN values entered yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── DNS PRE-FLIGHT CHECKLIST ── -->
+      <div class="mb-4 bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+        <div class="section-header px-5 py-3 flex items-center justify-between cursor-pointer"
+             @click="toggleSection('ab:dns-checklist')">
+          <div class="flex items-center gap-2">
+            <span>🌐</span>
+            <span class="font-semibold text-white text-sm">DNS Pre-flight Checklist</span>
+            <span class="text-xs opacity-60 text-white ml-1">— all FQDNs must resolve before deployment</span>
+          </div>
+          <span class="text-white opacity-50 text-xs no-print" x-text="openSections.includes('ab:dns-checklist')?'▼':'▶'"></span>
+        </div>
+        <div x-show="openSections.includes('ab:dns-checklist')" x-collapse>
+          <table class="w-full text-xs">
+            <thead><tr class="bg-gray-50 text-gray-500 border-b border-gray-100">
+              <th class="text-left px-4 py-2 w-8"></th>
+              <th class="text-left px-4 py-2">FQDN Field</th>
+              <th class="text-left px-4 py-2">Value</th>
+              <th class="text-left px-4 py-2 hidden md:table-cell">Source Page</th>
+            </tr></thead>
+            <tbody>
+              <template x-for="c in dnsChecklist()" :key="'dns-'+c.label">
+                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                  <td class="px-4 py-1.5 text-center">
+                    <span x-show="c.ok" class="text-green-500">✓</span>
+                    <span x-show="c.missing" class="text-orange-400">!</span>
+                    <span x-show="!c.ok && !c.missing" class="text-yellow-400">⚠</span>
+                  </td>
+                  <td class="px-4 py-1.5 font-medium text-gray-700" x-text="c.label"></td>
+                  <td class="px-4 py-1.5 font-mono" :class="c.ok?'text-green-700':(c.missing?'text-orange-500':'text-yellow-600')" x-text="c.value||'—'"></td>
+                  <td class="px-4 py-1.5 text-gray-400 hidden md:table-cell" x-text="c.page"></td>
+                </tr>
+              </template>
+              <tr x-show="dnsChecklist().length===0">
+                <td colspan="4" class="px-4 py-4 text-center text-gray-400">No FQDN fields found</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-500 flex gap-4">
+            <span><span class="text-green-500">✓</span> Valid FQDN entered</span>
+            <span><span class="text-yellow-400">⚠</span> Entered but invalid format</span>
+            <span><span class="text-orange-400">!</span> Required — not yet filled</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Print button -->
+      <div class="text-center mt-8 mb-4 no-print">
+        <button @click="window.print()" class="px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#0E223A;">
+          🖨 Print / Export PDF
+        </button>
+        <button @click="exportJSON()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#4F5F69;">
+          ⬇ Export JSON
+        </button>
+        <button @click="exportMarkdown()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#1d4ed8;">
+          📄 Export Markdown
+        </button>
+        <button @click="exportCsv()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#15803d;">
+          📊 Export CSV (IPAM)
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ABOUT PAGE -->
+  <div x-show="currentPage==='about'" class="p-8 max-w-4xl">
+
+    <!-- Header card -->
+    <div class="rounded-xl overflow-hidden shadow-lg mb-6" style="background:#0E223A;">
+      <div class="p-8 text-white">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-4xl font-bold mb-1">VCF 9.1 Planner</div>
+            <div class="text-lg opacity-80 mb-2">Planning & Preparation Workbook — Web Edition</div>
+            <div class="text-sm opacity-80 mb-3">Créé par <span class="font-semibold">Leonardo Coscia</span></div>
+            <div class="flex items-center gap-3 text-sm opacity-60">
+              <span>v1.9.1.001</span>
+              <span>·</span>
+              <span>Released May 4, 2026</span>
+              <span>·</span>
+              <span>Single-file · No server · No build step</span>
+            </div>
+          </div>
+          <div class="text-5xl opacity-30 ml-4">⚙️</div>
+        </div>
+      </div>
+      <div class="px-8 py-3 text-xs flex gap-6" style="background:rgba(0,0,0,.25); color:rgba(255,255,255,.5);">
+        <span>🏗 Alpine.js 3.14.1</span>
+        <span>🎨 Tailwind CSS CDN</span>
+        <span>💾 localStorage persistence</span>
+        <span>📄 Zero dependencies</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+      <!-- What is this -->
+      <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
+        <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📖</span> What is this?</div>
+        <p class="text-sm text-gray-600 leading-relaxed mb-3">
+          A faithful browser-only conversion of Broadcom's official <strong>VMware Cloud Foundation 9.1 Planning &amp; Preparation Workbook</strong> (27-sheet Excel file). It replaces the spreadsheet with an interactive web form that runs entirely in your browser.
+        </p>
+        <p class="text-sm text-gray-600 leading-relaxed">
+          All conditional logic, sizing formulas, and sample values from the original workbook are preserved. Your data is stored locally in <code class="bg-gray-100 px-1 rounded text-xs">localStorage</code> — nothing is sent to any server.
+        </p>
+      </div>
+
+      <!-- Features -->
+      <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
+        <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>✨</span> Key Features</div>
+        <ul class="text-sm text-gray-600 space-y-2">
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> 27 sheets · 19 pages · 600+ configuration fields</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> VCF vs VVF cascading conditional logic</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Live sizing calculator with host count formulas</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Auto-save · Export JSON · Import JSON</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Export Markdown As-Built · CSV IPAM table</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Share via URL hash · Print to PDF</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> VLAN / IP / CIDR conflict detection</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> DNS pre-flight checklist · VLAN topology table</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Dark mode · Keyboard navigation (Alt+→/←)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+
+      <!-- Scope -->
+      <div class="bg-white rounded-xl p-5 shadow border border-gray-100 md:col-span-2">
+        <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>🗂️</span> Coverage</div>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-gray-600">
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">01</span> VCF &amp; VVF Planning</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">02</span> Prerequisite Checklist</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">03</span> Management Domain Sizing</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">04</span> Deploy Management Domain</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">05</span> Configure Management Domain</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">06</span> Fleet Management Day-N</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">07</span> Active Directory Inputs</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">08</span> Deploy Workload Domain</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">09</span> Configure Workload Domain</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">10</span> Deploy Additional Cluster</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">11</span> Additional Racks (Multi-Rack L3)</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">12</span> Site Protection &amp; DR</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">13</span> Cyber Recovery</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">14</span> Ransomware (On-Premises)</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">15</span> Ransomware (Cloud-Based)</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">16</span> Cross Cloud Mobility (HCX)</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">17</span> Private AI Ready Infrastructure</div>
+          <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">18</span> As-Built / Configuration Summary</div>
+        </div>
+      </div>
+
+      <!-- Stack & Keyboard -->
+      <div class="space-y-4">
+        <div class="bg-white rounded-xl p-5 shadow border border-gray-100">
+          <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>⌨️</span> Keyboard Shortcuts</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-gray-600">Next page</span>
+              <kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono border border-gray-300">Alt →</kbd>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-600">Previous page</span>
+              <kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono border border-gray-300">Alt ←</kbd>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-600">Skip nav</span>
+              <kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono border border-gray-300">Tab</kbd>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow border border-gray-100">
+          <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>🎨</span> Color Code</div>
+          <div class="space-y-2 text-xs text-gray-600">
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#E5F7FF; border:1px solid #b3d9f0;"></span> User input field</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#F2F8F9; border:1px solid #d1e8ec;"></span> Sample value (Rainpole)</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#EFFDE3; border:1px solid #86c44a;"></span> Calculated / read-only</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#F9CBAD; border:1px solid #e07d4a;"></span> Required — missing</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#FFBD29; border:1px solid #d49a00;"></span> API-only / optional section</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Usage & disclaimer -->
+    <div class="bg-white rounded-xl p-6 shadow border border-gray-100 mb-4">
+      <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📌</span> Usage Notes</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+        <div>
+          <p class="font-semibold text-gray-700 mb-1">Saving your work</p>
+          <p class="leading-relaxed">The form auto-saves to <code class="bg-gray-100 px-1 rounded text-xs">localStorage</code> on every change. Use <strong>Export JSON</strong> to create a portable backup file, and <strong>Import JSON</strong> to restore it on another browser or device.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-700 mb-1">Sharing</p>
+          <p class="leading-relaxed">Click <strong>🔗 Share</strong> in the toolbar to encode the current state in the URL hash. Send the URL to a colleague — opening it in a browser will automatically restore all values.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-700 mb-1">As-Built export</p>
+          <p class="leading-relaxed">Use <strong>📄 MD</strong> for a Markdown document suitable for Confluence/Notion, <strong>📊 CSV</strong> for IPAM spreadsheets, and <strong>🖨 Print</strong> for a print-ready PDF.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-700 mb-1">Disclaimer</p>
+          <p class="leading-relaxed">This tool is a community conversion of the official Broadcom workbook. Always cross-check values against the official <a href="https://docs.vmware.com/en/VMware-Cloud-Foundation/" class="text-blue-600 underline" target="_blank">VCF 9.1 documentation</a> before deployment.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Version history -->
+    <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
+      <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📅</span> Version History</div>
+      <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.9.1.001<br><span class="text-gray-300">2026-05-04</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Initial release</p>
+            <p>Full conversion of the 27-sheet VCF 9.1 Excel workbook. All deployment modes (VCF/VVF), sizing calculator, NSX Federation, AVI LB, vSphere Supervisor, Private AI, Ransomware Recovery, HCX.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.9.1.001+<br><span class="text-gray-300">2026-06-06</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Evolution update</p>
+            <p>Dark mode, keyboard navigation, share URL, expand/collapse all, jump to missing, Fill IPs, copy section, Markdown &amp; CSV export, VLAN/IP/CIDR conflict detection, DNS pre-flight checklist, VLAN topology table, vCPU bar chart, FQDN validation, sidebar progress bars.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+// ============================================================
+// LOOKUP TABLES (from Static Reference Tables sheet)
+// ============================================================
+const LT = {
+  vcenter: {
+    'Tiny':       { vcpu:2,  ram:14,  disk:604  },
+    'Small':      { vcpu:4,  ram:21,  disk:694  },
+    'Medium':     { vcpu:8,  ram:30,  disk:858  },
+    'Large':      { vcpu:16, ram:39,  disk:1158 },
+    'Extra-Large':{ vcpu:24, ram:58,  disk:1783 },
+  },
+  sddc_manager: { vcpu:4, ram:8, disk:914 },
+  nsx_manager: {
+    'Extra-Small': { vcpu:2,  ram:8,  disk:300 },
+    'Small':       { vcpu:4,  ram:16, disk:300 },
+    'Medium':      { vcpu:6,  ram:24, disk:300 },
+    'Large':       { vcpu:12, ram:48, disk:300 },
+    'Extra-Large': { vcpu:16, ram:64, disk:300 },
+  },
+  nsx_edge: {
+    'Extra Small': { vcpu:2,  ram:4,  disk:120 },
+    'Small':       { vcpu:4,  ram:8,  disk:120 },
+    'Medium':      { vcpu:8,  ram:32, disk:120 },
+    'Large':       { vcpu:16, ram:64, disk:120 },
+    'Extra Large': { vcpu:32, ram:128,disk:120 },
+  },
+  vcf_operations: {
+    'Extra-Small': { vcpu:2,  ram:16, disk:500  },
+    'Small':       { vcpu:8,  ram:32, disk:1000 },
+    'Medium':      { vcpu:8,  ram:48, disk:2000 },
+    'Large':       { vcpu:16, ram:96, disk:2000 },
+    'Extra-Large': { vcpu:24, ram:192,disk:3000 },
+  },
+  vcf_automation: { vcpu:8, ram:32, disk:500 },
+  vcf_logs: {
+    'Small':  { vcpu:4,  ram:16, disk:500  },
+    'Medium': { vcpu:8,  ram:32, disk:1000 },
+  },
+  avi_lb: {
+    'Small':      { vcpu:6,  ram:32, disk:512 },
+    'Large':      { vcpu:10, ram:64, disk:512 },
+    'Extra-Large':{ vcpu:16, ram:128,disk:512 },
+  },
+  vcfa: {
+    'Small':  { vcpu:4,  ram:16, disk:120 },
+    'Medium': { vcpu:8,  ram:32, disk:120 },
+  },
+  ssp: {
+    'Small':  { vcpu:4,  ram:16, disk:260 },
+    'Medium': { vcpu:8,  ram:32, disk:260 },
+    'Large':  { vcpu:16, ram:64, disk:260 },
+  },
+}
+
+// ============================================================
+// PREREQUISITE DATA (from Prerequisite Checklist sheet)
+// ============================================================
+const PREREQ_DATA = [
+  {
+    title: 'Server Hardware',
+    rows: [
+      { component:'CPU', requirement:'Minimum 2 sockets, 8+ cores/socket', notes:'Check VMware Compatibility Guide (HCL)' },
+      { component:'RAM', requirement:'Minimum 512 GB per host recommended', notes:'4 hosts minimum for HA cluster' },
+      { component:'Boot Storage', requirement:'2× M.2 or SSD (≥64 GB each) in RAID-1', notes:'Or single USB/SD — check VCF HCL' },
+      { component:'vSAN-ESA Storage', requirement:'≥4 NVMe drives per host (≥1.6 TB each)', notes:'All drives must be HCL-approved' },
+      { component:'vSAN-OSA Storage', requirement:'≥1 cache drive + ≥3 capacity drives per host', notes:'Check vSAN HCL for supported drives' },
+      { component:'NIC', requirement:'2× 25 GbE minimum (10 GbE for lab)', notes:'RDMA (RoCE/iWARP) recommended for vSAN-ESA' },
+    ]
+  },
+  {
+    title: 'Network Infrastructure',
+    rows: [
+      { component:'Switching', requirement:'Physical switches with VLAN trunking', notes:'LACP / MLAG optional but recommended' },
+      { component:'MTU', requirement:'9000 bytes (jumbo frames) for vSAN/overlay networks', notes:'End-to-end jumbo frames required' },
+      { component:'Routing', requirement:'BGP or static routing for NSX overlay', notes:'L3 connectivity for multi-rack deployments' },
+      { component:'DNS', requirement:'Forward + Reverse DNS entries for all components', notes:'DNS must resolve before deployment' },
+      { component:'NTP', requirement:'NTP server reachable from all hosts', notes:'Time sync critical for certificates/auth' },
+    ]
+  },
+  {
+    title: 'Software & Licensing',
+    rows: [
+      { component:'VCF License', requirement:'VCF 9.1 perpetual or subscription license', notes:'Include activation code for SDDC Manager' },
+      { component:'ESXi', requirement:'VMware ESXi 9.0 (bundled with VCF 9.1)', notes:'Downloaded via depot or offline bundle' },
+      { component:'Depot Access', requirement:'Online: internet access from SDDC Manager host', notes:'Offline: local depot server required' },
+      { component:'Active Directory', requirement:'AD/LDAP server reachable from management network', notes:'Required for identity provider integration' },
+    ]
+  },
+  {
+    title: 'Certificates & Security',
+    rows: [
+      { component:'CA', requirement:'Microsoft CA or OpenSSL CA (or VMware-generated self-signed)', notes:'Certificate SANs must match FQDNs' },
+      { component:'Passwords', requirement:'Meet complexity: 8+ chars, upper/lower/digit/special', notes:'All appliance passwords stored in SDDC Manager' },
+    ]
+  },
+  {
+    title: 'Optional Infrastructure Services',
+    rows: [
+      { component:'vSAN Witness Appliance', requirement:'Required for vSAN stretched cluster or 2-node HA', notes:'Deploy on separate fault domain; OVA from Broadcom depot' },
+      { component:'DHCP Server', requirement:'Optional — for NSX overlay segment auto-addressing', notes:'Scope must cover overlay T1 segment ranges' },
+      { component:'SMTP Relay', requirement:'Optional — for SDDC Manager and VCF Operations alert email', notes:'Port 25 or 587 reachable from management network' },
+      { component:'SFTP Server', requirement:'Optional — for SDDC Manager backup configuration', notes:'Credential and path configured post-deployment in SDDC Manager' },
+    ]
+  },
+]
+
+// ============================================================
+// FORM SCHEMA — all pages and their fields
+// ============================================================
+
+function makeNetFields(prefix, label, defVlan, defGw, defCidr, defMtu, hasPool) {
+  const f = [
+    { key:`${prefix}Vlan`,    label:`${label} VLAN ID`,      type:'number', sample:`${defVlan}`, notes:'VLAN ID for this network segment', required:true },
+    { key:`${prefix}Gateway`, label:`${label} Gateway`,      type:'ip',     sample:defGw,  notes:'Default gateway IP', required:true },
+    { key:`${prefix}Cidr`,    label:`${label} Subnet CIDR`,  type:'cidr',   sample:defCidr, notes:'Network CIDR notation (e.g. 10.0.0.0/24)', required:true },
+    { key:`${prefix}Mtu`,     label:`${label} MTU`,          type:'number', sample:`${defMtu}`, notes:'MTU bytes' },
+  ]
+  if (hasPool) {
+    f.push({ key:`${prefix}IpStart`, label:`${label} IP Range Start`, type:'ip', sample:'', notes:'First IP in the static pool' })
+    f.push({ key:`${prefix}IpEnd`,   label:`${label} IP Range End`,   type:'ip', sample:'', notes:'Last IP in the static pool' })
+  }
+  return f
+}
+
+function makeHostFields(n, prefix, ipBase, vlanBase) {
+  const fields = []
+  for (let i=1; i<=n; i++) {
+    const pad = i<10?`0${i}`:i
+    fields.push(
+      { key:`${prefix}Host${i}Fqdn`, label:`Host ${i} FQDN`, type:'text', sample:`sfo-${prefix.replace('_','-')}-esxi${pad}.sfo.rainpole.io`, required: i<=4 },
+      { key:`${prefix}Host${i}Ip`,   label:`Host ${i} IP`,   type:'ip',   sample:`${ipBase}.${10+i}`, required: i<=4 },
+    )
+  }
+  return fields
+}
+
+function makeRackFields(rackNum) {
+  const r = rackNum
+  const vBase = 1300+r*10
+  return {
+    title: `Rack ${r+1} Network Configuration`,
+    showWhen: f => (f.clusterType||'') === 'Multi-Rack L3',
+    fields: [
+      ...makeNetFields(`rack${r}EsxMgmt`, `Rack ${r+1} ESX Mgmt`, vBase+2, `10.13.${r}2.1`, `10.13.${r}2.0/24`, 1500, true),
+      ...makeNetFields(`rack${r}VMotion`, `Rack ${r+1} vMotion`,  vBase+3, `10.13.${r}3.1`, `10.13.${r}3.0/24`, 9000, true),
+      ...makeNetFields(`rack${r}VSan`,    `Rack ${r+1} vSAN`,     vBase+4, `10.13.${r}4.1`, `10.13.${r}4.0/24`, 9000, true),
+      ...makeNetFields(`rack${r}Overlay`, `Rack ${r+1} Overlay`,  vBase+5, `10.13.${r}5.1`, `10.13.${r}5.0/24`, 9000, false),
+    ]
+  }
+}
+
+const ALL_PAGES = [
+  // ─── PLANNING ───
+  {
+    id:'planning', title:'VCF & VVF Planning', icon:'🗂️', group:'planning',
+    subtitle:'Master configuration — drives all downstream sections',
+    sections:[
+      {
+        title:'Deployment Selections',
+        description:'These selections cascade to control which sections are visible throughout the workbook.',
+        fields:[
+          { key:'vcfVersion',      label:'VCF Version',         type:'select', options:['9.1.0.0'], sample:'9.1.0.0', required:true, notes:'VCF release version' },
+          { key:'deploymentType',  label:'Product Type',        type:'select',
+            options:['VMware Cloud Foundation','VMware vSphere Foundation'],
+            sample:'VMware Cloud Foundation', required:true,
+            notes:'VCF includes NSX, vSAN, Workload Domains. VVF is vSphere + vSAN only.' },
+          { key:'deploymentMode',  label:'Deployment Mode',     type:'select',
+            optionsFn: f => f.deploymentType==='VMware vSphere Foundation'
+              ? ['New VVF Fleet','Additional vSphere Cluster']
+              : ['New VCF Fleet','Additional VCF Instance','Workload Domain','Additional Cluster','Deferred Workload Domain'],
+            sample:'New VCF Fleet', required:true,
+            notes:'Select the type of deployment operation' },
+          { key:'deploymentOperation', label:'Deployment Operation', type:'select',
+            optionsFn: f => {
+              if (f.deploymentMode==='New VCF Fleet')           return ['Deploy a new VCF fleet','Import existing environment']
+              if (f.deploymentMode==='Additional VCF Instance') return ['Deploy additional VCF instance']
+              if (f.deploymentMode==='Workload Domain')         return ['Deploy new workload domain','Deferred workload domain']
+              if (f.deploymentMode==='Additional Cluster')      return ['Deploy additional cluster']
+              if (f.deploymentMode==='New VVF Fleet')           return ['Deploy a new VVF fleet']
+              if (f.deploymentMode==='Additional vSphere Cluster') return ['Deploy additional vSphere cluster']
+              return ['Deploy a new VCF fleet']
+            },
+            sample:'Deploy a new VCF fleet', required:true,
+            showWhen: f => !!f.deploymentMode,
+            notes:'Specific deployment operation within the selected mode' },
+          { key:'deploymentInstance', label:'Instance Name (prefix)', type:'text', sample:'m01', required:true, notes:'e.g. m01 for first instance' },
+          { key:'primarySiteName', label:'Primary Site Name',   type:'text', sample:'sfo', required:true, notes:'Short site identifier, used in all FQDNs' },
+          { key:'deploymentScale', label:'Deployment Scale', type:'select',
+            optionsFn: f => {
+              if (f.deploymentMode==='New VCF Fleet') return ['Standard (4+ hosts)','Consolidated (3 hosts — lab only)']
+              if (f.deploymentMode==='New VVF Fleet') return ['Standard','Minimal (3 hosts)']
+              return ['Standard']
+            },
+            sample:'Standard (4+ hosts)', showWhen:f=>!!f.deploymentMode, notes:'Determines minimum host count and component footprint' },
+          { key:'deploymentRegion', label:'Region / Site Code', type:'text', sample:'sfo',
+            showWhen:f=>!!f.deploymentScale, notes:'2-4 character region code used in all generated FQDNs (e.g. sfo, lax, fra)' },
+        ]
+      },
+      {
+        title:'Deployment Summary',
+        fields:[
+          { key:'_depTypeResult', label:'Product Type Selected', type:'readonly', calc:(f)=>f.deploymentType||'Not selected' },
+          { key:'_depModeResult', label:'Mode Selected',         type:'readonly', calc:(f)=>f.deploymentMode||'Not selected' },
+          { key:'_wldVisible',    label:'Workload Domain Steps', type:'readonly',
+            calc:(f)=>f.deploymentType==='VMware Cloud Foundation'?'Included':'Excluded (VVF does not support WLDs)' },
+          { key:'_nsxVisible',    label:'NSX Steps',             type:'readonly',
+            calc:(f)=>f.deploymentType==='VMware Cloud Foundation'?'Included':'Excluded (VVF does not include NSX)' },
+          { key:'_drVisible',     label:'DR / Recovery Steps',   type:'readonly',
+            calc:(f)=>f.deploymentType==='VMware Cloud Foundation'?'Included':'Excluded' },
+        ]
+      }
+    ]
+  },
+
+  // ─── PREREQUISITES ───
+  { id:'prerequisites', title:'Prerequisite Checklist', icon:'✅', group:'planning',
+    subtitle:'Hardware, network, and software requirements', sections:[] },
+
+  // ─── SIZING ───
+  { id:'sizing', title:'Management Domain Sizing', icon:'📐', group:'sizing',
+    subtitle:'Standalone calculator — compute minimum host count and disk requirements', sections:[] },
+
+  // ─── DEPLOY MANAGEMENT DOMAIN ───
+  {
+    id:'deploy-mgmt', title:'Deploy Management Domain', icon:'🏗️', group:'mgmt',
+    subtitle:'Step-by-step deployment configuration for the management domain',
+    sections:[
+      {
+        title:'Download Binaries',
+        fields:[
+          { key:'depotType',        label:'Depot Type',              type:'select', options:['Online','Offline'], sample:'Online', required:true, notes:'Online requires internet access from SDDC Manager. Offline requires a local depot server.' },
+          { key:'offlineDepotHost', label:'Offline Depot Hostname',  type:'text',   sample:'depot.rainpole.io', showWhen:f=>f.depotType==='Offline', notes:'FQDN or IP of the local depot server' },
+          { key:'offlineDepotPort', label:'Offline Depot Port',      type:'number', sample:'443', showWhen:f=>f.depotType==='Offline' },
+          { key:'downloadSvcId',    label:'Download Service ID',     type:'text',   sample:'', notes:'Service account ID for depot access' },
+          { key:'activationCode',   label:'VCF Activation Code',     type:'text',   sample:'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX', required:true, notes:'Required to activate SDDC Manager license' },
+        ]
+      },
+      {
+        title:'Proxy Settings (Optional)',
+        fields:[
+          { key:'proxyEnabled',  label:'Use Proxy',          type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'proxyProtocol', label:'Proxy Protocol',     type:'select', options:['HTTP','HTTPS','SOCKS5'], sample:'HTTP', showWhen:f=>f.proxyEnabled==='Include' },
+          { key:'proxyHost',     label:'Proxy Hostname/IP',  type:'text',   sample:'proxy.rainpole.io', showWhen:f=>f.proxyEnabled==='Include' },
+          { key:'proxyPort',    label:'Proxy Port',         type:'number', sample:'3128', showWhen:f=>f.proxyEnabled==='Include' },
+          { key:'proxyUser',    label:'Proxy Username',     type:'text',   sample:'', showWhen:f=>f.proxyEnabled==='Include' },
+          { key:'proxyPass',    label:'Proxy Password',     type:'password', sample:'', showWhen:f=>f.proxyEnabled==='Include' },
+        ]
+      },
+      {
+        title:'Cluster & Scale Options',
+        fields:[
+          { key:'mgmtClusterType', label:'Management Cluster Type', type:'select', options:['High Availability (Three-Node)','Simple'], sample:'High Availability (Three-Node)', required:true, notes:'HA requires minimum 4 hosts. Simple requires 1 host.' },
+          { key:'evcMode',         label:'EVC Mode',                type:'select',
+            options:['Disabled','Intel Cascadelake','Intel Skylake','Intel Broadwell','Intel Haswell','Intel Ivy Bridge','Intel Sandy Bridge','AMD EPYC Rome','AMD EPYC Milan','AMD EPYC Genoa'],
+            sample:'Disabled', notes:'Enhanced vMotion Compatibility mode — set to lowest common CPU microarch in cluster' },
+          { key:'nsxDeployType',   label:'NSX Manager Deployment',  type:'select',
+            options:['Create new NSX Manager Instance','Join existing NSX Manager Instance'],
+            sample:'Create new NSX Manager Instance', required:true,
+            showWhen:f=>f.deploymentType==='VMware Cloud Foundation' },
+          { key:'nsxMgrCount',     label:'NSX Manager Cluster',     type:'select',
+            options:['Single NSX Manager Appliance','NSX Management Cluster (3 nodes)'],
+            sample:'NSX Management Cluster (3 nodes)',
+            showWhen:f=>f.deploymentType==='VMware Cloud Foundation' },
+        ]
+      },
+      {
+        title:'Network Options',
+        fields:[
+          { key:'ipScheme',     label:'IP Addressing Scheme', type:'select', options:['IPv4 Only','IPv6 Only','IPv4 & IPv6'], sample:'IPv4 Only', required:true },
+          { key:'nicsPerHost',   label:'NICs per Host',        type:'select', options:['2','4'], sample:'2', required:true, notes:'2-NIC: one VDS with all traffic. 4-NIC: dedicated VDS per workload.' },
+          { key:'transitGwType', label:'Transit Gateway Type', type:'select', options:['Distributed Connectivity','Centralized Connectivity'], sample:'Distributed Connectivity' },
+        ]
+      },
+      {
+        title:'Storage Options',
+        fields:[
+          { key:'principalStorage', label:'Principal Storage Type', type:'select',
+            options:['vSAN-ESA','vSAN-OSA','VMFS on Fibre Channel (FC)','NFSv3'],
+            sample:'vSAN-ESA', required:true },
+          { key:'vsanFtt',        label:'vSAN FTT (Failure Tolerance)', type:'select', options:['1','2'], sample:'1',
+            showWhen:f=>f.principalStorage&&f.principalStorage.startsWith('vSAN') },
+          { key:'vsanEncryptDit', label:'Data-in-Transit Encryption',   type:'select', options:['Selected','Unselected'], sample:'Unselected',
+            showWhen:f=>f.principalStorage&&f.principalStorage.startsWith('vSAN') },
+          { key:'vsanDedup',      label:'Dedup & Compression',          type:'select', options:['Selected','Unselected'], sample:'Unselected',
+            showWhen:f=>f.principalStorage==='vSAN-OSA', notes:'Not available on vSAN-ESA' },
+          { key:'nfsServer',      label:'NFS Server IP/FQDN',           type:'text',  sample:'nfs.sfo.rainpole.io',
+            showWhen:f=>f.principalStorage==='NFSv3', required:true },
+          { key:'nfsPath',        label:'NFS Mount Path',               type:'text',  sample:'/vcf/mgmt01',
+            showWhen:f=>f.principalStorage==='NFSv3' },
+          { key:'nfsVmknicBinding', label:'NFS vmknic Binding',         type:'select', options:['Enabled','Disabled'], sample:'Disabled',
+            showWhen:f=>f.principalStorage==='NFSv3', notes:'NFS TCP port binding on vmknic' },
+          { key:'fcDatastore',    label:'FC Datastore Name',            type:'text',  sample:'sfo-m01-cl01-ds-fc01',
+            showWhen:f=>f.principalStorage&&f.principalStorage.includes('FC') },
+        ]
+      },
+      {
+        title:'Networks — NFS',
+        showWhen: f => f.principalStorage==='NFSv3',
+        fields:[
+          ...makeNetFields('nfs', 'NFS', 1115, '10.11.15.1', '10.11.15.0/24', 9000, true),
+        ]
+      },
+      {
+        title:'General Information',
+        fields:[
+          { key:'domainName',      label:'DNS Domain Name',          type:'text', sample:'rainpole.io', required:true, notes:'Root DNS domain for the environment' },
+          { key:'subDomainName',   label:'Child Domain Name',        type:'text', sample:'sfo.rainpole.io', required:true, notes:'Site-specific subdomain' },
+          { key:'vcfSddcFqdn',     label:'SDDC Manager FQDN',        type:'text', sample:'sfo-m01-sddc01.sfo.rainpole.io', required:true },
+          { key:'vcfSddcIp',       label:'SDDC Manager IP',          type:'ip',   sample:'10.11.10.4', required:true },
+          { key:'ntpServer1',      label:'NTP Server 1',             type:'text', sample:'ntp.sfo.rainpole.io', required:true },
+          { key:'ntpServer2',      label:'NTP Server 2 (optional)',  type:'text', sample:'' },
+          { key:'dnsServer1',      label:'DNS Server 1',             type:'ip',   sample:'10.11.0.2', required:true },
+          { key:'dnsServer2',      label:'DNS Server 2 (optional)',  type:'ip',   sample:'10.11.0.3' },
+        ]
+      },
+      {
+        title:'Hosts (Management Cluster)',
+        description:'Minimum 4 hosts for High Availability cluster. Enter FQDN and management IP for each ESXi host.',
+        fields: makeHostFields(16,'m01','10.11.10','1110'),
+      },
+      {
+        title:'Networks — Management',
+        fields:[
+          ...makeNetFields('esxMgmt',   'ESX Management',    1110, '10.11.10.1', '10.11.10.0/24', 1500, true),
+          ...makeNetFields('vmMgmt',    'VM Management',     1111, '10.11.11.1', '10.11.11.0/24', 1500, true),
+          ...makeNetFields('vcfMgmt',   'VCF Management',    1112, '10.11.12.1', '10.11.12.0/24', 1500, true),
+        ]
+      },
+      {
+        title:'Networks — vMotion, vSAN & Overlay',
+        fields:[
+          ...makeNetFields('vmotion',   'vMotion',   1113, '10.11.13.1', '10.11.13.0/24', 9000, true),
+          ...makeNetFields('vsan1',     'vSAN',      1114, '10.11.14.1', '10.11.14.0/24', 9000, true),
+          ...makeNetFields('overlay',   'Overlay (TEP)', 1116, '10.11.16.1', '10.11.16.0/24', 9000, true),
+        ]
+      },
+      {
+        title:'vCenter Server',
+        fields:[
+          { key:'vcMgmtFqdn',    label:'vCenter FQDN',              type:'text', sample:'sfo-m01-vc01.sfo.rainpole.io', required:true },
+          { key:'vcMgmtIp',      label:'vCenter IP',                type:'ip',   sample:'10.11.10.3', required:true },
+          { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', options:['Tiny','Small','Medium','Large','Extra-Large'], sample:'Small', required:true },
+          { key:'vcSsoDomain',   label:'SSO Domain',                type:'text', sample:'vsphere.local', required:true },
+          { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'', required:true, notes:'min 8 chars, complexity required' },
+          { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'', required:true },
+          { key:'vcDatacenter',  label:'Datacenter Name',           type:'text', sample:'sfo-m01-dc01', required:true },
+          { key:'vcCluster',     label:'Cluster Name',              type:'text', sample:'sfo-m01-cl01', required:true },
+          { key:'vcDatastore',   label:'vSAN Datastore Name',       type:'text', sample:'sfo-m01-cl01-ds-vsan01', required:true },
+        ]
+      },
+      {
+        title:'SDDC Manager',
+        fields:[
+          { key:'sddcHostname',  label:'SDDC Manager Hostname',    type:'text', sample:'sfo-m01-sddc01', required:true },
+          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'', required:true },
+          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'', required:true },
+          { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'', required:true, notes:'All management cluster hosts must share the same root password' },
+          { key:'sddcLocation',  label:'SDDC Manager Location', type:'select', options:['Deployed on one of the management domain hosts','External deployment'], sample:'Deployed on one of the management domain hosts' },
+        ]
+      },
+      {
+        title:'NSX Manager Cluster',
+        description:'NSX Manager is deployed as a 3-node cluster (or single node for lab).',
+        showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+        fields:[
+          { key:'nsxMgr1Fqdn',   label:'NSX Manager 1 FQDN',      type:'text', sample:'sfo-m01-nsx01a.sfo.rainpole.io', required:true },
+          { key:'nsxMgr1Ip',     label:'NSX Manager 1 IP',         type:'ip',   sample:'10.11.10.71', required:true },
+          { key:'nsxMgr2Fqdn',   label:'NSX Manager 2 FQDN',      type:'text', sample:'sfo-m01-nsx01b.sfo.rainpole.io' },
+          { key:'nsxMgr2Ip',     label:'NSX Manager 2 IP',         type:'ip',   sample:'10.11.10.72' },
+          { key:'nsxMgr3Fqdn',   label:'NSX Manager 3 FQDN',      type:'text', sample:'sfo-m01-nsx01c.sfo.rainpole.io' },
+          { key:'nsxMgr3Ip',     label:'NSX Manager 3 IP',         type:'ip',   sample:'10.11.10.73' },
+          { key:'nsxVipFqdn',    label:'NSX Cluster VIP FQDN',     type:'text', sample:'sfo-m01-nsx01.sfo.rainpole.io', required:true },
+          { key:'nsxVipIp',      label:'NSX Cluster VIP IP',       type:'ip',   sample:'10.11.10.74', required:true },
+          { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'', required:true },
+          { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'' },
+          { key:'nsxMgrSize',    label:'NSX Manager Appliance Size', type:'select', options:['Extra-Small','Small','Medium','Large','Extra-Large'], sample:'Small', required:true },
+        ]
+      },
+      {
+        title:'NSX Edge Nodes (Optional)',
+        showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+        fields:[
+          { key:'nsxEdgeInclude', label:'Deploy NSX Edge Nodes',    type:'toggle', options:['Include','Exclude'], sample:'Include' },
+          { key:'nsxEdge1Fqdn',   label:'NSX Edge 1 FQDN',         type:'text', sample:'sfo-m01-nsx01-edge01.sfo.rainpole.io', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdge1Ip',     label:'NSX Edge 1 Mgmt IP',      type:'ip',   sample:'10.11.10.81', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdge2Fqdn',   label:'NSX Edge 2 FQDN',         type:'text', sample:'sfo-m01-nsx01-edge02.sfo.rainpole.io', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdge2Ip',     label:'NSX Edge 2 Mgmt IP',      type:'ip',   sample:'10.11.10.82', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgeSize',      label:'NSX Edge Appliance Size',  type:'select', options:['Extra Small','Small','Medium','Large','Extra Large'], sample:'Large', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edgeHaMode',     label:'Edge HA Mode',             type:'select', options:['Active-Active','Active-Standby'], sample:'Active-Active', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edgeTepVlan',    label:'TEP VLAN ID',              type:'number', sample:'1116', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edgeTepIpStart', label:'TEP IP Pool Start',        type:'ip',     sample:'10.11.16.100', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edgeTepIpEnd',   label:'TEP IP Pool End',          type:'ip',     sample:'10.11.16.200', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edge1UplinkVlan1', label:'Edge 1 Uplink VLAN 1',  type:'number', sample:'2711', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edge1UplinkVlan2', label:'Edge 1 Uplink VLAN 2',  type:'number', sample:'2712', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edge2UplinkVlan1', label:'Edge 2 Uplink VLAN 1',  type:'number', sample:'2711', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edge2UplinkVlan2', label:'Edge 2 Uplink VLAN 2',  type:'number', sample:'2712', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgeUplink1Vlan', label:'Edge Uplink 1 VLAN',  type:'number', sample:'2711', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgeUplink2Vlan', label:'Edge Uplink 2 VLAN',  type:'number', sample:'2712', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgeBgpAsn',  label:'Edge BGP ASN',            type:'number', sample:'65101', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgePw',      label:'Edge Root Password',      type:'password', sample:'', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+        ]
+      },
+      {
+        title:'Distributed Switch Profile',
+        fields:[
+          { key:'dvsProfile',     label:'DVS Profile',              type:'select',
+            optionsFn: f => f.deploymentType==='VMware Cloud Foundation'
+              ? ['Default','Storage Traffic Separation','NSX Traffic Separation','Storage Traffic and NSX Traffic Separation','Custom Switch Configuration']
+              : ['Default','Storage Traffic Separation','Custom Switch Configuration'],
+            sample:'Default', required:true, notes:'Determines which VDS switches are deployed' },
+          { key:'dvsName',        label:'Primary VDS Name',         type:'text',   sample:'sfo-m01-cl01-dvs01', required:true },
+          { key:'dvsVersion',     label:'VDS Version',              type:'select', options:['9.0.0','8.0.0','7.0.3'], sample:'9.0.0' },
+          { key:'dvsUplinkPolicy',label:'Teaming Policy',           type:'select',
+            options:['Route based on IP hash','Route based on source MAC hash','Route based on source port ID','Use explicit failover order'],
+            sample:'Route based on IP hash' },
+          { key:'dvsLacpEnabled', label:'LACP Enabled',             type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'dvsLacpMode',    label:'LACP Mode',                type:'select', options:['Active','Passive'], sample:'Active', showWhen:f=>f.dvsLacpEnabled==='Include' },
+          { key:'dvsLacpTimeout', label:'LACP Timeout',             type:'select', options:['Slow','Fast'], sample:'Fast', showWhen:f=>f.dvsLacpEnabled==='Include' },
+          { key:'dvsUplink1Name', label:'Uplink 1 Name',            type:'text',   sample:'uplink1' },
+          { key:'dvsUplink2Name', label:'Uplink 2 Name',            type:'text',   sample:'uplink2' },
+        ]
+      },
+      {
+        title:'Secondary VDS (Storage Traffic)',
+        showWhen: f => f.dvsProfile && f.dvsProfile !== 'Default',
+        fields:[
+          { key:'dvs2Name',        label:'Secondary VDS Name',      type:'text',   sample:'sfo-m01-cl01-dvs02', required:true },
+          { key:'dvs2Uplink1Name', label:'Uplink 1 Name',           type:'text',   sample:'uplink1' },
+          { key:'dvs2Uplink2Name', label:'Uplink 2 Name',           type:'text',   sample:'uplink2' },
+        ]
+      },
+      {
+        title:'Tertiary VDS (NSX Traffic)',
+        showWhen: f => f.dvsProfile === 'Storage Traffic and NSX Traffic Separation',
+        fields:[
+          { key:'dvs3Name',        label:'Tertiary VDS Name',       type:'text',   sample:'sfo-m01-cl01-dvs03', required:true },
+          { key:'dvs3Uplink1Name', label:'Uplink 1 Name',           type:'text',   sample:'uplink1' },
+          { key:'dvs3Uplink2Name', label:'Uplink 2 Name',           type:'text',   sample:'uplink2' },
+        ]
+      },
+      {
+        title:'Appliance Sizing (API-only values)',
+        amber: true,
+        description:'These values are used when deploying via API/PowerShell. UI deployments auto-select sizing.',
+        fields:[
+          { key:'apiVcenterSize', label:'vCenter Size (API)',       type:'select', options:['Tiny','Small','Medium','Large','Extra-Large'], sample:'Small' },
+          { key:'apiNsxSize',     label:'NSX Manager Size (API)',   type:'select', options:['Extra-Small','Small','Medium','Large','Extra-Large'], sample:'Small' },
+          { key:'apiNsxOpMode',   label:'NSX Operation Mode',       type:'select', options:['Standard','Enhanced Datapath Standard','Enhanced Datapath Dedicated'], sample:'Standard' },
+        ]
+      },
+      {
+        title:'Cloud Proxy (VCF Operations)', amber:true,
+        fields:[
+          { key:'cloudProxyInclude', label:'Deploy Cloud Proxy',        type:'toggle',   options:['Include','Exclude'], sample:'Exclude' },
+          { key:'cloudProxyFqdn',    label:'Cloud Proxy FQDN',          type:'text',     sample:'sfo-m01-cpxy01.sfo.rainpole.io', showWhen:f=>f.cloudProxyInclude==='Include' },
+          { key:'cloudProxyIp',      label:'Cloud Proxy IP',            type:'ip',       sample:'10.11.10.91', showWhen:f=>f.cloudProxyInclude==='Include' },
+          { key:'cloudProxyPw',      label:'Cloud Proxy Root Password', type:'password', sample:'', showWhen:f=>f.cloudProxyInclude==='Include' },
+        ]
+      },
+    ]
+  },
+
+  // ─── CONFIGURE MANAGEMENT DOMAIN ───
+  {
+    id:'configure-mgmt', title:'Configure Management Domain', icon:'⚙️', group:'mgmt',
+    subtitle:'Post-deployment configuration tasks',
+    sections:[
+      {
+        title:'SFTP Backup Configuration',
+        fields:[
+          { key:'sftpBackupInclude', label:'Configure SFTP Backups', type:'toggle', options:['Include','Exclude'], sample:'Include' },
+          { key:'sftpHost',          label:'SFTP Server FQDN/IP',    type:'text',   sample:'sftp.sfo.rainpole.io', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
+          { key:'sftpPort',          label:'SFTP Port',              type:'number', sample:'22', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
+          { key:'sftpUser',          label:'SFTP Username',          type:'text',   sample:'vcf-backup', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
+          { key:'sftpPass',          label:'SFTP Password',          type:'password', sample:'', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
+          { key:'sftpPath',          label:'SFTP Backup Path',       type:'text',     sample:'/vcf/backups', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
+          { key:'sftpFingerprint',   label:'SFTP Host Fingerprint',  type:'text',     sample:'', showWhen:f=>f.sftpBackupInclude==='Include' },
+          { key:'sftpPassphrase',    label:'SFTP Passphrase',        type:'password', sample:'', notes:'Min 8 chars, 2 upper, 2 lower, 2 digits', showWhen:f=>f.sftpBackupInclude==='Include' },
+        ]
+      },
+      {
+        title:'Certificate Authority',
+        fields:[
+          { key:'caType',        label:'Certificate Authority',     type:'select', options:['Exclude','Microsoft CA','OpenSSL CA'], sample:'Microsoft CA' },
+          { key:'caFqdn',        label:'CA Server FQDN',            type:'text',   sample:'rpl-dc01.rainpole.io', showWhen:f=>f.caType&&f.caType!=='Exclude' },
+          { key:'caAdminUser',   label:'CA Admin Username',         type:'text',   sample:'svc-vcf-ca@rainpole.io', showWhen:f=>f.caType&&f.caType!=='Exclude' },
+          { key:'caAdminPass',   label:'CA Admin Password',         type:'password', sample:'', showWhen:f=>f.caType&&f.caType!=='Exclude' },
+          { key:'caTemplate',    label:'Certificate Template',      type:'text',   sample:'VMwareWebServer', showWhen:f=>f.caType==='Microsoft CA' },
+          { key:'certKeySize',   label:'Key Size',                  type:'select', options:['2048','4096'], sample:'2048', showWhen:f=>f.caType&&f.caType!=='Exclude' },
+          { key:'caOrg',         label:'Organization (O)',          type:'text',   sample:'Rainpole', showWhen:f=>f.caType==='OpenSSL CA' },
+          { key:'caOrgUnit',     label:'Org Unit (OU)',             type:'text',   sample:'IT', showWhen:f=>f.caType==='OpenSSL CA' },
+          { key:'caCountry',     label:'Country (2-char)',          type:'text',   sample:'US', showWhen:f=>f.caType==='OpenSSL CA' },
+          { key:'caState',       label:'State / Province',         type:'text',   sample:'California', showWhen:f=>f.caType==='OpenSSL CA' },
+          { key:'caLocality',    label:'Locality / City',          type:'text',   sample:'San Francisco', showWhen:f=>f.caType==='OpenSSL CA' },
+          { key:'caKeySize',     label:'CA Key Size',              type:'select', options:['2048','4096'], sample:'4096', showWhen:f=>f.caType==='OpenSSL CA' },
+        ]
+      },
+      {
+        title:'NSX Network Connectivity',
+        showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+        fields:[
+          { key:'nsxConnectivity', label:'NSX Connectivity Type',   type:'select', options:['Exclude','Centralized Connectivity','Distributed Connectivity'], sample:'Centralized Connectivity' },
+          { key:'nsxRoutingProtocol', label:'Routing Protocol',     type:'select', options:['BGP','STATIC'], sample:'BGP', showWhen:f=>f.nsxConnectivity&&f.nsxConnectivity!=='Exclude' },
+          { key:'nsxT0Name',      label:'Tier-0 Gateway Name',      type:'text',   sample:'sfo-m01-ec01-t0-gw01', showWhen:f=>f.nsxConnectivity&&f.nsxConnectivity!=='Exclude' },
+          { key:'nsxT0Asn',       label:'Tier-0 BGP ASN',           type:'number', sample:'65001', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
+          { key:'nsxUpstreamAsn', label:'Upstream BGP ASN',         type:'number', sample:'65000', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
+          { key:'nsxUpstreamIp1', label:'Upstream Peer IP 1',       type:'ip',     sample:'10.11.17.1', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
+          { key:'nsxUpstreamIp2', label:'Upstream Peer IP 2',       type:'ip',     sample:'10.11.17.2', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
+          { key:'nsxExtIpBlock',  label:'External IP Block CIDR',   type:'cidr',   sample:'192.168.11.0/24', showWhen:f=>f.nsxConnectivity&&f.nsxConnectivity!=='Exclude' },
+        ]
+      },
+      {
+        title:'NSX Federation (Multi-Site)',
+        showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+        fields:[
+          { key:'nsxFedRole',    label:'NSX Federation Role',       type:'select',
+            options:['Exclude','Active Global Manager','Standby Global Manager','Connect Instance'],
+            sample:'Exclude' },
+          { key:'nsxGmVipFqdn',  label:'Global Manager VIP FQDN',   type:'text',     sample:'sfo-m01-gm01.rainpole.io', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmIp',       label:'Global Manager VIP IP',     type:'ip',       sample:'10.11.10.90', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmNode1Fqdn',label:'GM Node 1 FQDN',            type:'text',     sample:'sfo-m01-gm01a.rainpole.io', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmNode1Ip',  label:'GM Node 1 IP',              type:'ip',       sample:'10.11.10.91', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmNode2Fqdn',label:'GM Node 2 FQDN',            type:'text',     sample:'sfo-m01-gm01b.rainpole.io', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmNode2Ip',  label:'GM Node 2 IP',              type:'ip',       sample:'10.11.10.92', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmNode3Fqdn',label:'GM Node 3 FQDN',            type:'text',     sample:'sfo-m01-gm01c.rainpole.io', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmNode3Ip',  label:'GM Node 3 IP',              type:'ip',       sample:'10.11.10.93', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmAdminPw',  label:'GM Admin Password',         type:'password', sample:'', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmRootPw',   label:'GM Root Password',          type:'password', sample:'', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmAuditPw',  label:'GM Audit Password',         type:'password', sample:'', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+        ]
+      },
+      {
+        title:'vSphere Supervisor (Kubernetes)',
+        showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+        fields:[
+          { key:'supervisorInclude', label:'Enable vSphere Supervisor', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'supervisorCluster', label:'Supervisor Cluster',         type:'text', sample:'sfo-m01-cl01', showWhen:f=>f.supervisorInclude==='Include' },
+          { key:'supervisorStoragePolicy', label:'Storage Policy',       type:'text', sample:'sfo-m01-cl01-vsan-policy', showWhen:f=>f.supervisorInclude==='Include' },
+          { key:'supervisorContentLib',    label:'Content Library',      type:'text', sample:'sfo-m01-cl01-lib01', showWhen:f=>f.supervisorInclude==='Include' },
+          { key:'supervisorCidr',          label:'Ingress CIDR',         type:'cidr', sample:'192.168.30.0/24', showWhen:f=>f.supervisorInclude==='Include' },
+          { key:'supervisorEgressCidr',         label:'Egress CIDR',                type:'cidr',   sample:'192.168.31.0/24', showWhen:f=>f.supervisorInclude==='Include' },
+          { key:'supervisorName',               label:'Supervisor Name',             type:'text',   sample:'sfo-m01-sup01', showWhen:f=>f.supervisorInclude==='Include' },
+          { key:'supervisorHaEnabled',          label:'Supervisor HA',               type:'toggle', options:['Include','Exclude'], sample:'Include', showWhen:f=>f.supervisorInclude==='Include' },
+          { key:'supervisorControlPlaneSize',   label:'Control Plane Size',          type:'select', options:['Tiny','Small','Medium','Large'], sample:'Small', showWhen:f=>f.supervisorInclude==='Include' },
+          { key:'supervisorMgmtNetworkRange',   label:'Management Network IP Range', type:'text',   sample:'10.11.10.150-10.11.10.160', showWhen:f=>f.supervisorInclude==='Include' },
+          { key:'supervisorServiceCidr',        label:'Service CIDR',                type:'cidr',   sample:'10.96.0.0/24', showWhen:f=>f.supervisorInclude==='Include' },
+        ]
+      },
+      {
+        title:'AVI Load Balancer (NSX ALB)',
+        showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+        fields:[
+          { key:'aviInclude',    label:'Deploy AVI Load Balancer',   type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'aviCtrl1Fqdn',  label:'AVI Controller 1 FQDN',     type:'text', sample:'sfo-m01-avi01a.sfo.rainpole.io', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviCtrl1Ip',    label:'AVI Controller 1 IP',       type:'ip',   sample:'10.11.10.68', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviClusterIp',    label:'AVI Cluster IP',              type:'ip',     sample:'10.11.10.70', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviClusterFqdn',  label:'AVI Cluster FQDN',            type:'text',   sample:'sfo-m01-avi01.sfo.rainpole.io', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviCtrl2Fqdn',    label:'AVI Controller 2 FQDN',      type:'text',   sample:'sfo-m01-avi01b.sfo.rainpole.io', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviCtrl2Ip',      label:'AVI Controller 2 IP',        type:'ip',     sample:'10.11.10.69', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviCtrl3Fqdn',    label:'AVI Controller 3 FQDN',      type:'text',   sample:'sfo-m01-avi01c.sfo.rainpole.io', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviCtrl3Ip',      label:'AVI Controller 3 IP',        type:'ip',     sample:'10.11.10.71', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviAdminPass',    label:'AVI Admin Password',          type:'password', sample:'', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviVersion',      label:'AVI Version',                 type:'text',   sample:'31.1.1', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviFormFactor',   label:'AVI Form Factor',             type:'select', options:['Edge Cluster Medium','Large'], sample:'Edge Cluster Medium', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviSize',         label:'AVI Controller Size',         type:'select', options:['Small','Large','Extra-Large'], sample:'Small', showWhen:f=>f.aviInclude==='Include' },
+        ]
+      },
+      {
+        title:'vSAN Stretched Cluster (Optional)',
+        fields:[
+          { key:'vsanStretchInclude', label:'Configure Stretched Cluster', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'vsanWitnessHost',    label:'Witness Host FQDN',           type:'text', sample:'sfo-m01-witness01.rainpole.io', showWhen:f=>f.vsanStretchInclude==='Include' },
+          { key:'vsanWitnessIp',      label:'Witness Host IP',             type:'ip',   sample:'192.168.10.1', showWhen:f=>f.vsanStretchInclude==='Include' },
+          { key:'secondaryAzName',    label:'Secondary AZ Name',           type:'text', sample:'lax', showWhen:f=>f.vsanStretchInclude==='Include' },
+        ]
+      },
+    ]
+  },
+
+  // ─── FLEET MANAGEMENT DAY-N ───
+  {
+    id:'fleet-day-n', title:'Fleet Management Day-N', icon:'🔧', group:'fleet',
+    subtitle:'Day-2 operations — VCF Operations, Automation, Logs, Identity',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    sections:[
+      {
+        title:'Fleet CIDR & Global Settings',
+        fields:[
+          { key:'fleetCidr',    label:'Fleet Deployment CIDR',    type:'select',
+            options:['198.18.0.0/15','240.0.0.0/15','250.0.0.0/15'],
+            sample:'198.18.0.0/15', required:true, notes:'Non-routable CIDR used for fleet component communication' },
+          { key:'fleetMtu',     label:'Fleet MTU',                type:'number', sample:'9000' },
+        ]
+      },
+      {
+        title:'VCF Operations',
+        fields:[
+          { key:'vcfOpsInclude',   label:'Include VCF Operations',  type:'toggle', options:['Include','Exclude'], sample:'Include' },
+          { key:'vcfOpsHaMode',    label:'VCF Operations HA Mode',  type:'select', options:['Single Node','HA Cluster'], sample:'HA Cluster', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsFqdn',      label:'VCF Operations FQDN',     type:'text',   sample:'sfo-m01-vrops01.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsIp',        label:'VCF Operations IP',       type:'ip',     sample:'10.11.10.42', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsSize',      label:'VCF Operations Size',     type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsAdminPw',   label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfOpsInclude==='Include' },
+        ]
+      },
+      {
+        title:'VCF Automation',
+        fields:[
+          { key:'vcfAutoInclude',  label:'Include VCF Automation',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'vcfAutoFqdn',     label:'VCF Automation FQDN',     type:'text',   sample:'sfo-m01-vra01.sfo.rainpole.io', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIp',       label:'VCF Automation IP',       type:'ip',     sample:'10.11.10.45', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfAutoInclude==='Include' },
+        ]
+      },
+      {
+        title:'Log Management',
+        fields:[
+          { key:'vcfLogsInclude',  label:'Include Log Management',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'vcfLogsFqdn',     label:'Log Management FQDN',     type:'text',   sample:'sfo-m01-vrli01.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsIp',       label:'Log Management IP',       type:'ip',     sample:'10.11.10.43', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsSize',     label:'Log Management Size',     type:'select', options:['Small','Medium'], sample:'Small', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsAdminPw',  label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfLogsInclude==='Include' },
+        ]
+      },
+      {
+        title:'VCF Operations for Networks (NSX-T Intelligence)',
+        showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+        fields:[
+          { key:'vcfNetOpsInclude', label:'Include VCF Operations for Networks', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'vcfNetOpsFqdn',    label:'VCF Ops for Networks FQDN',           type:'text', sample:'sfo-m01-vvrni01.sfo.rainpole.io', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+          { key:'vcfNetOpsIp',      label:'VCF Ops for Networks IP',             type:'ip',   sample:'10.11.10.44', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+        ]
+      },
+      {
+        title:'Identity Broker (Workspace ONE / vIDM)',
+        fields:[
+          { key:'idBrokerInclude', label:'Include Identity Broker', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'idBrokerFqdn',    label:'Identity Broker FQDN',    type:'text', sample:'sfo-m01-idm01.sfo.rainpole.io', showWhen:f=>f.idBrokerInclude==='Include' },
+          { key:'idBrokerIp',      label:'Identity Broker IP',      type:'ip',     sample:'10.11.10.50', showWhen:f=>f.idBrokerInclude==='Include' },
+          { key:'idBrokerSize',    label:'Identity Broker Size',    type:'select', options:['Small','Medium','Large','Extra-Large'], sample:'Medium', showWhen:f=>f.idBrokerInclude==='Include' },
+        ]
+      },
+      {
+        title:'Authentication (AD/LDAP)',
+        fields:[
+          { key:'adType',        label:'AD / LDAP Type',            type:'select', options:['AD/LDAP','Open LDAP'], sample:'AD/LDAP' },
+          { key:'adLdapAttr',    label:'LDAP Login Attribute',      type:'select', options:['sAMAccountName','userPrincipalName'], sample:'sAMAccountName' },
+        ]
+      },
+    ]
+  },
+
+  // ─── ACTIVE DIRECTORY ───
+  {
+    id:'active-directory', title:'Active Directory Inputs', icon:'👥', group:'fleet',
+    subtitle:'AD / LDAP identity configuration for all VCF components',
+    sections:[
+      {
+        title:'Parent Domain',
+        fields:[
+          { key:'adParentFqdn',     label:'Parent Domain FQDN',      type:'text', sample:'rainpole.io', required:true },
+          { key:'adParentNetbios',  label:'Parent NETBIOS Name',      type:'text', sample:'RAINPOLE', required:true },
+          { key:'adParentAdminUser',label:'Admin User (UPN)',          type:'text', sample:'administrator@rainpole.io', required:true },
+          { key:'adParentAdminPass',label:'Admin Password',            type:'password', sample:'', required:true },
+          { key:'adParentBaseDn',   label:'Base DN',                  type:'text', sample:'dc=rainpole,dc=io', required:true },
+          { key:'adParentSecGrpOu', label:'Security Groups OU',       type:'text', sample:'ou=Security Groups,dc=rainpole,dc=io' },
+          { key:'adParentSecUsrOu', label:'Security Users OU',        type:'text', sample:'ou=Security Users,dc=rainpole,dc=io' },
+        ]
+      },
+      {
+        title:'Child Domain',
+        fields:[
+          { key:'adChildFqdn',      label:'Child Domain FQDN',        type:'text', sample:'sfo.rainpole.io', required:true },
+          { key:'adChildNetbios',   label:'Child NETBIOS Name',        type:'text', sample:'SFO', required:true },
+          { key:'adChildBaseDn',    label:'Child Base DN',             type:'text', sample:'dc=sfo,dc=rainpole,dc=io', required:true },
+          { key:'adChildSecGrpOu',  label:'Child Security Groups OU',  type:'text', sample:'ou=Security Groups,dc=sfo,dc=rainpole,dc=io' },
+          { key:'adBindUser',       label:'Bind User (UPN)',           type:'text', sample:'svc-vcf-ad@sfo.rainpole.io', required:true },
+          { key:'adBindPass',       label:'Bind Password',             type:'password', sample:'', required:true },
+          { key:'adDcFqdn',         label:'Domain Controller FQDN',   type:'text', sample:'sfo-rpl-dc01.sfo.rainpole.io', required:true },
+          { key:'adDcIp',           label:'Domain Controller IP',     type:'ip',   sample:'10.11.0.2', required:true },
+        ]
+      },
+      {
+        title:'VCF Security Groups',
+        description:'AD security groups used for role-based access control in VCF components.',
+        fields:[
+          { key:'sgVcfAdmins',              label:'VCF Administrators Group',         type:'text', sample:'gg-vcf-admins' },
+          { key:'sgVcfUsers',               label:'VCF Read-Only Group',              type:'text', sample:'gg-vcf-readonly' },
+          { key:'sgVcenterAdmins',          label:'vCenter Admins Group',             type:'text', sample:'gg-vcenter-admins' },
+          { key:'sgNsxAdmins',              label:'NSX Admins Group',                 type:'text', sample:'gg-nsx-admins', showWhen:f=>f.deploymentType==='VMware Cloud Foundation' },
+          { key:'sgOpsAdmins',              label:'VCF Operations Admins Group',      type:'text', sample:'gg-vrops-admins', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'ggLcmAdmins',              label:'LCM Admins Group',                 type:'text', sample:'gg-lcm-admins' },
+          { key:'ggIdmAdmins',              label:'IDM Admins Group',                 type:'text', sample:'gg-idm-admins' },
+          { key:'ggOpsContentAdmins',       label:'Ops Content Admins Group',         type:'text', sample:'gg-ops-content-admins' },
+          { key:'ggNetworksAdmin',          label:'Networks Admin Group',             type:'text', sample:'gg-networks-admin' },
+          { key:'ggCmpCloudAssemblyAdmins', label:'CMP Cloud Assembly Admins Group',  type:'text', sample:'gg-cmp-cloud-assembly-admins' },
+        ]
+      },
+      {
+        title:'Service Accounts (VCF Components)',
+        fields:[
+          { key:'svcVcfAd',      label:'svc-vcf-ad (AD Integration)',     type:'text', sample:'svc-vcf-ad@rainpole.io' },
+          { key:'svcOpsVcf',     label:'svc-ops-vcf (VCF Operations)',    type:'text', sample:'svc-ops-vcf@rainpole.io' },
+          { key:'svcCmpVsphere', label:'svc-cmp-vsphere (Cloud Assembly)', type:'text', sample:'svc-cmp-vsphere@rainpole.io' },
+          { key:'svcLogsAd',     label:'svc-logs-ad (Log Management)',    type:'text', sample:'svc-logs-ad@rainpole.io' },
+          { key:'svcHcxNsx',     label:'svc-hcx-nsx (HCX)',              type:'text', sample:'svc-hcx-nsx@rainpole.io', showWhen:f=>f.ccmInclude==='Include' },
+        ]
+      },
+    ]
+  },
+
+  // ─── DEPLOY WORKLOAD DOMAIN ───
+  {
+    id:'deploy-wld', title:'Deploy Workload Domain', icon:'🌐', group:'wld',
+    subtitle:'VI Workload Domain deployment configuration',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    sections:[
+      {
+        title:'Workload Domain Selection',
+        fields:[
+          { key:'wldInclude',    label:'Deploy Workload Domain',   type:'toggle', options:['Include','Exclude'], sample:'Include' },
+          { key:'wldName',       label:'Workload Domain Name',     type:'text',   sample:'sfo-w01', required:true, showWhen:f=>f.wldInclude!=='Exclude' },
+          { key:'wldType',       label:'Domain Type',             type:'select', options:['Workload Domain','MGMT Workload Domain'], sample:'Workload Domain', showWhen:f=>f.wldInclude!=='Exclude' },
+          { key:'wldStorageType',label:'Principal Storage',        type:'select', options:['vSAN-ESA','vSAN-OSA','VMFS on Fibre Channel (FC)','NFSv3'], sample:'vSAN-ESA', showWhen:f=>f.wldInclude!=='Exclude' },
+          { key:'wldVsanFtt',    label:'vSAN FTT',                type:'select', options:['1','2'], sample:'1', showWhen:f=>f.wldInclude!=='Exclude'&&f.wldStorageType&&f.wldStorageType.startsWith('vSAN') },
+        ]
+      },
+      {
+        title:'WLD General Information',
+        showWhen: f => f.wldInclude!=='Exclude',
+        fields:[
+          { key:'wldVcFqdn',     label:'WLD vCenter FQDN',        type:'text', sample:'sfo-w01-vc01.sfo.rainpole.io', required:true },
+          { key:'wldVcIp',       label:'WLD vCenter IP',          type:'ip',   sample:'10.13.10.3', required:true },
+          { key:'wldVcDatacenter', label:'WLD Datacenter Name',   type:'text', sample:'sfo-w01-dc01' },
+          { key:'wldVcCluster',  label:'WLD Cluster Name',        type:'text', sample:'sfo-w01-cl01' },
+          { key:'wldVcDatastore', label:'WLD vSAN Datastore',     type:'text', sample:'sfo-w01-cl01-ds-vsan01' },
+          { key:'wldVcAdminPw',  label:'vCenter Admin Password',  type:'password', sample:'' },
+        ]
+      },
+      {
+        title:'WLD Hosts',
+        showWhen: f => f.wldInclude!=='Exclude',
+        description:'Minimum 3 hosts for WLD cluster.',
+        fields: makeHostFields(16,'w01','10.13.10','1310'),
+      },
+      {
+        title:'WLD Networks',
+        showWhen: f => f.wldInclude!=='Exclude',
+        fields:[
+          ...makeNetFields('wldEsxMgmt',  'WLD ESX Mgmt',   1310, '10.13.10.1', '10.13.10.0/24', 1500, true),
+          ...makeNetFields('wldVmMgmt',   'WLD VM Mgmt',    1311, '10.13.11.1', '10.13.11.0/24', 1500, true),
+          ...makeNetFields('wldVmotion',  'WLD vMotion',    1313, '10.13.13.1', '10.13.13.0/24', 9000, true),
+          ...makeNetFields('wldVsan',     'WLD vSAN',       1314, '10.13.14.1', '10.13.14.0/24', 9000, true),
+          ...makeNetFields('wldOverlay',  'WLD Overlay',    1316, '10.13.16.1', '10.13.16.0/24', 9000, true),
+        ]
+      },
+      {
+        title:'WLD NFS Storage Network',
+        showWhen: f => f.wldInclude!=='Exclude' && f.wldStorageType==='NFSv3',
+        fields:[
+          ...makeNetFields('wldNfs', 'WLD NFS', 1317, '10.13.17.1', '10.13.17.0/24', 9000, false),
+          { key:'wldNfsServer',  label:'NFS Server FQDN/IP',  type:'text',   sample:'nfs.sfo.rainpole.io', required:true },
+          { key:'wldNfsShare',   label:'NFS Share Path',      type:'text',   sample:'/vol/wld01' },
+          { key:'wldNfsVmknic',  label:'NFS vmknic Binding',  type:'select', options:['Enabled','Disabled'], sample:'Disabled' },
+        ]
+      },
+      {
+        title:'WLD NSX Configuration',
+        showWhen: f => f.wldInclude!=='Exclude' && f.deploymentType==='VMware Cloud Foundation',
+        fields:[
+          { key:'wldNsxModel', label:'NSX Model',               type:'select', options:['Shared (use Management NSX)','Dedicated - Single Node','Dedicated - HA Cluster'], sample:'Shared (use Management NSX)' },
+          { key:'wldNsxVipFqdn', label:'WLD NSX VIP FQDN',     type:'text', sample:'sfo-w01-nsx01.sfo.rainpole.io', showWhen:f=>f.wldNsxModel&&f.wldNsxModel!=='Shared (use Management NSX)' },
+          { key:'wldNsxVipIp',   label:'WLD NSX VIP IP',       type:'ip',   sample:'10.13.10.74', showWhen:f=>f.wldNsxModel&&f.wldNsxModel!=='Shared (use Management NSX)' },
+        ]
+      },
+    ]
+  },
+
+  // ─── CONFIGURE WORKLOAD DOMAIN ───
+  {
+    id:'configure-wld', title:'Configure Workload Domain', icon:'🔩', group:'wld',
+    subtitle:'Post-deployment WLD configuration',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation' && f.wldInclude!=='Exclude',
+    sections:[
+      {
+        title:'WLD Certificate Authority',
+        fields:[
+          { key:'wldCaType',        label:'WLD Certificate Authority',    type:'select', options:['Exclude','Microsoft CA','OpenSSL CA'], sample:'Microsoft CA' },
+          { key:'wldCaFqdn',        label:'WLD CA Server FQDN',           type:'text',   sample:'rpl-dc01.rainpole.io', showWhen:f=>f.wldCaType&&f.wldCaType!=='Exclude' },
+          { key:'wldCaAdminUser',   label:'WLD CA Admin Username',        type:'text',   sample:'svc-vcf-ca@rainpole.io', showWhen:f=>f.wldCaType&&f.wldCaType!=='Exclude' },
+          { key:'wldCaAdminPass',   label:'WLD CA Admin Password',        type:'password', sample:'', showWhen:f=>f.wldCaType&&f.wldCaType!=='Exclude' },
+          { key:'wldCaTemplate',    label:'WLD Certificate Template',     type:'text',   sample:'VMwareWebServer', showWhen:f=>f.wldCaType==='Microsoft CA' },
+          { key:'wldCertKeySize',   label:'WLD Key Size',                 type:'select', options:['2048','4096'], sample:'2048', showWhen:f=>f.wldCaType&&f.wldCaType!=='Exclude' },
+          { key:'wldCaOrgName',     label:'WLD Organization Name',        type:'text',   sample:'Rainpole Inc.', showWhen:f=>f.wldCaType==='OpenSSL CA' },
+          { key:'wldCaOrgUnit',     label:'WLD Org Unit',                 type:'text',   sample:'IT', showWhen:f=>f.wldCaType==='OpenSSL CA' },
+        ]
+      },
+      {
+        title:'WLD NSX Network Connectivity',
+        fields:[
+          { key:'wldNsxConnectivity',  label:'WLD NSX Connectivity',    type:'select', options:['Exclude','Centralized Connectivity','Distributed Connectivity'], sample:'Centralized Connectivity' },
+          { key:'wldNsxT0Name',        label:'WLD Tier-0 Gateway',      type:'text',   sample:'sfo-w01-ec01-t0-gw01', showWhen:f=>f.wldNsxConnectivity&&f.wldNsxConnectivity!=='Exclude' },
+          { key:'wldNsxT0Asn',         label:'WLD T0 BGP ASN',          type:'number', sample:'65002', showWhen:f=>f.wldNsxConnectivity&&f.wldNsxConnectivity!=='Exclude' },
+          { key:'wldNsxExtIpBlock',    label:'WLD External IP Block',   type:'cidr',   sample:'192.168.12.0/24', showWhen:f=>f.wldNsxConnectivity&&f.wldNsxConnectivity!=='Exclude' },
+        ]
+      },
+      {
+        title:'WLD vSphere Supervisor',
+        fields:[
+          { key:'wldSupervisorInclude',       label:'Enable WLD Supervisor',       type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'wldSupervisorCluster',       label:'WLD Supervisor Cluster',      type:'text',   sample:'sfo-w01-cl01', showWhen:f=>f.wldSupervisorInclude==='Include' },
+          { key:'wldSupervisorStoragePolicy', label:'WLD Storage Policy',          type:'text',   sample:'sfo-w01-cl01-vsan-policy', showWhen:f=>f.wldSupervisorInclude==='Include' },
+          { key:'wldSupervisorContentLib',    label:'WLD Content Library',         type:'text',   sample:'sfo-w01-cl01-lib01', showWhen:f=>f.wldSupervisorInclude==='Include' },
+          { key:'wldSupervisorLbType',        label:'WLD Load Balancer Type',      type:'select', options:['AVI (NSX ALB)','HAProxy','NSX'], sample:'AVI (NSX ALB)', showWhen:f=>f.wldSupervisorInclude==='Include' },
+          { key:'wldSupervisorCidr',          label:'WLD Ingress CIDR',            type:'cidr',   sample:'192.168.50.0/24', showWhen:f=>f.wldSupervisorInclude==='Include' },
+          { key:'wldEgressCidr',              label:'WLD Egress CIDR',             type:'cidr',   sample:'192.168.51.0/24', showWhen:f=>f.wldSupervisorInclude==='Include' },
+        ]
+      },
+    ]
+  },
+
+  // ─── DEPLOY CLUSTER ───
+  {
+    id:'deploy-cluster', title:'Deploy Additional Cluster', icon:'🖥️', group:'cluster',
+    subtitle:'Add compute clusters to existing domains',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    sections:[
+      {
+        title:'Cluster Selection',
+        fields:[
+          { key:'clusterInclude',   label:'Deploy Additional Cluster',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'clusterDomain',    label:'Target Workload Domain',      type:'text',   sample:'sfo-w01', showWhen:f=>f.clusterInclude==='Include' },
+          { key:'clusterName',      label:'Cluster Name',               type:'text',   sample:'sfo-w01-cl02', showWhen:f=>f.clusterInclude==='Include' },
+          { key:'clusterType',      label:'Cluster Type',               type:'select', options:['Single-Rack','Multi-Rack L3'], sample:'Single-Rack', showWhen:f=>f.clusterInclude==='Include' },
+          { key:'clusterHostCount', label:'Number of Hosts',            type:'number', sample:'4', showWhen:f=>f.clusterInclude==='Include' },
+          { key:'clusterStorage',   label:'Principal Storage',          type:'select', options:['vSAN-ESA','vSAN-OSA','VMFS on FC','NFSv3'], sample:'vSAN-ESA', showWhen:f=>f.clusterInclude==='Include' },
+          { key:'clusterVsanFtt',   label:'vSAN FTT',                  type:'select', options:['1','2'], sample:'1', showWhen:f=>f.clusterInclude==='Include'&&f.clusterStorage&&f.clusterStorage.startsWith('vSAN') },
+        ]
+      },
+      {
+        title:'Cluster Hosts',
+        showWhen: f => f.clusterInclude==='Include',
+        fields: makeHostFields(16,'w01cl02','10.14.10','1410'),
+      },
+      {
+        title:'Cluster NIC Teaming',
+        showWhen: f => f.clusterInclude==='Include',
+        fields:[
+          { key:'clusterTeaming',   label:'Teaming Policy',     type:'select',
+            options:['Route based on IP hash','Route based on source MAC hash','Route based on source port ID','Use explicit failover order'],
+            sample:'Route based on IP hash' },
+          { key:'clusterUplink1State', label:'Uplink 1 State',  type:'select', options:['Active','Standby','Unused'], sample:'Active' },
+          { key:'clusterUplink2State', label:'Uplink 2 State',  type:'select', options:['Active','Standby','Unused'], sample:'Active' },
+          { key:'clusterLacpEnabled',  label:'LACP Enabled',    type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+        ]
+      },
+      {
+        title:'IP Pool Configuration',
+        showWhen: f => f.clusterInclude==='Include',
+        fields:[
+          { key:'clusterNetPoolReuse', label:'VCF Network Pool',      type:'select', options:['Re-use an existing VCF Network Pool','Create a new VCF Network Pool'], sample:'Create a new VCF Network Pool' },
+          { key:'clusterIpPoolReuse',  label:'IP Pool',               type:'select', options:['Re-use an existing Pool','Create New Static IP Pool'], sample:'Create New Static IP Pool' },
+          { key:'clusterNetPoolName',  label:'Network Pool Name',     type:'text',   sample:'sfo-w01-np02', showWhen:f=>f.clusterNetPoolReuse&&f.clusterNetPoolReuse.includes('Create') },
+        ]
+      },
+      {
+        title:'Cluster Network Configuration',
+        showWhen: f => f.clusterInclude==='Include' && f.clusterNetPoolReuse && f.clusterNetPoolReuse.includes('Create'),
+        description:'Network settings for the new VCF Network Pool attached to this cluster.',
+        fields:[
+          ...makeNetFields('clusterVmotion',  'Cluster vMotion',  1413, '10.14.13.1', '10.14.13.0/24', 9000, true),
+          ...makeNetFields('clusterVsan',     'Cluster vSAN',     1414, '10.14.14.1', '10.14.14.0/24', 9000, true),
+          ...makeNetFields('clusterOverlay',  'Cluster Overlay',  1416, '10.14.16.1', '10.14.16.0/24', 9000, true),
+        ]
+      },
+      {
+        title:'Cluster Networks — NFS',
+        showWhen: f => f.clusterInclude==='Include' && f.clusterStorage==='NFSv3',
+        fields:[
+          ...makeNetFields('clusterNfs', 'Cluster NFS', 1415, '10.14.15.1', '10.14.15.0/24', 9000, true),
+          { key:'clusterNfsServer',        label:'NFS Server IP/FQDN',  type:'text',   sample:'nfs.sfo.rainpole.io', required:true },
+          { key:'clusterNfsPath',          label:'NFS Mount Path',      type:'text',   sample:'/vcf/cl02' },
+          { key:'clusterNfsVmknicBinding', label:'NFS vmknic Binding',  type:'select', options:['Enabled','Disabled'], sample:'Disabled' },
+        ]
+      },
+    ]
+  },
+
+  // ─── ADDITIONAL RACKS ───
+  {
+    id:'additional-racks', title:'Additional Racks (Multi-Rack L3)', icon:'🔌', group:'cluster',
+    subtitle:'Network configuration for up to 7 additional racks in L3 topology',
+    showWhen: f => f.clusterType==='Multi-Rack L3',
+    sections: [2,3,4,5,6,7,8].map(r => makeRackFields(r)),
+  },
+
+  // ─── SITE PROTECTION & DR ───
+  {
+    id:'site-dr', title:'Site Protection & DR', icon:'🛡️', group:'recovery',
+    subtitle:'VMware Live Recovery — vSphere Replication & SRM configuration',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    sections:[
+      {
+        title:'Site Protection & Recovery',
+        fields:[
+          { key:'drInclude',       label:'Include Site Protection & DR', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'drSrmFqdn',       label:'VMware Live Recovery (SRM) FQDN', type:'text',   sample:'sfo-m01-srm01.sfo.rainpole.io', showWhen:f=>f.drInclude==='Include' },
+          { key:'drSrmIp',         label:'VMware Live Recovery (SRM) IP', type:'ip',     sample:'10.11.10.126', showWhen:f=>f.drInclude==='Include' },
+          { key:'drVrFqdn',        label:'vSphere Replication FQDN',     type:'text',   sample:'sfo-m01-vrms01.sfo.rainpole.io', showWhen:f=>f.drInclude==='Include' },
+          { key:'drVrIp',          label:'vSphere Replication IP',       type:'ip',     sample:'10.11.10.125', showWhen:f=>f.drInclude==='Include' },
+          { key:'drRecoverySite',  label:'Recovery Site Name',           type:'text',   sample:'lax', showWhen:f=>f.drInclude==='Include' },
+          { key:'drRecoveryVcFqdn',label:'Recovery vCenter FQDN',        type:'text',   sample:'lax-m01-vc01.lax.rainpole.io', showWhen:f=>f.drInclude==='Include' },
+          { key:'drSsoType',       label:'SSO Domain Configuration',     type:'select', options:['Same SSO Domain','Different SSO Domain'], sample:'Same SSO Domain', showWhen:f=>f.drInclude==='Include' },
+          { key:'drArchitecture',  label:'Architecture',                 type:'select', options:['Standard','Consolidated'], sample:'Standard', showWhen:f=>f.drInclude==='Include' },
+        ]
+      },
+    ]
+  },
+
+  // ─── CYBER RECOVERY ───
+  {
+    id:'cyber-recovery', title:'Cyber Recovery', icon:'🔐', group:'recovery',
+    subtitle:'EDR agent deployment for carbon black or CrowdStrike',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    sections:[
+      {
+        title:'EDR Agent Configuration',
+        fields:[
+          { key:'edrInclude',      label:'Include Cyber Recovery',      type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'edrProduct',      label:'EDR Product',                 type:'select', options:['Carbon Black','CrowdStrike'], sample:'Carbon Black', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrServerFqdn',   label:'EDR Server FQDN/IP',          type:'text',   sample:'cb-server.rainpole.io', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrApiKey',       label:'EDR API Key',                 type:'password', sample:'', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrAgentVersion', label:'Agent Version',               type:'text',   sample:'3.9.1.5', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrGroupName',    label:'Sensor Group / Policy Name',  type:'text',   sample:'VCF-Hosts-Policy', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrProxyHost',    label:'EDR Proxy Host (optional)',   type:'text',   sample:'', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrInstallerPkg', label:'Installer Package Name',      type:'text',   sample:'carbon-black-installer', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrIpAssign',     label:'IP Assignment',               type:'select', options:['Static','DHCP'], sample:'Static', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrSensorIp',     label:'Sensor Server IP (Static)',   type:'ip',     sample:'', showWhen:f=>f.edrInclude==='Include'&&f.edrIpAssign==='Static' },
+          { key:'edrSubnetMask',   label:'Subnet Mask',                 type:'select', options:['255.255.255.0','255.255.0.0','255.0.0.0','255.255.254.0','255.255.252.0'], sample:'255.255.255.0', showWhen:f=>f.edrInclude==='Include'&&f.edrIpAssign==='Static' },
+          { key:'edrGateway',      label:'Gateway',                     type:'ip',     sample:'', showWhen:f=>f.edrInclude==='Include'&&f.edrIpAssign==='Static' },
+        ]
+      },
+    ]
+  },
+
+  // ─── RANSOMWARE RECOVERY (ON-PREMISES) ───
+  {
+    id:'ransomware-onprem', title:'On-Premises Ransomware Recovery', icon:'🦠', group:'recovery',
+    subtitle:'VMware Ransomware Recovery — on-premises configuration',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    sections:[
+      {
+        title:'Recovery Configuration',
+        fields:[
+          { key:'rwrOnpremInclude',   label:'Include On-Prem Ransomware Recovery', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'rwrMgmtVcFqdn',    label:'Management vCenter FQDN',              type:'text',   sample:'sfo-m01-vc01.sfo.rainpole.io', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrCluster',        label:'Cluster',                              type:'text',   sample:'sfo-m01-cl01', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrVmName',         label:'Recovery Appliance VM Name',           type:'text',   sample:'sfo-w01-vlr01', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrDatastore',      label:'Datastore',                            type:'text',   sample:'sfo-m01-cl01-ds-vsan01', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrNetwork',        label:'VM Network',                           type:'text',   sample:'sfo-m01-cl01-vds01-mgmt', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrIp',             label:'Appliance IP',                         type:'ip',     sample:'10.11.10.55', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrSubnetMask',     label:'Subnet Mask',                          type:'select', options:['255.255.255.0','255.255.0.0','255.0.0.0'], sample:'255.255.255.0', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrGateway',        label:'Gateway',                              type:'ip',     sample:'10.11.10.1', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrBackupSchedule', label:'Backup Schedule',                      type:'select', options:['Hourly','Every 4 Hours','Every 6 Hours','Daily'], sample:'Every 4 Hours', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrRetentionDays',  label:'Retention Period (days)',               type:'number', sample:'30', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrProtectedVms',   label:'Protected VM Count (estimate)',         type:'number', sample:'50', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrSnapshotCount',  label:'Snapshots per VM',                     type:'number', sample:'24', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrAdminPw',        label:'Recovery Appliance Admin Password',    type:'password', sample:'', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrNtp1',           label:'NTP Server 1',                         type:'text',     sample:'ntp.sfo.rainpole.io', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrNtp2',           label:'NTP Server 2',                         type:'text',     sample:'', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrDns1',           label:'DNS Server 1',                         type:'ip',       sample:'10.11.0.2', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrDns2',           label:'DNS Server 2',                         type:'ip',       sample:'', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrDomainName',     label:'Domain Name',                          type:'text',     sample:'rainpole.io', showWhen:f=>f.rwrOnpremInclude==='Include' },
+        ]
+      },
+    ]
+  },
+
+  // ─── RANSOMWARE RECOVERY (CLOUD-BASED) ───
+  {
+    id:'ransomware-cloud', title:'Cloud-Based Ransomware Recovery', icon:'☁️', group:'recovery',
+    subtitle:'VMware Cloud Disaster Recovery (DRaaS) — AWS cloud configuration',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    sections:[
+      {
+        title:'Cloud-Based DR Configuration',
+        fields:[
+          { key:'cbrInclude',     label:'Include Cloud-Based Ransomware Recovery', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'cbrAwsRegion',   label:'AWS Region',                              type:'select',
+            options:['us-east-1','us-east-2','us-west-1','us-west-2','eu-west-1','eu-west-2','eu-central-1','ap-southeast-1','ap-northeast-1','ap-south-1','ca-central-1'],
+            sample:'us-east-1', showWhen:f=>f.cbrInclude==='Include' },
+          { key:'cbrArchitecture',label:'Architecture',                            type:'select', options:['Standard','Consolidated'], sample:'Standard', showWhen:f=>f.cbrInclude==='Include' },
+          { key:'cbrConnector1Fqdn',label:'DRaaS Connector 1 FQDN',              type:'text',   sample:'sfo-cbr-cdp01a.sfo.rainpole.io', showWhen:f=>f.cbrInclude==='Include' },
+          { key:'cbrConnector1Ip',  label:'DRaaS Connector 1 IP',                type:'ip',     sample:'10.11.10.44', showWhen:f=>f.cbrInclude==='Include' },
+          { key:'cbrConnector2Fqdn',label:'DRaaS Connector 2 FQDN',              type:'text',   sample:'sfo-cbr-cdp01b.sfo.rainpole.io', showWhen:f=>f.cbrInclude==='Include' },
+          { key:'cbrConnector2Ip',  label:'DRaaS Connector 2 IP',                type:'ip',     sample:'10.11.10.45', showWhen:f=>f.cbrInclude==='Include' },
+          { key:'cbrOrgId',         label:'Cloud DR Organization ID',             type:'text',   sample:'', showWhen:f=>f.cbrInclude==='Include' },
+          { key:'cbrApiToken',      label:'Cloud DR API Token',                   type:'password', sample:'', showWhen:f=>f.cbrInclude==='Include' },
+        ]
+      },
+    ]
+  },
+
+  // ─── CROSS CLOUD MOBILITY (HCX) ───
+  {
+    id:'cross-cloud', title:'Cross Cloud Mobility (HCX)', icon:'☁️', group:'cloudai',
+    subtitle:'VMware HCX — workload mobility to VMware Cloud on AWS',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    sections:[
+      {
+        title:'HCX Configuration',
+        fields:[
+          { key:'ccmInclude',     label:'Include Cross Cloud Mobility',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'ccmAwsRegion',   label:'AWS Region',                    type:'select',
+            options:['us-east-1','us-east-2','us-west-1','us-west-2','eu-west-1','eu-west-2','eu-central-1','ap-southeast-1','ap-northeast-1'],
+            sample:'us-east-1', showWhen:f=>f.ccmInclude==='Include' },
+          { key:'ccmArchitecture',label:'Architecture',                  type:'select', options:['Standard','Consolidated'], sample:'Standard', showWhen:f=>f.ccmInclude==='Include' },
+          { key:'ccmHcxFqdn',     label:'HCX Manager FQDN',             type:'text',   sample:'sfo-ccm-hcx01.sfo.rainpole.io', showWhen:f=>f.ccmInclude==='Include' },
+          { key:'ccmHcxIp',       label:'HCX Manager IP',               type:'ip',     sample:'10.11.10.46', showWhen:f=>f.ccmInclude==='Include' },
+          { key:'ccmHcxAdminPw',  label:'HCX Admin Password',           type:'password', sample:'', showWhen:f=>f.ccmInclude==='Include' },
+          { key:'hcxLicenseKey',  label:'HCX License Key',              type:'text', required:true, sample:'', showWhen:f=>f.ccmInclude==='Include' },
+        ]
+      },
+      {
+        title:'HCX Network Profiles',
+        showWhen: f => f.ccmInclude==='Include',
+        fields:[
+          { key:'ccmMgmtNetProfile',     label:'Management Network Profile',  type:'text', sample:'sfo-m01-cl01-dvs01-mgmt' },
+          { key:'ccmUplinkNetProfile',   label:'Uplink Network Profile',      type:'text', sample:'sfo-m01-cl01-dvs01-uplink' },
+          { key:'ccmUplinkIpStart',      label:'Uplink IP Range Start',       type:'ip',   sample:'10.11.10.200' },
+          { key:'ccmUplinkIpEnd',        label:'Uplink IP Range End',         type:'ip',   sample:'10.11.10.210' },
+          { key:'ccmVmotionNetProfile',  label:'vMotion Network Profile',     type:'text', sample:'sfo-m01-cl01-dvs01-vmotion' },
+        ]
+      },
+    ]
+  },
+
+  // ─── PRIVATE AI READY INFRASTRUCTURE ───
+  {
+    id:'private-ai', title:'Private AI Ready Infrastructure', icon:'🤖', group:'cloudai',
+    subtitle:'GPU workloads — NVIDIA GPU Operator, vGPU, Private AI Foundation',
+    showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    sections:[
+      {
+        title:'Private AI Configuration',
+        fields:[
+          { key:'aiInclude',          label:'Include Private AI Ready Infrastructure', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'aiArchitecture',     label:'Architecture',                            type:'select', options:['Standard','Consolidated'], sample:'Standard', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiLicenseKey',       label:'Private AI License Key',                 type:'text',   sample:'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiGpuModel',         label:'GPU Model',                              type:'text',   sample:'NVIDIA A100 80GB', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiGpuCountPerHost',  label:'GPUs per Host',                          type:'number', sample:'4', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiVgpuProfile',      label:'vGPU Profile',                           type:'text',   sample:'A100-40C', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiGpuDriverVersion', label:'GPU Driver Version',                     type:'text',   sample:'530.30.02', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiNvidiaLicenseServer', label:'NVIDIA License Server FQDN',          type:'text',   sample:'nls.rainpole.io', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiNvidiaLicenseType',   label:'NVIDIA License Type',                 type:'select', options:['vGPU','GPU Pass-through','MIG'], sample:'vGPU', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiGpuVmClass',       label:'GPU VM Class Size',                      type:'select', options:['guaranteed-small','guaranteed-medium','guaranteed-large'], sample:'guaranteed-medium', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiGpuNamespace',     label:'GPU Operator Namespace',                 type:'text',   sample:'vmware-system-gpu', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiNetNamespace',     label:'GPU Network Operator Namespace',         type:'text',   sample:'vmware-system-gpu-net', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiK8sClusterName',   label:'Kubernetes Cluster Name',               type:'text',   sample:'sfo-w01-tkg01', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiSupervisorNs',     label:'Supervisor Namespace',                  type:'text',   sample:'ai-workloads', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiStorageClass',     label:'Storage Class',                         type:'text',   sample:'wcpglobal-storage-profile', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiServiceCidr',      label:'K8s Services CIDR',                     type:'cidr',   sample:'198.51.100.0/12', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiPodCidr',          label:'K8s Pods CIDR',                         type:'cidr',   sample:'192.0.2.0/16', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiGpuVcpu',          label:'GPU VM Class vCPU',                     type:'number', sample:'16', showWhen:f=>f.aiInclude==='Include' },
+          { key:'aiGpuRam',           label:'GPU VM Class RAM (GB)',                 type:'number', sample:'64', showWhen:f=>f.aiInclude==='Include' },
+        ]
+      },
+    ]
+  },
+]
+
+// ============================================================
+// NAVIGATION STRUCTURE
+// ============================================================
+const NAV_GROUPS = [
+  { id:'welcome', title:'Home', icon:'🏠', items:[
+    { id:'welcome',       title:'Welcome',               icon:'👋' },
+  ]},
+  { id:'planning', title:'Planning', icon:'🗂️', items:[
+    { id:'planning',      title:'VCF & VVF Planning',    icon:'🗂️' },
+    { id:'prerequisites', title:'Prerequisite Checklist', icon:'✅' },
+  ]},
+  { id:'sizing', title:'Sizing', icon:'📐', items:[
+    { id:'sizing',        title:'Management Domain Sizing', icon:'📐' },
+  ]},
+  { id:'mgmt', title:'Management Domain', icon:'🏗️', items:[
+    { id:'deploy-mgmt',    title:'Deploy Mgmt Domain',   icon:'🏗️' },
+    { id:'configure-mgmt', title:'Configure Mgmt Domain', icon:'⚙️' },
+  ]},
+  { id:'fleet', title:'Fleet & Identity', icon:'🔧', items:[
+    { id:'fleet-day-n',    title:'Fleet Management Day-N', icon:'🔧' },
+    { id:'active-directory', title:'Active Directory',    icon:'👥' },
+  ]},
+  { id:'wld', title:'Workload Domain', icon:'🌐', items:[
+    { id:'deploy-wld',     title:'Deploy Workload Domain', icon:'🌐' },
+    { id:'configure-wld',  title:'Configure WLD',          icon:'🔩' },
+  ]},
+  { id:'cluster', title:'Cluster & Networking', icon:'🖥️', items:[
+    { id:'deploy-cluster', title:'Deploy Cluster',          icon:'🖥️' },
+    { id:'additional-racks', title:'Additional Racks',      icon:'🔌' },
+  ]},
+  { id:'recovery', title:'Recovery & DR', icon:'🛡️', items:[
+    { id:'site-dr',         title:'Site Protection & DR',   icon:'🛡️' },
+    { id:'cyber-recovery',  title:'Cyber Recovery',         icon:'🔐' },
+    { id:'ransomware-onprem', title:'Ransomware (On-Prem)', icon:'🦠' },
+    { id:'ransomware-cloud',  title:'Ransomware (Cloud)',   icon:'☁️' },
+  ]},
+  { id:'cloudai', title:'Cloud & AI', icon:'🤖', items:[
+    { id:'cross-cloud',    title:'Cross Cloud Mobility',    icon:'☁️' },
+    { id:'private-ai',     title:'Private AI',             icon:'🤖' },
+  ]},
+  { id:'asbuilt', title:'As-Built', icon:'📋', items:[
+    { id:'asbuilt',        title:'Summary / As-Built',     icon:'📋' },
+  ]},
+  { id:'about', title:'About', icon:'ℹ️', items:[
+    { id:'about',          title:'About this Tool',        icon:'ℹ️' },
+  ]},
+]
+
+// ============================================================
+// ALPINE.JS APP
+// ============================================================
+function vcfPlanner() {
+  return {
+    // State
+    currentPage: 'welcome',
+    openGroups: ['welcome','planning'],
+    openSections: [],
+    saveIndicator: false,
+    darkMode: false,
+    copyFeedback: '',
+    form: {},
+    sizing: {
+      hostCores: 36,
+      hostRAM: 512,
+      cpuOverSub: '1',
+      storageType: 'vSAN-ESA',
+      growthPct: 10,
+      opsReservePct: 30,
+      clusterModel: 'High Availability (Three-Node)',
+      wldCount: 0,
+      components: {
+        sddc_manager: true,
+        vcenter: true,
+        nsx_manager: true,
+        nsx_edge: false,
+        vcf_operations: false,
+        vcf_automation: false,
+        vcf_logs: false,
+        avi_lb: false,
+        vcfa: false,
+        ssp: false,
+      },
+      compSizes: {
+        vcenter: 'Small',
+        nsx_manager: 'Small',
+        nsx_edge: 'Medium',
+        vcf_operations: 'Small',
+        vcf_logs: 'Small',
+        avi_lb: 'Small',
+        vcfa: 'Small',
+        ssp: 'Small',
+      },
+    },
+
+    // Data references
+    navGroups: NAV_GROUPS,
+    allPages: ALL_PAGES,
+    prerequisiteData: PREREQ_DATA,
+    sizingComponents: [
+      { key:'sddc_manager',  label:'SDDC Manager' },
+      { key:'vcenter',       label:'vCenter Server', sizes:['Tiny','Small','Medium','Large','Extra-Large'] },
+      { key:'nsx_manager',   label:'NSX Manager (×3)', sizes:['Extra-Small','Small','Medium','Large','Extra-Large'] },
+      { key:'nsx_edge',      label:'NSX Edge Nodes (×2)', sizes:['Extra Small','Small','Medium','Large','Extra Large'] },
+      { key:'vcf_operations',label:'VCF Operations', sizes:['Extra-Small','Small','Medium','Large','Extra-Large'] },
+      { key:'vcf_automation',label:'VCF Automation' },
+      { key:'vcf_logs',      label:'Log Management', sizes:['Small','Medium'] },
+      { key:'avi_lb',        label:'AVI Load Balancer (×3)', sizes:['Small','Large','Extra-Large'] },
+      { key:'vcfa',          label:'VCFA', sizes:['Small','Medium'] },
+      { key:'ssp',           label:'vDefend SSP (Shared NSX only)', sizes:['Small','Medium','Large'] },
+    ],
+
+    // ─── NAVIGATION ───
+    navigate(pageId) {
+      this.currentPage = pageId
+      if (!this.openSections.length) {
+        const page = this.allPages.find(p=>p.id===pageId)
+        if (page && page.sections && page.sections.length>0) {
+          this.openSections = [pageId+':'+page.sections[0].title]
+        }
+      }
+      this.save()
+    },
+    toggleGroup(id) {
+      const i = this.openGroups.indexOf(id)
+      i>-1 ? this.openGroups.splice(i,1) : this.openGroups.push(id)
+    },
+    toggleSection(key) {
+      const i = this.openSections.indexOf(key)
+      i>-1 ? this.openSections.splice(i,1) : this.openSections.push(key)
+    },
+
+    // ─── VISIBILITY ───
+    isPageVisible(id) {
+      const page = this.allPages.find(p=>p.id===id)
+      if (!page || !page.showWhen) return true
+      return page.showWhen(this.form)
+    },
+    isSectionVisible(section) {
+      if (!section.showWhen) return true
+      return section.showWhen(this.form)
+    },
+    isFieldVisible(field) {
+      if (!field.showWhen) return true
+      return field.showWhen(this.form)
+    },
+    isExcluded(field) { return false },
+
+    // ─── FIELD HELPERS ───
+    getFieldOptions(field) {
+      if (field.optionsFn) return field.optionsFn(this.form)
+      return field.options || []
+    },
+    getToggleClass(field) {
+      const val = this.form[field.key] || (field.options && field.options[0]) || 'Include'
+      if (val==='Include' || val==='Selected') return 'toggle-include'
+      if (val==='Exclude' || val==='Unselected') return 'toggle-exclude'
+      return 'toggle-include'
+    },
+    cycleToggle(field) {
+      const opts = field.options || ['Include','Exclude']
+      const cur  = this.form[field.key] || opts[0]
+      const idx  = opts.indexOf(cur)
+      this.form[field.key] = opts[(idx+1) % opts.length]
+      this.save()
+    },
+    getFieldDef(key) {
+      for (const page of this.allPages) {
+        for (const section of (page.sections||[])) {
+          const f = (section.fields||[]).find(f=>f.key===key)
+          if (f) return f
+        }
+      }
+      return null
+    },
+
+    // ─── COMPLETION TRACKING ───
+    getAllRequiredFields() {
+      const fields = []
+      for (const page of this.allPages) {
+        if (!this.isPageVisible(page.id)) continue
+        for (const section of (page.sections||[])) {
+          if (!this.isSectionVisible(section)) continue
+          for (const field of (section.fields||[])) {
+            if (field.required && this.isFieldVisible(field)) fields.push(field)
+          }
+        }
+      }
+      return fields
+    },
+    getAllFilledFields() {
+      let count = 0
+      for (const page of this.allPages) {
+        for (const section of (page.sections||[])) {
+          for (const field of (section.fields||[])) {
+            if (field.type!=='readonly'&&field.type!=='calculated'&&this.form[field.key]) count++
+          }
+        }
+      }
+      return count
+    },
+    getMissingCount(pageId) {
+      const page = this.allPages.find(p=>p.id===pageId)
+      if (!page) return 0
+      let c = 0
+      for (const section of (page.sections||[])) {
+        if (!this.isSectionVisible(section)) continue
+        for (const field of (section.fields||[])) {
+          if (field.required && this.isFieldVisible(field) && !this.form[field.key]) c++
+        }
+      }
+      return c
+    },
+    getPageMissingCount(pageId) { return this.getMissingCount(pageId) },
+    getPagePct(pageId) {
+      const page = this.allPages.find(p=>p.id===pageId)
+      if (!page) return 100
+      let total=0, filled=0
+      for (const section of (page.sections||[])) {
+        if (!this.isSectionVisible(section)) continue
+        for (const field of (section.fields||[])) {
+          if (field.required && this.isFieldVisible(field)) { total++; if (this.form[field.key]) filled++ }
+        }
+      }
+      return total ? Math.round(filled/total*100) : 100
+    },
+    completionFilled()   { return this.getAllFilledFields() },
+    completionRequired() { return this.getAllRequiredFields().filter(f=>!this.form[f.key]).length },
+    completionPct() {
+      const req = this.getAllRequiredFields()
+      if (!req.length) return 100
+      const filled = req.filter(f=>this.form[f.key]).length
+      return Math.round(filled/req.length*100)
+    },
+    completionText() {
+      return `${this.completionPct()}% complete`
+    },
+
+    // ─── SIZING CALCULATOR ───
+    toggleSizingComp(key) {
+      this.sizing.components[key] = !this.sizing.components[key]
+    },
+    calcRawCPU() {
+      const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
+      if (c.sddc_manager) t += LT.sddc_manager.vcpu
+      if (c.vcenter)      t += LT.vcenter[cs.vcenter]?.vcpu || 0
+      if (c.nsx_manager)  t += (LT.nsx_manager[cs.nsx_manager]?.vcpu || 0) * 3
+      if (c.nsx_edge)     t += (LT.nsx_edge[cs.nsx_edge]?.vcpu || 0) * 2
+      if (c.vcf_operations) t += LT.vcf_operations[cs.vcf_operations]?.vcpu || 0
+      if (c.vcf_automation) t += LT.vcf_automation.vcpu * 3
+      if (c.vcf_logs)     t += LT.vcf_logs[cs.vcf_logs]?.vcpu || 0
+      if (c.avi_lb)       t += (LT.avi_lb[cs.avi_lb]?.vcpu || 0) * 3
+      if (c.vcfa)         t += LT.vcfa[cs.vcfa]?.vcpu || 0
+      if (c.ssp)          t += LT.ssp[cs.ssp]?.vcpu || 0
+      // Per WLD: add 1 vCenter Small + 3 NSX Manager Small (if NSX enabled)
+      const wldVcpuPerDomain = (LT.vcenter['Small'].vcpu) + (c.nsx_manager ? LT.nsx_manager['Small'].vcpu * 3 : 0)
+      t += wldVcpuPerDomain * (s.wldCount || 0)
+      return t
+    },
+    calcTotalCPU() {
+      const raw = this.calcRawCPU()
+      return Math.ceil(raw * (1 + (this.sizing.opsReservePct||30)/100))
+    },
+    calcRawRAM() {
+      const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
+      if (c.sddc_manager) t += LT.sddc_manager.ram
+      if (c.vcenter)      t += LT.vcenter[cs.vcenter]?.ram || 0
+      if (c.nsx_manager)  t += (LT.nsx_manager[cs.nsx_manager]?.ram || 0) * 3
+      if (c.nsx_edge)     t += (LT.nsx_edge[cs.nsx_edge]?.ram || 0) * 2
+      if (c.vcf_operations) t += LT.vcf_operations[cs.vcf_operations]?.ram || 0
+      if (c.vcf_automation) t += LT.vcf_automation.ram * 3
+      if (c.vcf_logs)     t += LT.vcf_logs[cs.vcf_logs]?.ram || 0
+      if (c.avi_lb)       t += (LT.avi_lb[cs.avi_lb]?.ram || 0) * 3
+      if (c.vcfa)         t += LT.vcfa[cs.vcfa]?.ram || 0
+      if (c.ssp)          t += LT.ssp[cs.ssp]?.ram || 0
+      // Per WLD: add 1 vCenter Small + 3 NSX Manager Small (if NSX enabled)
+      const wldRamPerDomain = (LT.vcenter['Small'].ram) + (c.nsx_manager ? LT.nsx_manager['Small'].ram * 3 : 0)
+      t += wldRamPerDomain * (s.wldCount || 0)
+      return t
+    },
+    calcTotalRAM() {
+      return Math.ceil(this.calcRawRAM() * (1 + (this.sizing.opsReservePct||30)/100))
+    },
+    calcRawDisk() {
+      const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
+      if (c.sddc_manager) t += LT.sddc_manager.disk
+      if (c.vcenter)      t += LT.vcenter[cs.vcenter]?.disk || 0
+      if (c.nsx_manager)  t += (LT.nsx_manager[cs.nsx_manager]?.disk || 0) * 3
+      if (c.nsx_edge)     t += (LT.nsx_edge[cs.nsx_edge]?.disk || 0) * 2
+      if (c.vcf_operations) t += LT.vcf_operations[cs.vcf_operations]?.disk || 0
+      if (c.vcf_automation) t += LT.vcf_automation.disk * 3
+      if (c.vcf_logs)     t += LT.vcf_logs[cs.vcf_logs]?.disk || 0
+      if (c.avi_lb)       t += (LT.avi_lb[cs.avi_lb]?.disk || 0) * 3
+      if (c.vcfa)         t += LT.vcfa[cs.vcfa]?.disk || 0
+      if (c.ssp)          t += LT.ssp[cs.ssp]?.disk || 0
+      return t
+    },
+    calcTotalDisk() {
+      const t = this.calcRawDisk()
+      return Math.ceil(t * (1 + (this.sizing.growthPct||10)/100))
+    },
+    calcHosts() {
+      const s = this.sizing
+      if (!s.hostCores || !s.hostRAM) return '—'
+      const overSub = parseFloat(s.cpuOverSub) || 1
+      const totalCPU = this.calcTotalCPU()
+      const totalRAM = this.calcTotalRAM()
+      const byCpu = Math.ceil(totalCPU / overSub / s.hostCores)
+      const byRam = Math.ceil(totalRAM / s.hostRAM) + 1
+      const isVsan = s.storageType && s.storageType.startsWith('vSAN')
+      const min = s.clusterModel === 'Simple' ? 1
+                : s.clusterModel === 'High Availability (Three-Node)' ? 4
+                : isVsan ? 3
+                : 2
+      return Math.max(min, byCpu, byRam)
+    },
+    calcHostsSafe() {
+      const h = this.calcHosts()
+      return (typeof h === 'number' && h > 0) ? h : 0
+    },
+    calcDiskPerHost() {
+      const hosts = this.calcHosts()
+      if (hosts === '—' || typeof hosts !== 'number') return '—'
+      const overhead = this.sizing.storageType === 'vSAN-ESA' ? 1.5 : 2.0
+      const total    = this.calcTotalDisk()
+      // For 1-host Simple cluster there is no fault domain — divide by 1
+      const divisor  = hosts <= 1 ? 1 : (hosts - 1)
+      return Math.ceil(total * overhead / divisor)
+    },
+    sizingBreakdown() {
+      const s = this.sizing; const c = s.components; const cs = s.compSizes
+      const rows = [
+        { name:'SDDC Manager',      excluded:!c.sddc_manager, vcpu:LT.sddc_manager.vcpu, ram:LT.sddc_manager.ram, disk:LT.sddc_manager.disk },
+        { name:`vCenter (${cs.vcenter})`, excluded:!c.vcenter, ...( LT.vcenter[cs.vcenter] || {vcpu:0,ram:0,disk:0}) },
+        { name:`NSX Manager ×3 (${cs.nsx_manager})`, excluded:!c.nsx_manager,
+          vcpu:(LT.nsx_manager[cs.nsx_manager]?.vcpu||0)*3, ram:(LT.nsx_manager[cs.nsx_manager]?.ram||0)*3, disk:(LT.nsx_manager[cs.nsx_manager]?.disk||0)*3 },
+        { name:`NSX Edge ×2 (${cs.nsx_edge})`, excluded:!c.nsx_edge,
+          vcpu:(LT.nsx_edge[cs.nsx_edge]?.vcpu||0)*2, ram:(LT.nsx_edge[cs.nsx_edge]?.ram||0)*2, disk:(LT.nsx_edge[cs.nsx_edge]?.disk||0)*2 },
+        { name:`VCF Operations (${cs.vcf_operations})`, excluded:!c.vcf_operations, ...(LT.vcf_operations[cs.vcf_operations]||{vcpu:0,ram:0,disk:0}) },
+        { name:'VCF Automation ×3', excluded:!c.vcf_automation, vcpu:LT.vcf_automation.vcpu*3, ram:LT.vcf_automation.ram*3, disk:LT.vcf_automation.disk*3 },
+        { name:`Log Management (${cs.vcf_logs})`, excluded:!c.vcf_logs, ...(LT.vcf_logs[cs.vcf_logs]||{vcpu:0,ram:0,disk:0}) },
+        { name:`AVI LB ×3 (${cs.avi_lb})`, excluded:!c.avi_lb,
+          vcpu:(LT.avi_lb[cs.avi_lb]?.vcpu||0)*3, ram:(LT.avi_lb[cs.avi_lb]?.ram||0)*3, disk:(LT.avi_lb[cs.avi_lb]?.disk||0)*3 },
+        { name:`VCFA (${cs.vcfa})`, excluded:!c.vcfa, ...(LT.vcfa[cs.vcfa]||{vcpu:0,ram:0,disk:0}) },
+        { name:`vDefend SSP (${cs.ssp})`, excluded:!c.ssp, ...(LT.ssp[cs.ssp]||{vcpu:0,ram:0,disk:0}) },
+      ]
+      return rows
+    },
+
+    // ─── PERSISTENCE ───
+    save() {
+      try {
+        localStorage.setItem('vcf-planner-v1', JSON.stringify({
+          form: this.form,
+          sizing: this.sizing,
+          currentPage: this.currentPage,
+          openGroups: this.openGroups,
+          openSections: this.openSections,
+        }))
+        this.saveIndicator = true
+        clearTimeout(this._saveTimer)
+        this._saveTimer = setTimeout(()=>{ this.saveIndicator=false }, 1500)
+      } catch(e) { console.warn('localStorage save failed',e) }
+    },
+    load() {
+      try {
+        const raw = localStorage.getItem('vcf-planner-v1')
+        if (!raw) return
+        const d = JSON.parse(raw)
+        if (d.form) this.form = d.form
+        if (d.sizing) Object.assign(this.sizing, d.sizing)
+        if (d.openGroups) this.openGroups = d.openGroups
+        if (d.openSections) this.openSections = d.openSections
+        if (d.currentPage) this.currentPage = d.currentPage
+      } catch(e) { console.warn('localStorage load failed',e) }
+    },
+    confirmReset() {
+      if (confirm('Reset all form data? This cannot be undone.')) {
+        localStorage.removeItem('vcf-planner-v1')
+        this.form = {}
+        this.sizing.components = { sddc_manager:true, vcenter:true, nsx_manager:true, nsx_edge:false, vcf_operations:false, vcf_automation:false, vcf_logs:false, avi_lb:false, vcfa:false, ssp:false }
+        this.currentPage = 'welcome'
+      }
+    },
+
+    // ─── EXPORT / IMPORT ───
+    exportJSON() {
+      const out = {
+        meta: { version:'1.9.1.001', exported: new Date().toISOString(), tool:'VCF 9.1 Web Planner' },
+        globalSettings: {
+          vcfVersion: this.form.vcfVersion || '9.1.0.0',
+          deploymentType: this.form.deploymentType || 'VMware Cloud Foundation',
+          deploymentMode: this.form.deploymentMode,
+          siteName: this.form.primarySiteName,
+        },
+        form: this.form,
+        sizing: this.sizing,
+      }
+      const blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' })
+      const url  = URL.createObjectURL(blob)
+      const a    = Object.assign(document.createElement('a'), {
+        href: url,
+        download: `vcf-planner-${(new Date()).toISOString().slice(0,10)}.json`
+      })
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    },
+    importTrigger() {
+      document.getElementById('import-file').click()
+    },
+    importJSON(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        try {
+          const d = JSON.parse(e.target.result)
+          if (!d.form && !d.globalSettings) {
+            alert('Import failed: this file does not appear to be a VCF Planner export (missing "form" key).')
+            event.target.value = ''; return
+          }
+          if (d.meta && d.meta.version && d.meta.version !== '1.9.1.001') {
+            if (!confirm(`Warning: importing data exported from version ${d.meta.version}. Some fields may not match. Continue?`)) {
+              event.target.value = ''; return
+            }
+          }
+          if (d.form) { Object.assign(this.form, d.form); this.save() }
+          if (d.sizing) { Object.assign(this.sizing, d.sizing) }
+          alert('Import successful!')
+        } catch(err) {
+          alert('Import failed: ' + err.message)
+        }
+        event.target.value = ''
+      }
+      reader.readAsText(file)
+    },
+    isValidIp(v) {
+      if (!v) return true
+      return /^(\d{1,3}\.){3}\d{1,3}$/.test(v) && v.split('.').every(n => parseInt(n) <= 255)
+    },
+    isValidCidr(v) {
+      if (!v) return true
+      const parts = v.split('/')
+      return parts.length === 2 && this.isValidIp(parts[0]) && parseInt(parts[1]) >= 0 && parseInt(parts[1]) <= 32
+    },
+    isFqdn(v) {
+      if (!v) return true
+      return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/.test(v)
+    },
+
+    // ─── DARK MODE ───
+    toggleDark() {
+      this.darkMode = !this.darkMode
+      localStorage.setItem('vcf-dark', this.darkMode ? '1' : '0')
+    },
+
+    // ─── SECTION TOOLS ───
+    expandAllSections(pageId) {
+      const page = this.allPages.find(p=>p.id===pageId)
+      if (!page) return
+      for (const section of (page.sections||[])) {
+        const key = pageId+':'+section.title
+        if (!this.openSections.includes(key)) this.openSections.push(key)
+      }
+    },
+    collapseAllSections(pageId) {
+      this.openSections = this.openSections.filter(k => !k.startsWith(pageId+':'))
+    },
+    jumpToFirstMissing(pageId) {
+      const page = this.allPages.find(p=>p.id===pageId)
+      if (!page) return
+      for (const section of (page.sections||[])) {
+        if (!this.isSectionVisible(section)) continue
+        for (const field of (section.fields||[])) {
+          if (field.required && this.isFieldVisible(field) && !this.form[field.key]) {
+            const sKey = pageId+':'+section.title
+            if (!this.openSections.includes(sKey)) this.openSections.push(sKey)
+            this.$nextTick(() => {
+              const el = document.getElementById('field-'+field.key)
+              if (el) { el.scrollIntoView({ behavior:'smooth', block:'center' }); setTimeout(()=>el.focus(),400) }
+            })
+            return
+          }
+        }
+      }
+    },
+    copySection(fields, title) {
+      const lines = [`## ${title}\n`]
+      for (const field of (fields||[])) {
+        if (!this.isFieldVisible(field)) continue
+        if (field.type==='readonly'||field.type==='calculated') continue
+        const val = field.type==='password' ? '••••••••' : (this.form[field.key] || field.sample || '—')
+        lines.push(`${field.label}: ${val}`)
+      }
+      navigator.clipboard?.writeText(lines.join('\n'))
+        .then(()=>this.showCopyFeedback('Section copied to clipboard!'))
+        .catch(()=>this.showCopyFeedback('Copy failed — try a modern browser'))
+    },
+    showCopyFeedback(msg) {
+      this.copyFeedback = msg
+      clearTimeout(this._copyTimer)
+      this._copyTimer = setTimeout(()=>{ this.copyFeedback='' }, 2500)
+    },
+    getSectionHostPrefix(section) {
+      if (!section.fields) return null
+      const f = section.fields.find(f => /Host1Ip$/.test(f.key))
+      return f ? f.key.replace('Host1Ip','') : null
+    },
+    fillHostIps(prefix) {
+      const baseIp = prompt(`Enter the base IP for host 1 (e.g. 192.168.10.10).\nSubsequent hosts will increment the last octet.`)
+      if (!baseIp) return
+      if (!this.isValidIp(baseIp)) { alert('Invalid IP address: '+baseIp); return }
+      const parts = baseIp.split('.').map(Number)
+      for (let i=1; i<=16; i++) {
+        const key = `${prefix}Host${i}Ip`
+        if (!this.form[key]) {
+          const last = parts[3] + i - 1
+          if (last > 255) break
+          this.form[key] = `${parts[0]}.${parts[1]}.${parts[2]}.${last}`
+        }
+      }
+      this.save()
+      this.showCopyFeedback('Host IPs auto-filled!')
+    },
+
+    // ─── EXPORT EXTRAS ───
+    exportMarkdown() {
+      let md = `# VCF 9.1 Configuration — As-Built\n\n`
+      md += `**Exported:** ${new Date().toISOString()}\n\n`
+      md += `**Product:** ${this.form.deploymentType||'VMware Cloud Foundation'}\n\n`
+      md += `**Mode:** ${this.form.deploymentMode||'Not set'}\n\n`
+      md += `---\n\n`
+      for (const page of this.allPages) {
+        if (!this.isPageVisible(page.id)) continue
+        if (['sizing','prerequisites','welcome'].includes(page.id)) continue
+        md += `## ${page.title}\n\n`
+        for (const section of (page.sections||[])) {
+          if (!this.isSectionVisible(section)) continue
+          md += `### ${section.title}\n\n`
+          md += `| Configuration | Value | Notes |\n|---|---|---|\n`
+          for (const field of (section.fields||[])) {
+            if (!this.isFieldVisible(field)) continue
+            if (field.type==='readonly'||field.type==='calculated') continue
+            const val = this.form[field.key]
+              ? (field.type==='password'?'••••••••':this.form[field.key])
+              : (field.sample?`[sample] ${field.sample}`:(field.required?'⚠️ MISSING':'—'))
+            const notes = (field.notes||'').replace(/\|/g,'\\|')
+            md += `| ${field.label}${field.required?' *':''} | ${val} | ${notes} |\n`
+          }
+          md += `\n`
+        }
+      }
+      md += `## Management Domain Sizing\n\n`
+      md += `| Parameter | Value |\n|---|---|\n`
+      md += `| Required Hosts | ${this.calcHosts()} |\n`
+      md += `| Total vCPU | ${this.calcTotalCPU()} |\n`
+      md += `| Total RAM | ${this.calcTotalRAM()} GB |\n`
+      md += `| Disk / Host | ${this.calcDiskPerHost()} GB |\n`
+      const blob = new Blob([md], {type:'text/markdown'})
+      const url = URL.createObjectURL(blob)
+      const a = Object.assign(document.createElement('a'), {href:url, download:`vcf-asbuilt-${new Date().toISOString().slice(0,10)}.md`})
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    },
+    exportCsv() {
+      const esc = v => `"${(v||'').replace(/"/g,'""')}"`
+      const rows = [['Page','Section','Field','Type','Value','Sample','Notes']]
+      for (const page of this.allPages) {
+        if (!this.isPageVisible(page.id)) continue
+        if (['sizing','prerequisites','welcome'].includes(page.id)) continue
+        for (const section of (page.sections||[])) {
+          if (!this.isSectionVisible(section)) continue
+          for (const field of (section.fields||[])) {
+            if (!this.isFieldVisible(field)) continue
+            if (field.type==='readonly'||field.type==='calculated') continue
+            const val = field.type==='password'?'••••••••':(this.form[field.key]||'')
+            rows.push([esc(page.title),esc(section.title),esc(field.label),field.type,esc(val),esc(field.sample||''),esc(field.notes||'')])
+          }
+        }
+      }
+      const csv = rows.map(r=>r.join(',')).join('\n')
+      const blob = new Blob([csv], {type:'text/csv'})
+      const url = URL.createObjectURL(blob)
+      const a = Object.assign(document.createElement('a'), {href:url, download:`vcf-ipam-${new Date().toISOString().slice(0,10)}.csv`})
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    },
+    shareUrl() {
+      try {
+        const data = JSON.stringify({ form:this.form, sizing:this.sizing })
+        const encoded = btoa(unescape(encodeURIComponent(data)))
+        location.hash = encoded
+        navigator.clipboard?.writeText(location.href)
+          .then(()=>this.showCopyFeedback('URL copied to clipboard!'))
+          .catch(()=>this.showCopyFeedback('Hash set — copy the URL from the address bar'))
+      } catch(e) {
+        this.showCopyFeedback('State too large to share — use Export JSON instead')
+      }
+    },
+    loadFromHash() {
+      try {
+        const hash = location.hash.slice(1)
+        if (!hash || hash.length < 20) return
+        const data = JSON.parse(decodeURIComponent(escape(atob(hash))))
+        if (data.form) Object.assign(this.form, data.form)
+        if (data.sizing) Object.assign(this.sizing, data.sizing)
+        this.save()
+        this.showCopyFeedback('Configuration loaded from URL!')
+      } catch(e) { /* invalid or empty hash */ }
+    },
+
+    // ─── VALIDATION ───
+    vlanWarnings() {
+      const seen = {}; const warnings = []
+      for (const page of this.allPages) {
+        for (const section of (page.sections||[])) {
+          for (const field of (section.fields||[])) {
+            if (/Vlan$/i.test(field.key) && this.form[field.key]) {
+              const val = String(this.form[field.key])
+              if (seen[val]) warnings.push(`VLAN ${val}: "${seen[val]}" and "${field.label}"`)
+              else seen[val] = field.label
+            }
+          }
+        }
+      }
+      return warnings
+    },
+    ipConflicts() {
+      const seen = {}; const conflicts = []
+      for (const page of this.allPages) {
+        for (const section of (page.sections||[])) {
+          for (const field of (section.fields||[])) {
+            if (field.type==='ip' && this.form[field.key] && this.isValidIp(this.form[field.key])) {
+              const val = this.form[field.key]
+              if (seen[val]) conflicts.push(`${val}: "${seen[val]}" and "${field.label}"`)
+              else seen[val] = field.label
+            }
+          }
+        }
+      }
+      return conflicts
+    },
+    ipToInt(ip) {
+      const p = ip.split('.').map(Number)
+      return ((p[0]*256+p[1])*256+p[2])*256+p[3]
+    },
+    cidrOverlaps() {
+      const nets = []; const warnings = []
+      for (const page of this.allPages) {
+        for (const section of (page.sections||[])) {
+          for (const field of (section.fields||[])) {
+            if (field.type==='cidr' && this.form[field.key] && this.isValidCidr(this.form[field.key])) {
+              const [ip, prefix] = this.form[field.key].split('/')
+              const p = parseInt(prefix)
+              const ipInt = this.ipToInt(ip)
+              const mask = p===0 ? 0 : (~0 << (32-p)) >>> 0
+              const net = (ipInt & mask) >>> 0
+              nets.push({ label:field.label, cidr:this.form[field.key], net, mask })
+            }
+          }
+        }
+      }
+      for (let i=0; i<nets.length; i++) {
+        for (let j=i+1; j<nets.length; j++) {
+          const a=nets[i], b=nets[j]
+          if (a.cidr===b.cidr) continue
+          const overlap = ((a.net & b.mask)>>>0)===b.net || ((b.net & a.mask)>>>0)===a.net
+          if (overlap) warnings.push(`${a.label} (${a.cidr}) overlaps ${b.label} (${b.cidr})`)
+        }
+      }
+      return warnings
+    },
+
+    // ─── AS-BUILT HELPERS ───
+    vlanTopology() {
+      const vlans = []
+      for (const page of this.allPages) {
+        for (const section of (page.sections||[])) {
+          for (const field of (section.fields||[])) {
+            if (/Vlan$/i.test(field.key)) {
+              const val = this.form[field.key] || field.sample
+              if (val) vlans.push({ name:field.label.replace(/ VLAN (ID)?$/i,''), vlan:String(val), page:page.title })
+            }
+          }
+        }
+      }
+      return vlans.sort((a,b) => parseInt(a.vlan)-parseInt(b.vlan))
+    },
+    dnsChecklist() {
+      const checks = []
+      for (const page of this.allPages) {
+        if (!this.isPageVisible(page.id)) continue
+        for (const section of (page.sections||[])) {
+          if (!this.isSectionVisible(section)) continue
+          for (const field of (section.fields||[])) {
+            if (field.type==='text' && field.label && field.label.includes('FQDN') && this.isFieldVisible(field)) {
+              const val = this.form[field.key] || ''
+              checks.push({
+                label: field.label,
+                page: page.title,
+                value: val,
+                ok: !!val && this.isFqdn(val),
+                missing: !val && !!field.required,
+              })
+            }
+          }
+        }
+      }
+      return checks
+    },
+
+    // ─── INIT ───
+    init() {
+      this.load()
+      // Restore dark mode preference
+      if (localStorage.getItem('vcf-dark') === '1') this.darkMode = true
+
+      // Auto-open all sections for the current page
+      const page = this.allPages.find(p=>p.id===this.currentPage)
+      if (page && page.sections) {
+        page.sections.forEach(s => {
+          const key = this.currentPage+':'+s.title
+          if (!this.openSections.includes(key)) this.openSections.push(key)
+        })
+      }
+      // Pre-open as-built accordion keys so x-collapse finds them initialized
+      this.allPages.forEach(p => {
+        const key = 'ab:'+p.id
+        if (!this.openSections.includes(key)) this.openSections.push(key)
+      })
+      ;['ab:sizing-summary','ab:vlan-topology','ab:dns-checklist'].forEach(k => {
+        if (!this.openSections.includes(k)) this.openSections.push(k)
+      })
+
+      // Load from URL hash if present (share URL feature)
+      this.loadFromHash()
+
+      // Keyboard shortcuts: Alt+→ / Alt+← for page navigation
+      window.addEventListener('keydown', (e) => {
+        if (!e.altKey) return
+        const visiblePages = this.navGroups.flatMap(g => g.items).filter(item => this.isPageVisible(item.id))
+        const idx = visiblePages.findIndex(p => p.id === this.currentPage)
+        if (e.key === 'ArrowRight' && idx < visiblePages.length-1) {
+          e.preventDefault(); this.navigate(visiblePages[idx+1].id)
+        } else if (e.key === 'ArrowLeft' && idx > 0) {
+          e.preventDefault(); this.navigate(visiblePages[idx-1].id)
+        }
+      })
+
+      // Watch form changes for auto-open on navigate
+      this.$watch('currentPage', (newPage) => {
+        const page = this.allPages.find(p=>p.id===newPage)
+        if (page && page.sections && page.sections.length>0) {
+          const key = newPage+':'+page.sections[0].title
+          if (!this.openSections.includes(key)) this.openSections.push(key)
+          if (!this.openSections.includes('ab:'+newPage)) this.openSections.push('ab:'+newPage)
+        }
+        window.scrollTo(0,0)
+      })
+    },
+  }
+}
+</script>
+</body>
+</html>

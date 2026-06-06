@@ -1,0 +1,11 @@
+# Excel files
+*.xlsx
+*.xls
+~$*
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+*.swp
