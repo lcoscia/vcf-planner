@@ -494,6 +494,21 @@
                         <td class="px-4 py-2 text-sm font-medium text-gray-800">
                           <span x-text="field.label"></span>
                           <span x-show="field.required" class="text-red-400 ml-1 text-xs">*</span>
+                          <template x-if="field.docLink">
+                            <span class="relative inline-block ml-1 align-middle" x-data="{open:false}">
+                              <button type="button"
+                                      class="inline-flex items-center justify-center w-4 h-4 rounded-full border border-blue-300 text-blue-500 hover:bg-blue-50 text-[10px] leading-none"
+                                      @click="open=!open" @mouseenter="open=true" @mouseleave="open=false"
+                                      :aria-label="'Help: '+field.label" aria-haspopup="true" :aria-expanded="open">i</button>
+                              <div x-show="open" x-transition x-cloak
+                                   class="absolute z-20 left-0 mt-1 w-64 p-2 text-xs bg-white border border-gray-200 rounded shadow-lg text-gray-700 normal-case font-normal"
+                                   @mouseenter="open=true" @mouseleave="open=false">
+                                <p class="mb-1" x-text="field.docNote || 'Voir la documentation officielle de design VCF :'"></p>
+                                <a :href="field.docLink" target="_blank" rel="noopener noreferrer"
+                                   class="text-blue-600 underline" x-text="field.docLabel || 'Ouvrir la documentation'"></a>
+                              </div>
+                            </span>
+                          </template>
                         </td>
                         <td class="px-3 py-2 sample-cell hidden md:table-cell" x-text="field.sample||''"></td>
                         <td class="px-3 py-2">
@@ -900,6 +915,7 @@
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Auto-save · Export JSON · Import JSON</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Export Markdown As-Built · CSV IPAM table</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Share via URL hash · Print to PDF</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Contextual help bubbles linking to official Broadcom VCF design docs</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> VLAN / IP / CIDR conflict detection</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> DNS pre-flight checklist · VLAN topology table</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Dark mode · Keyboard navigation (Alt+→/←)</li>
@@ -1021,26 +1037,30 @@
 // ============================================================
 const LT = {
   vcenter: {
-    'Tiny':       { vcpu:2,  ram:14,  disk:604  },
-    'Small':      { vcpu:4,  ram:21,  disk:694  },
-    'Medium':     { vcpu:8,  ram:30,  disk:858  },
-    'Large':      { vcpu:16, ram:39,  disk:1158 },
-    'Extra-Large':{ vcpu:24, ram:58,  disk:1783 },
+    'Tiny':   { vcpu:2,  ram:14,  disk:604  },
+    'Small':  { vcpu:4,  ram:21,  disk:694  },
+    'Medium': { vcpu:8,  ram:30,  disk:858  },
+    'Large':  { vcpu:16, ram:39,  disk:1158 },
+    'XLarge': { vcpu:24, ram:58,  disk:1783 },
   },
   sddc_manager: { vcpu:4, ram:8, disk:914 },
   nsx_manager: {
-    'Extra-Small': { vcpu:2,  ram:8,  disk:300 },
-    'Small':       { vcpu:4,  ram:16, disk:300 },
-    'Medium':      { vcpu:6,  ram:24, disk:300 },
-    'Large':       { vcpu:12, ram:48, disk:300 },
-    'Extra-Large': { vcpu:16, ram:64, disk:300 },
+    'Small':  { vcpu:4,  ram:16, disk:300 },
+    'Medium': { vcpu:6,  ram:24, disk:300 },
+    'Large':  { vcpu:12, ram:48, disk:300 },
+    'XLarge': { vcpu:16, ram:64, disk:300 },
   },
+  // VNA (vDefend Network Appliance) specs mirror the equivalent NSX Edge size — verify against Broadcom sizing guidance
   nsx_edge: {
-    'Extra Small': { vcpu:2,  ram:4,  disk:120 },
-    'Small':       { vcpu:4,  ram:8,  disk:120 },
-    'Medium':      { vcpu:8,  ram:32, disk:120 },
-    'Large':       { vcpu:16, ram:64, disk:120 },
-    'Extra Large': { vcpu:32, ram:128,disk:120 },
+    'Excluded':        { vcpu:0,  ram:0,   disk:0   },
+    'NSX Edge Small':  { vcpu:2,  ram:4,   disk:120 },
+    'NSX Edge Medium': { vcpu:4,  ram:8,   disk:120 },
+    'NSX Edge Large':  { vcpu:8,  ram:32,  disk:120 },
+    'NSX Edge XLarge': { vcpu:16, ram:64,  disk:120 },
+    'VNA Small':       { vcpu:4,  ram:8,   disk:120 },
+    'VNA Medium':      { vcpu:8,  ram:32,  disk:120 },
+    'VNA Large':       { vcpu:16, ram:64,  disk:120 },
+    'VNA XLarge':      { vcpu:32, ram:128, disk:120 },
   },
   vcf_operations: {
     'Extra-Small': { vcpu:2,  ram:16, disk:500  },
@@ -1064,11 +1084,22 @@ const LT = {
     'Medium': { vcpu:8,  ram:32, disk:120 },
   },
   ssp: {
-    'Small':  { vcpu:4,  ram:16, disk:260 },
-    'Medium': { vcpu:8,  ram:32, disk:260 },
-    'Large':  { vcpu:16, ram:64, disk:260 },
+    'Excluded': { vcpu:0,  ram:0,   disk:0   },
+    'Medium':   { vcpu:8,  ram:32,  disk:260 },
+    'Large':    { vcpu:16, ram:64,  disk:260 },
+    'X-Large':  { vcpu:24, ram:96,  disk:260 },
   },
 }
+
+// Canonical subnet mask list (from Static Reference Tables 'table_masks' named range)
+const SUBNET_MASKS = [
+  '255.255.255.255','255.255.255.254','255.255.255.252','255.255.255.248',
+  '255.255.255.240','255.255.255.224','255.255.255.192','255.255.255.128',
+  '255.255.255.0','255.255.254.0','255.255.252.0','255.255.248.0',
+  '255.255.240.0','255.255.224.0','255.255.192.0','255.255.128.0',
+  '255.255.0.0','255.254.0.0','255.252.0.0','255.248.0.0',
+  '255.240.0.0','255.224.0.0','255.192.0.0','255.128.0.0',
+]
 
 // ============================================================
 // PREREQUISITE DATA (from Prerequisite Checklist sheet)
@@ -1295,7 +1326,7 @@ const ALL_PAGES = [
           { key:'principalStorage', label:'Principal Storage Type', type:'select',
             options:['vSAN-ESA','vSAN-OSA','VMFS on Fibre Channel (FC)','NFSv3'],
             sample:'vSAN-ESA', required:true },
-          { key:'vsanFtt',        label:'vSAN FTT (Failure Tolerance)', type:'select', options:['1','2'], sample:'1',
+          { key:'vsanFtt',        label:'vSAN FTT (Failure Tolerance)', type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/vsan-deployment-administration-and-monitoring/vsan-planning-and-deployment/designing-and-sizing-a-virtual-san-cluster/design-considerations-for-a-virtual-san-cluster.html', docLabel:'vSAN Cluster Design Considerations (TechDocs)', options:['1','2','3'], sample:'1',
             showWhen:f=>f.principalStorage&&f.principalStorage.startsWith('vSAN') },
           { key:'vsanEncryptDit', label:'Data-in-Transit Encryption',   type:'select', options:['Selected','Unselected'], sample:'Unselected',
             showWhen:f=>f.principalStorage&&f.principalStorage.startsWith('vSAN') },
@@ -1357,7 +1388,7 @@ const ALL_PAGES = [
         fields:[
           { key:'vcMgmtFqdn',    label:'vCenter FQDN',              type:'text', sample:'sfo-m01-vc01.sfo.rainpole.io', required:true },
           { key:'vcMgmtIp',      label:'vCenter IP',                type:'ip',   sample:'10.11.10.3', required:true },
-          { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', options:['Tiny','Small','Medium','Large','Extra-Large'], sample:'Small', required:true },
+          { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Small', required:true },
           { key:'vcSsoDomain',   label:'SSO Domain',                type:'text', sample:'vsphere.local', required:true },
           { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'', required:true, notes:'min 8 chars, complexity required' },
           { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'', required:true },
@@ -1391,7 +1422,7 @@ const ALL_PAGES = [
           { key:'nsxVipIp',      label:'NSX Cluster VIP IP',       type:'ip',   sample:'10.11.10.74', required:true },
           { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'', required:true },
           { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'' },
-          { key:'nsxMgrSize',    label:'NSX Manager Appliance Size', type:'select', options:['Extra-Small','Small','Medium','Large','Extra-Large'], sample:'Small', required:true },
+          { key:'nsxMgrSize',    label:'NSX Manager Appliance Size', type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small', required:true },
         ]
       },
       {
@@ -1403,7 +1434,7 @@ const ALL_PAGES = [
           { key:'nsxEdge1Ip',     label:'NSX Edge 1 Mgmt IP',      type:'ip',   sample:'10.11.10.81', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdge2Fqdn',   label:'NSX Edge 2 FQDN',         type:'text', sample:'sfo-m01-nsx01-edge02.sfo.rainpole.io', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdge2Ip',     label:'NSX Edge 2 Mgmt IP',      type:'ip',   sample:'10.11.10.82', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'nsxEdgeSize',      label:'NSX Edge Appliance Size',  type:'select', options:['Extra Small','Small','Medium','Large','Extra Large'], sample:'Large', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgeSize',      label:'NSX Edge Appliance Size',  type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/advanced-network-management/administration-guide/installing-nsx-edge/edge-vm-system-requirements.html', docLabel:'NSX Edge VM System Requirements (TechDocs)', options:['Excluded','NSX Edge Small','NSX Edge Medium','NSX Edge Large','NSX Edge XLarge','VNA Small','VNA Medium','VNA Large','VNA XLarge'], sample:'NSX Edge Large', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'edgeHaMode',     label:'Edge HA Mode',             type:'select', options:['Active-Active','Active-Standby'], sample:'Active-Active', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'edgeTepVlan',    label:'TEP VLAN ID',              type:'number', sample:'1116', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'edgeTepIpStart', label:'TEP IP Pool Start',        type:'ip',     sample:'10.11.16.100', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
@@ -1461,8 +1492,8 @@ const ALL_PAGES = [
         amber: true,
         description:'These values are used when deploying via API/PowerShell. UI deployments auto-select sizing.',
         fields:[
-          { key:'apiVcenterSize', label:'vCenter Size (API)',       type:'select', options:['Tiny','Small','Medium','Large','Extra-Large'], sample:'Small' },
-          { key:'apiNsxSize',     label:'NSX Manager Size (API)',   type:'select', options:['Extra-Small','Small','Medium','Large','Extra-Large'], sample:'Small' },
+          { key:'apiVcenterSize', label:'vCenter Size (API)',       type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Small' },
+          { key:'apiNsxSize',     label:'NSX Manager Size (API)',   type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small' },
           { key:'apiNsxOpMode',   label:'NSX Operation Mode',       type:'select', options:['Standard','Enhanced Datapath Standard','Enhanced Datapath Dedicated'], sample:'Standard' },
         ]
       },
@@ -1739,8 +1770,8 @@ const ALL_PAGES = [
           { key:'wldInclude',    label:'Deploy Workload Domain',   type:'toggle', options:['Include','Exclude'], sample:'Include' },
           { key:'wldName',       label:'Workload Domain Name',     type:'text',   sample:'sfo-w01', required:true, showWhen:f=>f.wldInclude!=='Exclude' },
           { key:'wldType',       label:'Domain Type',             type:'select', options:['Workload Domain','MGMT Workload Domain'], sample:'Workload Domain', showWhen:f=>f.wldInclude!=='Exclude' },
-          { key:'wldStorageType',label:'Principal Storage',        type:'select', options:['vSAN-ESA','vSAN-OSA','VMFS on Fibre Channel (FC)','NFSv3'], sample:'vSAN-ESA', showWhen:f=>f.wldInclude!=='Exclude' },
-          { key:'wldVsanFtt',    label:'vSAN FTT',                type:'select', options:['1','2'], sample:'1', showWhen:f=>f.wldInclude!=='Exclude'&&f.wldStorageType&&f.wldStorageType.startsWith('vSAN') },
+          { key:'wldStorageType',label:'Principal Storage',        type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/design/vmware-cloud-foundation-concepts/storage-models.html', docLabel:'VCF Storage Models (TechDocs)', options:['vSAN-ESA','vSAN-OSA','vSAN Compute Cluster','vSAN Storage Cluster','VMFS on Fibre Channel (FC)','NFSv3'], sample:'vSAN-ESA', showWhen:f=>f.wldInclude!=='Exclude' },
+          { key:'wldVsanFtt',    label:'vSAN FTT',                type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/vsan-deployment-administration-and-monitoring/vsan-planning-and-deployment/designing-and-sizing-a-virtual-san-cluster/design-considerations-for-a-virtual-san-cluster.html', docLabel:'vSAN Cluster Design Considerations (TechDocs)', options:['1','2','3'], sample:'1', showWhen:f=>f.wldInclude!=='Exclude'&&f.wldStorageType&&f.wldStorageType.startsWith('vSAN') },
         ]
       },
       {
@@ -1851,8 +1882,8 @@ const ALL_PAGES = [
           { key:'clusterName',      label:'Cluster Name',               type:'text',   sample:'sfo-w01-cl02', showWhen:f=>f.clusterInclude==='Include' },
           { key:'clusterType',      label:'Cluster Type',               type:'select', options:['Single-Rack','Multi-Rack L3'], sample:'Single-Rack', showWhen:f=>f.clusterInclude==='Include' },
           { key:'clusterHostCount', label:'Number of Hosts',            type:'number', sample:'4', showWhen:f=>f.clusterInclude==='Include' },
-          { key:'clusterStorage',   label:'Principal Storage',          type:'select', options:['vSAN-ESA','vSAN-OSA','VMFS on FC','NFSv3'], sample:'vSAN-ESA', showWhen:f=>f.clusterInclude==='Include' },
-          { key:'clusterVsanFtt',   label:'vSAN FTT',                  type:'select', options:['1','2'], sample:'1', showWhen:f=>f.clusterInclude==='Include'&&f.clusterStorage&&f.clusterStorage.startsWith('vSAN') },
+          { key:'clusterStorage',   label:'Principal Storage',          type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/design/vmware-cloud-foundation-concepts/storage-models.html', docLabel:'VCF Storage Models (TechDocs)', options:['vSAN-ESA','vSAN-OSA','vSAN Compute Cluster','vSAN Storage Cluster','VMFS on Fibre Channel (FC)','NFSv3'], sample:'vSAN-ESA', showWhen:f=>f.clusterInclude==='Include' },
+          { key:'clusterVsanFtt',   label:'vSAN FTT',                  type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/vsan-deployment-administration-and-monitoring/vsan-planning-and-deployment/designing-and-sizing-a-virtual-san-cluster/design-considerations-for-a-virtual-san-cluster.html', docLabel:'vSAN Cluster Design Considerations (TechDocs)', options:['1','2','3'], sample:'1', showWhen:f=>f.clusterInclude==='Include'&&f.clusterStorage&&f.clusterStorage.startsWith('vSAN') },
         ]
       },
       {
@@ -1951,10 +1982,10 @@ const ALL_PAGES = [
           { key:'edrAgentVersion', label:'Agent Version',               type:'text',   sample:'3.9.1.5', showWhen:f=>f.edrInclude==='Include' },
           { key:'edrGroupName',    label:'Sensor Group / Policy Name',  type:'text',   sample:'VCF-Hosts-Policy', showWhen:f=>f.edrInclude==='Include' },
           { key:'edrProxyHost',    label:'EDR Proxy Host (optional)',   type:'text',   sample:'', showWhen:f=>f.edrInclude==='Include' },
-          { key:'edrInstallerPkg', label:'Installer Package Name',      type:'text',   sample:'carbon-black-installer', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrInstallerPkg', label:'Installer Package Name',      type:'select', optionsFn:f=>f.edrProduct==='CrowdStrike'?['crowdstrike-installer']:['carbon-black-installer'], sample:'carbon-black-installer', showWhen:f=>f.edrInclude==='Include' },
           { key:'edrIpAssign',     label:'IP Assignment',               type:'select', options:['Static','DHCP'], sample:'Static', showWhen:f=>f.edrInclude==='Include' },
           { key:'edrSensorIp',     label:'Sensor Server IP (Static)',   type:'ip',     sample:'', showWhen:f=>f.edrInclude==='Include'&&f.edrIpAssign==='Static' },
-          { key:'edrSubnetMask',   label:'Subnet Mask',                 type:'select', options:['255.255.255.0','255.255.0.0','255.0.0.0','255.255.254.0','255.255.252.0'], sample:'255.255.255.0', showWhen:f=>f.edrInclude==='Include'&&f.edrIpAssign==='Static' },
+          { key:'edrSubnetMask',   label:'Subnet Mask',                 type:'select', optionsFn:()=>SUBNET_MASKS, sample:'255.255.255.0', showWhen:f=>f.edrInclude==='Include'&&f.edrIpAssign==='Static' },
           { key:'edrGateway',      label:'Gateway',                     type:'ip',     sample:'', showWhen:f=>f.edrInclude==='Include'&&f.edrIpAssign==='Static' },
         ]
       },
@@ -1977,7 +2008,7 @@ const ALL_PAGES = [
           { key:'rwrDatastore',      label:'Datastore',                            type:'text',   sample:'sfo-m01-cl01-ds-vsan01', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrNetwork',        label:'VM Network',                           type:'text',   sample:'sfo-m01-cl01-vds01-mgmt', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrIp',             label:'Appliance IP',                         type:'ip',     sample:'10.11.10.55', showWhen:f=>f.rwrOnpremInclude==='Include' },
-          { key:'rwrSubnetMask',     label:'Subnet Mask',                          type:'select', options:['255.255.255.0','255.255.0.0','255.0.0.0'], sample:'255.255.255.0', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrSubnetMask',     label:'Subnet Mask',                          type:'select', optionsFn:()=>SUBNET_MASKS, sample:'255.255.255.0', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrGateway',        label:'Gateway',                              type:'ip',     sample:'10.11.10.1', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrBackupSchedule', label:'Backup Schedule',                      type:'select', options:['Hourly','Every 4 Hours','Every 6 Hours','Daily'], sample:'Every 4 Hours', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrRetentionDays',  label:'Retention Period (days)',               type:'number', sample:'30', showWhen:f=>f.rwrOnpremInclude==='Include' },
@@ -2172,12 +2203,12 @@ function vcfPlanner() {
       compSizes: {
         vcenter: 'Small',
         nsx_manager: 'Small',
-        nsx_edge: 'Medium',
+        nsx_edge: 'NSX Edge Medium',
         vcf_operations: 'Small',
         vcf_logs: 'Small',
         avi_lb: 'Small',
         vcfa: 'Small',
-        ssp: 'Small',
+        ssp: 'Medium',
       },
     },
 
@@ -2187,15 +2218,15 @@ function vcfPlanner() {
     prerequisiteData: PREREQ_DATA,
     sizingComponents: [
       { key:'sddc_manager',  label:'SDDC Manager' },
-      { key:'vcenter',       label:'vCenter Server', sizes:['Tiny','Small','Medium','Large','Extra-Large'] },
-      { key:'nsx_manager',   label:'NSX Manager (×3)', sizes:['Extra-Small','Small','Medium','Large','Extra-Large'] },
-      { key:'nsx_edge',      label:'NSX Edge Nodes (×2)', sizes:['Extra Small','Small','Medium','Large','Extra Large'] },
+      { key:'vcenter',       label:'vCenter Server', sizes:['Tiny','Small','Medium','Large','XLarge'] },
+      { key:'nsx_manager',   label:'NSX Manager (×3)', sizes:['Small','Medium','Large','XLarge'] },
+      { key:'nsx_edge',      label:'NSX Edge Nodes (×2)', sizes:['Excluded','NSX Edge Small','NSX Edge Medium','NSX Edge Large','NSX Edge XLarge','VNA Small','VNA Medium','VNA Large','VNA XLarge'] },
       { key:'vcf_operations',label:'VCF Operations', sizes:['Extra-Small','Small','Medium','Large','Extra-Large'] },
       { key:'vcf_automation',label:'VCF Automation' },
       { key:'vcf_logs',      label:'Log Management', sizes:['Small','Medium'] },
       { key:'avi_lb',        label:'AVI Load Balancer (×3)', sizes:['Small','Large','Extra-Large'] },
       { key:'vcfa',          label:'VCFA', sizes:['Small','Medium'] },
-      { key:'ssp',           label:'vDefend SSP (Shared NSX only)', sizes:['Small','Medium','Large'] },
+      { key:'ssp',           label:'vDefend SSP (Shared NSX only)', sizes:['Excluded','Medium','Large','X-Large'] },
     ],
 
     // ─── NAVIGATION ───

@@ -25,7 +25,8 @@ Or double-click `index.html` in Finder / Explorer.
 | **Persistence** | Auto-save to `localStorage` · Export/Import JSON |
 | **Export** | JSON · Markdown As-Built · CSV IPAM table · Print to PDF |
 | **Sharing** | Share URL via `location.hash` (btoa-encoded state) |
-| **Validation** | VLAN conflict detection · IP conflict detection · CIDR overlap detection · FQDN format check |
+| **Validation** | VLAN conflict detection · IP conflict detection · CIDR overlap detection · FQDN format check · Constrained dropdowns matching the official Excel data-validation lists (appliance sizes, vSAN FTT, storage types, subnet masks, …) |
+| **Help bubbles** | Inline "ⓘ" tooltips on key sizing fields linking out to the official Broadcom VCF 9 design documentation |
 | **As-Built** | VLAN topology table · DNS pre-flight checklist · Completion dashboard |
 | **UX** | Dark mode · Keyboard nav (`Alt+→` / `Alt+←`) · Expand/Collapse all · Jump to first missing · Auto-fill host IPs · Copy section |
 
@@ -69,7 +70,8 @@ index.html                  ← single file, ~2700 lines
 │   ├── Sidebar             nav groups + per-page progress bars
 │   └── Main content        page router (x-show per page)
 └── <script>
-    ├── LT                  Lookup tables (vCenter/NSX/AVI sizes)
+    ├── LT                  Lookup tables (vCenter/NSX/AVI sizes — keys mirror the Excel Data Validation lists)
+    ├── SUBNET_MASKS        Canonical 24-entry subnet mask list (from 'Static Reference Tables')
     ├── PREREQ_DATA         Prerequisite checklist rows
     ├── makeNetFields()     Helper — network segment field group
     ├── makeHostFields()    Helper — N×(FQDN+IP) host fields
@@ -83,7 +85,8 @@ index.html                  ← single file, ~2700 lines
 
 - **`ALL_PAGES`** — Array of `{ id, title, sections[] }`. Each section has `fields[]` with `type`, `showWhen`, `required`, `optionsFn`, etc.
 - **`showWhen: f => ...`** — Conditional visibility at page / section / field level, driven by `form.*` values.
-- **`optionsFn: f => [...]`** — Dynamic dropdown options based on current form state (e.g., DVS profile options differ for VCF vs VVF).
+- **`optionsFn: f => [...]`** — Dynamic dropdown options based on current form state (e.g., DVS profile options differ for VCF vs VVF; EDR installer package name depends on the chosen EDR product).
+- **`docLink` / `docLabel`** — Optional on any field; renders an "ⓘ" help bubble next to the label that links to the official Broadcom VCF design documentation for that choice (see e.g. `vcMgmtSize`, `nsxEdgeSize`, `vsanFtt`).
 - **`calcHosts()`** — `MAX(min, ceil(CPU/overSub/hostCores), ceil(RAM/hostRAM)+1)` with storage-aware minimums (vSAN=3, non-vSAN=2, Simple=1, HA=4).
 - **Persistence key** — `localStorage` key `vcf-planner-v1` stores `{ form, sizing, currentPage, openGroups, openSections }`.
 
@@ -130,6 +133,8 @@ To add a new field, add an entry to the relevant `sections[].fields[]` array in 
   notes: 'Helpful tip',       // shown in Notes column
   showWhen: f => f.someKey === 'someValue',  // optional — hides field when false
   optionsFn: f => [...],      // for select: dynamic options based on form state
+  docLink: 'https://techdocs.broadcom.com/...',  // optional — adds an "ⓘ" help bubble linking to official docs
+  docLabel: 'Link text shown in the bubble',     // optional — defaults to "Ouvrir la documentation"
 }
 ```
 
