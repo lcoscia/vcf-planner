@@ -21,7 +21,7 @@ Or double-click `index.html` in Finder / Explorer.
 |---|---|
 | **Coverage** | 18 pages · 600+ fields across all 27 original sheets |
 | **Deployment modes** | VCF and VVF · New Fleet, Additional Instance, Workload Domain, Additional Cluster |
-| **Sizing calculator** | Live host count + disk-per-host formulas matching the Excel workbook |
+| **Sizing calculator** | Live host count + disk-per-host formulas matching the Excel workbook · WLD vCenter sizing (Shared/Dedicated with size & storage tier) · Instance Profile Size coupled to Cluster Model (Simple → forced Small) · VCF Management Services & Fleet Components included in component inclusions |
 | **Persistence** | Auto-save to `localStorage` · Export/Import JSON |
 | **Export** | JSON · Markdown As-Built · CSV IPAM table · Print to PDF |
 | **Sharing** | Share URL via `location.hash` (btoa-encoded state) |
@@ -43,7 +43,7 @@ Or double-click `index.html` in Finder / Explorer.
 | 05 | Configure Management Domain | NSX Federation, AVI LB, vSphere Supervisor, Cloud Proxy |
 | 06 | Fleet Management Day-N | VCF Operations, Automation, Logs, VCFA, vDefend SSP |
 | 07 | Active Directory Inputs | AD groups, service accounts, LDAP settings |
-| 08 | Deploy Workload Domain | WLD hosts, NSX, storage, networking |
+| 08 | Deploy Workload Domain | WLD hosts, NSX, storage, networking · WLD vCenter sizing (Shared/Dedicated, size, storage tier) |
 | 09 | Configure Workload Domain | WLD-level configuration |
 | 10 | Deploy Additional Cluster | Extra vSphere cluster deployment |
 | 11 | Additional Racks | Multi-Rack L3 topology (up to 8 racks) |
