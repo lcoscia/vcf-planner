@@ -1041,7 +1041,7 @@
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0<br><span class="text-gray-300">2026-06-08</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Evolution update</p>
-            <p>Dark mode, keyboard navigation, share URL, expand/collapse all, jump to missing, Fill IPs, copy section, Markdown &amp; CSV export, VLAN/IP/CIDR conflict detection, DNS pre-flight checklist, VLAN topology table, vCPU bar chart, FQDN validation, sidebar progress bars, contextual help bubbles linking to official VCF design docs, and stricter selection-field validation aligned with the original Excel data-validation lists. Also added: WLD vCenter sizing (Shared/Dedicated, with size and storage tier) on the Deploy Workload Domain page, an Instance Profile Size field in the sizing calculator that is automatically forced to "Small" when the Cluster Model is set to Simple (matching the workbook's formula), and VCF Management Services / Fleet Components (VCF Services Runtime, Cloud Proxy, License Server, Identity Broker, Software Depot, Log Management Replicas, VCF Operations for Networks and its Collector, Real-time Metrics) now included in the live sizing calculator.</p>
+            <p>Dark mode, keyboard navigation, share URL, expand/collapse all, jump to missing, Fill IPs, copy section, Markdown &amp; CSV export, VLAN/IP/CIDR conflict detection, DNS pre-flight checklist, VLAN topology table, vCPU bar chart, FQDN validation, sidebar progress bars, contextual help bubbles linking to official VCF design docs, and stricter selection-field validation aligned with the original Excel data-validation lists. Also added: WLD vCenter sizing (Shared/Dedicated, with size and storage tier) on the Deploy Workload Domain page, an Instance Profile Size field in the sizing calculator that is automatically forced to "Small" when the Cluster Model is set to Simple (matching the workbook's formula), and VCF Management Services / Fleet Components (VCF Services Runtime, Cloud Proxy, License Server, Identity Broker, Software Depot, Log Management Replicas, VCF Operations for Networks and its Collector, Real-time Metrics) now included in the live sizing calculator. The Fleet Management Day-N page now models VCF Operations as a full 4-node cluster (Primary, Replica, Data, and Load Balancer nodes, each with FQDN and IP), adds a VCF Automation IP pool (5 fields, noting that Small/Standard deployments need 2 IPs and HA deployments need 4), and adds Platform Node and Collector Node IPv4/IPv6 fields for VCF Operations for Networks (with a note that these IPs must reside in the VCF Management Network).</p>
           </div>
         </div>
       </div>
@@ -1692,8 +1692,14 @@ const ALL_PAGES = [
         fields:[
           { key:'vcfOpsInclude',   label:'Include VCF Operations',  type:'toggle', options:['Include','Exclude'], sample:'Include' },
           { key:'vcfOpsHaMode',    label:'VCF Operations HA Mode',  type:'select', options:['Single Node','HA Cluster'], sample:'HA Cluster', showWhen:f=>f.vcfOpsInclude==='Include' },
-          { key:'vcfOpsFqdn',      label:'VCF Operations FQDN',     type:'text',   sample:'sfo-m01-vrops01.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include' },
-          { key:'vcfOpsIp',        label:'VCF Operations IP',       type:'ip',     sample:'10.11.10.42', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsPrimaryFqdn', label:'VCF Operations Primary Node FQDN', type:'text', sample:'sfo-m01-vrops01a.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.10.42', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsReplicaFqdn', label:'VCF Operations Replica Node FQDN', type:'text', sample:'sfo-m01-vrops01b.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsReplicaIp',   label:'VCF Operations Replica Node IP',   type:'ip',   sample:'10.11.10.43', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsDataFqdn',    label:'VCF Operations Data Node FQDN',    type:'text', sample:'sfo-m01-vrops01c.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.10.44', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'sfo-m01-vrops01.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include', notes:'Optional in Single Node mode — useful for connecting an external load balancer in HA Cluster mode' },
+          { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.45', showWhen:f=>f.vcfOpsInclude==='Include' },
           { key:'vcfOpsSize',      label:'VCF Operations Size',     type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsInclude==='Include' },
           { key:'vcfOpsAdminPw',   label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfOpsInclude==='Include' },
         ]
@@ -1704,6 +1710,11 @@ const ALL_PAGES = [
           { key:'vcfAutoInclude',  label:'Include VCF Automation',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'vcfAutoFqdn',     label:'VCF Automation FQDN',     type:'text',   sample:'sfo-m01-vra01.sfo.rainpole.io', showWhen:f=>f.vcfAutoInclude==='Include' },
           { key:'vcfAutoIp',       label:'VCF Automation IP',       type:'ip',     sample:'10.11.10.45', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool1',  label:'VCF Automation IP Pool #1', type:'ip',   sample:'10.11.10.51', showWhen:f=>f.vcfAutoInclude==='Include', notes:'2 IPs required for Small/Standard deployment, 4 IPs required for High Availability deployment' },
+          { key:'vcfAutoIpPool2',  label:'VCF Automation IP Pool #2', type:'ip',   sample:'10.11.10.52', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool3',  label:'VCF Automation IP Pool #3', type:'ip',   sample:'10.11.10.53', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool4',  label:'VCF Automation IP Pool #4', type:'ip',   sample:'10.11.10.54', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool5',  label:'VCF Automation IP Pool #5', type:'ip',   sample:'10.11.10.55', showWhen:f=>f.vcfAutoInclude==='Include' },
           { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfAutoInclude==='Include' },
         ]
       },
@@ -1724,6 +1735,10 @@ const ALL_PAGES = [
           { key:'vcfNetOpsInclude', label:'Include VCF Operations for Networks', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'vcfNetOpsFqdn',    label:'VCF Ops for Networks FQDN',           type:'text', sample:'sfo-m01-vvrni01.sfo.rainpole.io', showWhen:f=>f.vcfNetOpsInclude==='Include' },
           { key:'vcfNetOpsIp',      label:'VCF Ops for Networks IP',             type:'ip',   sample:'10.11.10.44', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+          { key:'vcfNetOpsPlatformIpv4',  label:'Platform Node IPv4',            type:'ip',   sample:'10.11.10.60', showWhen:f=>f.vcfNetOpsInclude==='Include', notes:'IP address must reside within the VCF Management Network — the UI deployment method does not allow choosing a different network or vDPG' },
+          { key:'vcfNetOpsPlatformIpv6',  label:'Platform Node IPv6 (optional)', type:'ip',   sample:'', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+          { key:'vcfNetOpsCollectorIpv4', label:'Collector Node IPv4',           type:'ip',   sample:'10.11.10.61', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+          { key:'vcfNetOpsCollectorIpv6', label:'Collector Node IPv6 (optional)', type:'ip',  sample:'', showWhen:f=>f.vcfNetOpsInclude==='Include' },
         ]
       },
       {

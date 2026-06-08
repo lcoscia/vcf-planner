@@ -41,7 +41,7 @@ Or double-click `index.html` in Finder / Explorer.
 | 03 | Management Domain Sizing | Live sizing calculator (CPU / RAM / disk per host) |
 | 04 | Deploy Management Domain | SDDC Manager, vCenter, NSX, hosts, networking |
 | 05 | Configure Management Domain | NSX Federation, AVI LB, vSphere Supervisor, Cloud Proxy |
-| 06 | Fleet Management Day-N | VCF Operations, Automation, Logs, VCFA, vDefend SSP |
+| 06 | Fleet Management Day-N | VCF Operations, Automation, Logs, VCFA, vDefend SSP · expanded IP/FQDN coverage for the VCF Operations cluster (Primary/Replica/Data/Load Balancer nodes), VCF Automation IP pool, and VCF Operations for Networks Platform/Collector nodes |
 | 07 | Active Directory Inputs | AD groups, service accounts, LDAP settings |
 | 08 | Deploy Workload Domain | WLD hosts, NSX, storage, networking · WLD vCenter sizing (Shared/Dedicated, size, storage tier) |
 | 09 | Configure Workload Domain | WLD-level configuration |
