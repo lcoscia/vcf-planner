@@ -1044,6 +1044,13 @@
             <p>Dark mode, keyboard navigation, share URL, expand/collapse all, jump to missing, Fill IPs, copy section, Markdown &amp; CSV export, VLAN/IP/CIDR conflict detection, DNS pre-flight checklist, VLAN topology table, vCPU bar chart, FQDN validation, sidebar progress bars, contextual help bubbles linking to official VCF design docs, and stricter selection-field validation aligned with the original Excel data-validation lists. Also added: WLD vCenter sizing (Shared/Dedicated, with size and storage tier) on the Deploy Workload Domain page, an Instance Profile Size field in the sizing calculator that is automatically forced to "Small" when the Cluster Model is set to Simple (matching the workbook's formula), and VCF Management Services / Fleet Components (VCF Services Runtime, Cloud Proxy, License Server, Identity Broker, Software Depot, Log Management Replicas, VCF Operations for Networks and its Collector, Real-time Metrics) now included in the live sizing calculator. The Fleet Management Day-N page now models VCF Operations as a full 4-node cluster (Primary, Replica, Data, and Load Balancer nodes, each with FQDN and IP), adds a VCF Automation IP pool (5 fields, noting that Small/Standard deployments need 2 IPs and HA deployments need 4), and adds Platform Node and Collector Node IPv4/IPv6 fields for VCF Operations for Networks (with a note that these IPs must reside in the VCF Management Network).</p>
           </div>
         </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.1<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Bug fix</p>
+            <p>Fixed a display/visibility mismatch on Include/Exclude toggle fields (e.g. Use Proxy, Deploy Cloud Proxy, vSAN Stretched Cluster, Supervisor, Identity Broker, VCF Automation/Logs/Operations for Networks, Site Protection &amp; DR, Cyber Recovery, Ransomware Recovery, Cross Cloud Mobility, Private AI, and others) where the toggle button could display "Include" while its dependent fields stayed hidden, requiring an Include → Exclude → Include click sequence to reveal them. Toggle fields now initialize to their documented default value, so the displayed label and the visible fields are consistent from the start and a single click toggles both correctly.</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2630,6 +2637,7 @@ function vcfPlanner() {
       if (confirm('Reset all form data? This cannot be undone.')) {
         localStorage.removeItem('vcf-planner-v1')
         this.form = {}
+        this.applyToggleDefaults()
         this.sizing.components = { sddc_manager:true, vcenter:true, nsx_manager:true, nsx_edge:false, vcf_operations:false, vcf_automation:false, vcf_logs:false, avi_lb:false, vcfa:false, ssp:false, vcf_svc_runtime:false, cloud_proxy:false, license_server:false, vcf_ops_networks:false, vcf_ops_networks_collector:false, realtime_metrics:false, identity_broker:false, software_depot:false, log_mgmt_replicas:false }
         this.currentPage = 'welcome'
       }
@@ -2676,7 +2684,7 @@ function vcfPlanner() {
               event.target.value = ''; return
             }
           }
-          if (d.form) { Object.assign(this.form, d.form); this.save() }
+          if (d.form) { Object.assign(this.form, d.form); this.applyToggleDefaults(); this.save() }
           if (d.sizing) { Object.assign(this.sizing, d.sizing) }
           alert('Import successful!')
         } catch(err) {
@@ -2962,8 +2970,20 @@ function vcfPlanner() {
     },
 
     // ─── INIT ───
+    applyToggleDefaults() {
+      this.allPages.forEach(page => {
+        (page.sections||[]).forEach(section => {
+          (section.fields||[]).forEach(field => {
+            if (field.type === 'toggle' && this.form[field.key] === undefined) {
+              this.form[field.key] = field.sample || (field.options && field.options[0]) || 'Include'
+            }
+          })
+        })
+      })
+    },
     init() {
       this.load()
+      this.applyToggleDefaults()
       // Ensure instance profile size respects the cluster model coupling on load
       this.syncInstanceProfileSize()
       // Restore dark mode preference

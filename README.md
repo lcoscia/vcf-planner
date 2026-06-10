@@ -152,6 +152,12 @@ To add a new page, add an entry to `ALL_PAGES` and a corresponding item to `NAV_
 
 ---
 
+## Changelog
+
+- **v1.0.1** (2026-06-10) — Bug fix: Include/Exclude toggle fields (Use Proxy, Deploy Cloud Proxy, vSAN Stretched Cluster, Supervisor, Identity Broker, VCF Automation/Logs/Operations for Networks, Site Protection & DR, Cyber Recovery, Ransomware Recovery, Cross Cloud Mobility, Private AI, etc.) now initialize to their documented default value, so the displayed label and the visibility of dependent fields are consistent from the start. Previously some toggles required an Include → Exclude → Include click sequence before their fill-in fields would appear.
+
+---
+
 ## Disclaimer
 
 This is a community tool and is not affiliated with or endorsed by Broadcom. Always verify all configuration values against the official [VMware Cloud Foundation 9.1 documentation](https://docs.vmware.com/en/VMware-Cloud-Foundation/) before deployment. The sizing calculator results are estimates — consult VMware's official sizing tools for production deployments.
