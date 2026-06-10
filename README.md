@@ -155,6 +155,7 @@ To add a new page, add an entry to `ALL_PAGES` and a corresponding item to `NAV_
 ## Changelog
 
 - **v1.0.1** (2026-06-10) — Bug fix: Include/Exclude toggle fields (Use Proxy, Deploy Cloud Proxy, vSAN Stretched Cluster, Supervisor, Identity Broker, VCF Automation/Logs/Operations for Networks, Site Protection & DR, Cyber Recovery, Ransomware Recovery, Cross Cloud Mobility, Private AI, etc.) now initialize to their documented default value, so the displayed label and the visibility of dependent fields are consistent from the start. Previously some toggles required an Include → Exclude → Include click sequence before their fill-in fields would appear.
+- **v1.0.2** (2026-06-10) — Storage type consistency & custom VDS NICs: the Management Domain Sizing "Storage Type" selector now matches "Principal Storage Type" (vSAN-ESA, vSAN-OSA, VMFS on Fibre Channel (FC), NFSv3) and the two stay in sync. The vSAN network segment and "vSAN Datastore Name" are no longer mandatory when FC or NFSv3 is selected. The Distributed Switch Profile now supports up to 10 NIC uplinks for "Custom Switch Configuration".
 
 ---
 

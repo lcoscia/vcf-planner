@@ -138,7 +138,7 @@
     <div class="text-xs font-bold px-2 py-1 rounded" style="background:#9BC2E6; color:#0E223A;">VMware</div>
     <div>
       <div class="font-bold text-sm leading-tight">VCF 9.1 Planning & Preparation</div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.1</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.2</div>
     </div>
   </div>
   <div class="flex items-center gap-2 no-print">
@@ -217,7 +217,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.1 · Updated June 10, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.2 · Updated June 10, 2026</div>
       </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -301,9 +301,11 @@
                 </div>
                 <div class="flex items-center justify-between">
                   <label class="text-sm font-medium text-gray-700">Storage Type</label>
-                  <select x-model="sizing.storageType" class="w-28">
+                  <select x-model="sizing.storageType" @change="syncStorageType()" class="w-44">
                     <option>vSAN-ESA</option>
                     <option>vSAN-OSA</option>
+                    <option>VMFS on Fibre Channel (FC)</option>
+                    <option>NFSv3</option>
                   </select>
                 </div>
                 <div class="flex items-center justify-between">
@@ -393,7 +395,7 @@
                 <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Per-Host Requirements</div>
                 <div class="text-sm space-y-2">
                   <div class="flex justify-between"><span class="text-gray-600">Disk per host (<span x-text="sizing.storageType"></span>)</span><span class="font-bold" x-text="calcDiskPerHost()+' GB'"></span></div>
-                  <div class="flex justify-between"><span class="text-gray-600">vSAN overhead factor</span><span class="font-bold" x-text="sizing.storageType==='vSAN-ESA'?'1.5×':'2.0×'"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-600">Storage overhead factor</span><span class="font-bold" x-text="sizing.storageType==='vSAN-ESA'?'1.5×':'2.0×'"></span></div>
                   <div class="flex justify-between"><span class="text-gray-600">Utilization CPU</span><span class="font-bold" x-text="(sizing.hostCores>0 && calcHostsSafe()>0) ? Math.round(calcTotalCPU()/(parseFloat(sizing.cpuOverSub)||1)/sizing.hostCores/calcHostsSafe()*100)+'%' : '—'"></span></div>
                   <div class="flex justify-between"><span class="text-gray-600">Utilization RAM</span><span class="font-bold" x-text="(sizing.hostRAM>0 && calcHostsSafe()>0) ? Math.round(calcTotalRAM()/sizing.hostRAM/calcHostsSafe()*100)+'%' : '—'"></span></div>
                 </div>
@@ -543,7 +545,7 @@
                           </template>
                           <!-- Select field -->
                           <template x-if="field.type==='select'">
-                            <select :id="'field-'+field.key" x-model="form[field.key]" @change="save()" :class="field.required&&!form[field.key]?'missing':''" :aria-label="field.label">
+                            <select :id="'field-'+field.key" x-model="form[field.key]" @change="save(); if(field.key==='principalStorage') sizing.storageType = form[field.key]" :class="field.required&&!form[field.key]?'missing':''" :aria-label="field.label">
                               <option value="">— select —</option>
                               <template x-for="opt in getFieldOptions(field)" :key="opt"><option :value="opt" x-text="opt"></option></template>
                             </select>
@@ -897,7 +899,7 @@
             <div class="text-lg opacity-80 mb-2">Planning & Preparation Workbook — Web Edition</div>
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
-              <span>v1.0.1</span>
+              <span>v1.0.2</span>
               <span>·</span>
               <span>Updated June 10, 2026</span>
               <span>·</span>
@@ -1052,6 +1054,13 @@
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Bug fix</p>
             <p>Fixed a display/visibility mismatch on Include/Exclude toggle fields (e.g. Use Proxy, Deploy Cloud Proxy, vSAN Stretched Cluster, Supervisor, Identity Broker, VCF Automation/Logs/Operations for Networks, Site Protection &amp; DR, Cyber Recovery, Ransomware Recovery, Cross Cloud Mobility, Private AI, and others) where the toggle button could display "Include" while its dependent fields stayed hidden, requiring an Include → Exclude → Include click sequence to reveal them. Toggle fields now initialize to their documented default value, so the displayed label and the visible fields are consistent from the start and a single click toggles both correctly.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.2<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Storage type consistency &amp; custom VDS NICs</p>
+            <p>The Management Domain Sizing "Storage Type" selector now offers the same four options as "Principal Storage Type" on the Deploy Management Domain page (vSAN-ESA, vSAN-OSA, VMFS on Fibre Channel (FC), NFSv3) and the two fields stay in sync — choosing one updates the other automatically. The vSAN network segment (VLAN/Gateway/CIDR/MTU/IP pool) and the "vSAN Datastore Name" field are no longer mandatory when a non-vSAN principal storage type (FC or NFSv3) is selected. The Distributed Switch Profile section now supports up to 10 NIC uplinks (a new "Number of Uplinks" field plus Uplink 3–10 Name fields) when "Custom Switch Configuration" is chosen as the DVS Profile.</p>
           </div>
         </div>
       </div>
@@ -1225,6 +1234,19 @@ function makeNetFields(prefix, label, defVlan, defGw, defCidr, defMtu, hasPool) 
     f.push({ key:`${prefix}IpEnd`,   label:`${label} IP Range End`,   type:'ip', sample:'', notes:'Last IP in the static pool' })
   }
   return f
+}
+
+function withShowWhen(fields, fn) {
+  return fields.map(f => ({ ...f, showWhen: fn }))
+}
+
+function makeUplinkFields(prefix, start, end) {
+  const fields = []
+  for (let i=start; i<=end; i++) {
+    fields.push({ key:`${prefix}${i}Name`, label:`Uplink ${i} Name`, type:'text', sample:`uplink${i}`,
+      showWhen: f => f.dvsProfile==='Custom Switch Configuration' && parseInt(f.dvsUplinkCount||'2',10) >= i })
+  }
+  return fields
 }
 
 function makeHostFields(n, prefix, ipBase, vlanBase) {
@@ -1435,7 +1457,8 @@ const ALL_PAGES = [
         title:'Networks — vMotion, vSAN & Overlay',
         fields:[
           ...makeNetFields('vmotion',   'vMotion',   1113, '10.11.13.1', '10.11.13.0/24', 9000, true),
-          ...makeNetFields('vsan1',     'vSAN',      1114, '10.11.14.1', '10.11.14.0/24', 9000, true),
+          ...withShowWhen(makeNetFields('vsan1', 'vSAN', 1114, '10.11.14.1', '10.11.14.0/24', 9000, true),
+            f=>!f.principalStorage||f.principalStorage.startsWith('vSAN')),
           ...makeNetFields('overlay',   'Overlay (TEP)', 1116, '10.11.16.1', '10.11.16.0/24', 9000, true),
         ]
       },
@@ -1450,7 +1473,8 @@ const ALL_PAGES = [
           { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'', required:true },
           { key:'vcDatacenter',  label:'Datacenter Name',           type:'text', sample:'sfo-m01-dc01', required:true },
           { key:'vcCluster',     label:'Cluster Name',              type:'text', sample:'sfo-m01-cl01', required:true },
-          { key:'vcDatastore',   label:'vSAN Datastore Name',       type:'text', sample:'sfo-m01-cl01-ds-vsan01', required:true },
+          { key:'vcDatastore',   label:'vSAN Datastore Name',       type:'text', sample:'sfo-m01-cl01-ds-vsan01', required:true,
+            showWhen:f=>!f.principalStorage||f.principalStorage.startsWith('vSAN') },
         ]
       },
       {
@@ -1521,8 +1545,11 @@ const ALL_PAGES = [
           { key:'dvsLacpEnabled', label:'LACP Enabled',             type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'dvsLacpMode',    label:'LACP Mode',                type:'select', options:['Active','Passive'], sample:'Active', showWhen:f=>f.dvsLacpEnabled==='Include' },
           { key:'dvsLacpTimeout', label:'LACP Timeout',             type:'select', options:['Slow','Fast'], sample:'Fast', showWhen:f=>f.dvsLacpEnabled==='Include' },
+          { key:'dvsUplinkCount', label:'Number of Uplinks (NICs)', type:'select', options:['2','3','4','5','6','7','8','9','10'], sample:'2',
+            showWhen:f=>f.dvsProfile==='Custom Switch Configuration', notes:'Number of physical NIC uplinks assigned to the primary VDS' },
           { key:'dvsUplink1Name', label:'Uplink 1 Name',            type:'text',   sample:'uplink1' },
           { key:'dvsUplink2Name', label:'Uplink 2 Name',            type:'text',   sample:'uplink2' },
+          ...makeUplinkFields('dvsUplink', 3, 10),
         ]
       },
       {
@@ -2460,6 +2487,13 @@ function vcfPlanner() {
         this.sizing.instanceProfileSize = 'Medium'
       }
     },
+    syncStorageType() {
+      // Keep the Management Domain Sizing storage type and the Deploy
+      // Management Domain "Principal Storage Type" in sync — they represent
+      // the same setting and previously could be set to conflicting values.
+      this.form.principalStorage = this.sizing.storageType
+      this.save()
+    },
     calcRawCPU() {
       const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
       if (c.sddc_manager) t += LT.sddc_manager.vcpu
@@ -2986,6 +3020,8 @@ function vcfPlanner() {
       this.applyToggleDefaults()
       // Ensure instance profile size respects the cluster model coupling on load
       this.syncInstanceProfileSize()
+      // Reconcile sizing storage type with a previously-saved Principal Storage Type
+      if (this.form.principalStorage) this.sizing.storageType = this.form.principalStorage
       // Restore dark mode preference
       if (localStorage.getItem('vcf-dark') === '1') this.darkMode = true
 
