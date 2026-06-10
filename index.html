@@ -141,7 +141,7 @@
         VCF 9.1 Planning & Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.2</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.3</div>
     </div>
   </div>
   <div class="flex items-center gap-2 no-print">
@@ -154,6 +154,7 @@
     <button @click="exportJSON()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export JSON">⬇ JSON</button>
     <button @click="exportMarkdown()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export Markdown As-Built">📄 MD</button>
     <button @click="exportCsv()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export CSV IPAM table">📊 CSV</button>
+    <button @click="exportVcfInstallerJson()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export VCF Installer JSON (POST /v1/sddcs payload)">🚀 Installer</button>
     <button @click="shareUrl()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Copy shareable URL to clipboard">🔗 Share</button>
     <button @click="window.print()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Print / PDF">🖨 Print</button>
     <button @click="toggleDark()" class="px-2 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" :title="darkMode?'Switch to light mode':'Switch to dark mode'" x-text="darkMode?'☀️':'🌙'"></button>
@@ -220,7 +221,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.2 · Updated June 10, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.3 · Updated June 10, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -889,6 +890,9 @@
         <button @click="exportCsv()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#15803d;">
           📊 Export CSV (IPAM)
         </button>
+        <button @click="exportVcfInstallerJson()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#7c3aed;">
+          🚀 VCF Installer JSON
+        </button>
       </div>
 
     </div>
@@ -907,7 +911,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.0.2</span>
+              <span>v1.0.3</span>
               <span>·</span>
               <span>Updated June 10, 2026</span>
               <span>·</span>
@@ -1069,6 +1073,13 @@
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Storage type consistency &amp; custom VDS NICs</p>
             <p>The Management Domain Sizing "Storage Type" selector now offers the same four options as "Principal Storage Type" on the Deploy Management Domain page (vSAN-ESA, vSAN-OSA, VMFS on Fibre Channel (FC), NFSv3) and the two fields stay in sync — choosing one updates the other automatically. The vSAN network segment (VLAN/Gateway/CIDR/MTU/IP pool) and the "vSAN Datastore Name" field are no longer mandatory when a non-vSAN principal storage type (FC or NFSv3) is selected. The Distributed Switch Profile section now supports up to 10 NIC uplinks (a new "Number of Uplinks" field plus Uplink 3–10 Name fields) when "Custom Switch Configuration" is chosen as the DVS Profile.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.3<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">VCF Installer JSON export</p>
+            <p>New "🚀 Installer" / "🚀 VCF Installer JSON" buttons (topbar and As-Built page) export a <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON file matching the VCF 9.1 Installer's <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> request body, built from your current form data (DNS, NTP, hosts, management/vMotion/vSAN/NFS network specs, vCenter, cluster, datastore, distributed switches, NSX Manager, VCF Operations, and SDDC Manager). A new "VCF Installer Export Settings" section on the Deploy Management Domain page adds VCF Instance Name, SDDC ID, CEIP, and ESXi SSL thumbprint validation fields used by this export. Note: vSphere Supervisor (vSphere IaaS Control Plane), Fleet/SDDC LCM bootstrap options, and a few other optional installer spec blocks are not yet covered by this export — always review the generated JSON against the official VCF Installer documentation before use.</p>
           </div>
         </div>
       </div>
@@ -1284,6 +1295,263 @@ function makeRackFields(rackNum) {
   }
 }
 
+// ============================================================
+// VCF INSTALLER JSON EXPORT — SddcSpec builders (POST /v1/sddcs)
+// ============================================================
+
+function setIfPresent(obj, key, val) {
+  if (val === null || val === undefined) return
+  if (Array.isArray(val) && val.length === 0) return
+  if (typeof val === 'object' && Object.keys(val).length === 0) return
+  obj[key] = val
+}
+
+function mapTeamingPolicyLowercase(policy) {
+  return ({
+    'Route based on IP hash': 'loadbalance_ip',
+    'Route based on source MAC hash': 'loadbalance_srcmac',
+    'Route based on source port ID': 'loadbalance_srcid',
+    'Use explicit failover order': 'failover_explicit',
+  })[policy] || 'loadbalance_loadbased'
+}
+
+function mapNsxTeamingUppercase(policy) {
+  return ({
+    'Route based on IP hash': 'LOADBALANCE_SRCID',
+    'Route based on source MAC hash': 'LOADBALANCE_SRC_MAC',
+    'Route based on source port ID': 'LOADBALANCE_SRCID',
+    'Use explicit failover order': 'FAILOVER_ORDER',
+  })[policy] || 'LOADBALANCE_SRCID'
+}
+
+function buildDnsSpec(f) {
+  return {
+    subdomain: f.subDomainName || '',
+    nameservers: [f.dnsServer1, f.dnsServer2].filter(Boolean),
+  }
+}
+
+function buildNtpServers(f) {
+  return [f.ntpServer1, f.ntpServer2].filter(Boolean)
+}
+
+function buildHostSpecs(f) {
+  const hosts = []
+  for (let i=1; i<=16; i++) {
+    const fqdn = f[`m01Host${i}Fqdn`]
+    if (!fqdn) continue
+    const host = { hostname: fqdn }
+    if (f.skipEsxThumbprintValidation === 'Exclude' && f.esxiRootPw) {
+      host.credentials = { username:'root', password:f.esxiRootPw }
+    }
+    hosts.push(host)
+  }
+  return hosts
+}
+
+function storageDvsName(f) {
+  if (f.dvsProfile === 'Storage Traffic Separation' || f.dvsProfile === 'Storage Traffic and NSX Traffic Separation') {
+    return f.dvs2Name || 'dvs02'
+  }
+  return f.dvsName || 'dvs01'
+}
+
+function netEntry(f, prefix, networkType, dvsName, suffix) {
+  const entry = {
+    networkType,
+    ipAddressVersion: 'IPv4',
+    subnet: f[`${prefix}Cidr`] || '',
+    gateway: f[`${prefix}Gateway`] || '',
+    vlanId: parseInt(f[`${prefix}Vlan`], 10) || 0,
+    teamingPolicy: mapTeamingPolicyLowercase(f.dvsUplinkPolicy),
+    activeUplinks: ['uplink1','uplink2'],
+    standbyUplinks: [],
+  }
+  if (f[`${prefix}Mtu`]) entry.mtu = parseInt(f[`${prefix}Mtu`], 10)
+  if (f[`${prefix}IpStart`] && f[`${prefix}IpEnd`]) {
+    entry.includeIpAddressRanges = [{ startIpAddress:f[`${prefix}IpStart`], endIpAddress:f[`${prefix}IpEnd`] }]
+  }
+  entry.portGroupKey = `${f.sddcId||'sddc'}-${dvsName||'dvs01'}-pg-${suffix}`
+  return entry
+}
+
+function buildNetworkSpecs(f) {
+  const specs = []
+  const dvs1 = f.dvsName || 'dvs01'
+  const storageDvs = storageDvsName(f)
+  specs.push(netEntry(f, 'esxMgmt', 'MANAGEMENT', dvs1, 'esx-mgmt'))
+  specs.push(netEntry(f, 'vmMgmt', 'VM_MANAGEMENT', dvs1, 'vm-mgmt'))
+  specs.push(netEntry(f, 'vmotion', 'VMOTION', dvs1, 'vmotion'))
+  if (!f.principalStorage || f.principalStorage.startsWith('vSAN')) {
+    specs.push(netEntry(f, 'vsan1', 'VSAN', storageDvs, 'vsan'))
+  }
+  if (f.principalStorage === 'NFSv3') {
+    specs.push(netEntry(f, 'nfs', 'NFS', storageDvs, 'nfs'))
+  }
+  return specs
+}
+
+function buildVcenterSpec(f) {
+  const spec = {
+    vcenterHostname: f.vcMgmtFqdn || '',
+    rootVcenterPassword: f.vcRootPw || '',
+    vmSize: (f.vcMgmtSize||'Small').toLowerCase(),
+    storageSize: 'lstorage',
+    useExistingDeployment: false,
+  }
+  if (f.vcSsoDomain) spec.ssoDomain = f.vcSsoDomain
+  return spec
+}
+
+function buildClusterSpec(f) {
+  return { datacenterName: f.vcDatacenter || '', clusterName: f.vcCluster || '' }
+}
+
+function buildDatastoreSpec(f) {
+  const storage = f.principalStorage
+  if (!storage) return null
+  if (storage.startsWith('vSAN')) {
+    return {
+      vsanSpec: {
+        datastoreName: f.vcDatastore || '',
+        vsanDedup: f.vsanDedup === 'Selected' && storage === 'vSAN-OSA',
+        failuresToTolerate: parseInt(f.vsanFtt, 10) || 1,
+        esaConfig: { enabled: storage === 'vSAN-ESA' },
+        encryptionConfig: { dataInTransitConfig: { enable: f.vsanEncryptDit === 'Selected', rekeyInterval: 1440 } },
+      }
+    }
+  }
+  if (storage === 'VMFS on Fibre Channel (FC)') {
+    return { vmfsDatastoreSpec: { fcSpec: [{ datastoreName: f.fcDatastore || '' }] } }
+  }
+  if (storage === 'NFSv3') {
+    return { nfsDatastoreSpec: { nasVolume: { serverName: [f.nfsServer || ''], path: f.nfsPath || '', readOnly: false, enableBindToVmknic: f.nfsVmknicBinding === 'Enabled' } } }
+  }
+  return null
+}
+
+function buildVmnicsToUplinks(startVmnic, count) {
+  const arr = []
+  for (let i=0; i<count; i++) {
+    arr.push({ id:`vmnic${startVmnic+i}`, uplink:`uplink${i+1}` })
+  }
+  return arr
+}
+
+function groupBNetworks(f) {
+  const nets = []
+  if (!f.principalStorage || f.principalStorage.startsWith('vSAN')) nets.push('VSAN')
+  if (f.principalStorage === 'NFSv3') nets.push('NFS')
+  return nets
+}
+
+function dvsGroupAMtu(f) {
+  return f.vmotionMtu ? parseInt(f.vmotionMtu, 10) : undefined
+}
+
+function dvsGroupBMtu(f) {
+  if (f.principalStorage === 'NFSv3') return f.nfsMtu ? parseInt(f.nfsMtu, 10) : undefined
+  return f.vsan1Mtu ? parseInt(f.vsan1Mtu, 10) : undefined
+}
+
+function dvsEntry(name, networks, vmnicsToUplinks, opts) {
+  const entry = { dvsName: name, networks, vmnicsToUplinks }
+  if (opts.mtu) entry.mtu = opts.mtu
+  if (opts.nsxtSwitchConfig) entry.nsxtSwitchConfig = opts.nsxtSwitchConfig
+  if (opts.nsxTeamings) entry.nsxTeamings = opts.nsxTeamings
+  if (opts.lagSpecs) entry.lagSpecs = opts.lagSpecs
+  return entry
+}
+
+function buildDvsSpecs(f) {
+  const profile = f.dvsProfile || 'Default'
+  const isVcf = f.deploymentType === 'VMware Cloud Foundation'
+  const groupA = ['MANAGEMENT','VM_MANAGEMENT','VMOTION']
+  const groupB = groupBNetworks(f)
+
+  const nsxTeamings = isVcf ? [{ policy:mapNsxTeamingUppercase(f.dvsUplinkPolicy), activeUplinks:['uplink1','uplink2'], standByUplinks:null }] : null
+  const nsxtSwitchConfig = isVcf ? { transportZones:[{ name:'overlay-tz-mgmt-nsxt', transportType:'OVERLAY' }] } : null
+  let lagSpecs = f.dvsLacpEnabled === 'Include'
+    ? [{ name:'lag1', uplinksCount:2, lacpMode:(f.dvsLacpMode||'Active').toUpperCase(), lacpTimeoutMode:f.dvsLacpTimeout==='Slow'?'SLOW':'FAST', loadBalancingMode:mapTeamingPolicyLowercase(f.dvsUplinkPolicy) }]
+    : null
+
+  if (profile === 'Custom Switch Configuration') {
+    const count = parseInt(f.dvsUplinkCount || '2', 10)
+    if (lagSpecs) lagSpecs[0].uplinksCount = count
+    return [dvsEntry(f.dvsName||'dvs01', [...groupA, ...groupB], buildVmnicsToUplinks(0, count), { mtu:dvsGroupAMtu(f), nsxtSwitchConfig, nsxTeamings, lagSpecs })]
+  }
+
+  if (profile === 'Storage Traffic Separation') {
+    return [
+      dvsEntry(f.dvsName||'dvs01', groupA, buildVmnicsToUplinks(0,2), { mtu:dvsGroupAMtu(f), nsxtSwitchConfig, nsxTeamings, lagSpecs }),
+      dvsEntry(f.dvs2Name||'dvs02', groupB, buildVmnicsToUplinks(2,2), { mtu:dvsGroupBMtu(f) }),
+    ]
+  }
+
+  if (profile === 'NSX Traffic Separation') {
+    return [
+      dvsEntry(f.dvsName||'dvs01', [...groupA, ...groupB], buildVmnicsToUplinks(0,2), { mtu:dvsGroupAMtu(f), nsxtSwitchConfig, nsxTeamings, lagSpecs }),
+      dvsEntry(f.dvs2Name||'dvs02', [], buildVmnicsToUplinks(2,2), { mtu:9000 }),
+    ]
+  }
+
+  if (profile === 'Storage Traffic and NSX Traffic Separation') {
+    return [
+      dvsEntry(f.dvsName||'dvs01', groupA, buildVmnicsToUplinks(0,2), { mtu:dvsGroupAMtu(f), nsxtSwitchConfig, nsxTeamings, lagSpecs }),
+      dvsEntry(f.dvs2Name||'dvs02', groupB, buildVmnicsToUplinks(2,2), { mtu:dvsGroupBMtu(f) }),
+      dvsEntry(f.dvs3Name||'dvs03', [], buildVmnicsToUplinks(4,2), { mtu:9000 }),
+    ]
+  }
+
+  // Default
+  return [dvsEntry(f.dvsName||'dvs01', [...groupA, ...groupB], buildVmnicsToUplinks(0,2), { mtu:dvsGroupAMtu(f), nsxtSwitchConfig, nsxTeamings, lagSpecs })]
+}
+
+function buildNsxtSpec(f) {
+  if (f.deploymentType !== 'VMware Cloud Foundation' || !f.nsxVipFqdn) return null
+  const sizeMap = { Small:'medium', Medium:'medium', Large:'large', XLarge:'xlarge' }
+  const spec = {
+    vipFqdn: f.nsxVipFqdn,
+    nsxtManagerSize: sizeMap[f.nsxMgrSize] || 'medium',
+    useExistingDeployment: false,
+    nsxtManagers: [f.nsxMgr1Fqdn, f.nsxMgr2Fqdn, f.nsxMgr3Fqdn].filter(Boolean).map(hostname => ({ hostname })),
+  }
+  if (f.overlayVlan) spec.transportVlanId = parseInt(f.overlayVlan, 10)
+  if (f.overlayCidr && f.overlayGateway) {
+    const poolName = `${f.sddcId||'sddc'}-cl01-tep01`
+    const subnet = { cidr:f.overlayCidr, gateway:f.overlayGateway }
+    if (f.overlayIpStart && f.overlayIpEnd) {
+      subnet.ipAddressPoolRanges = [{ start:f.overlayIpStart, end:f.overlayIpEnd }]
+    }
+    spec.ipAddressPoolSpec = { name:poolName, description:`${poolName} descr`, subnets:[subnet] }
+  }
+  return spec
+}
+
+function buildVcfOperationsSpec(f) {
+  if (f.vcfOpsInclude !== 'Include') return null
+  const sizeMap = { Small:'small', Medium:'medium', Large:'large' }
+  const nodes = []
+  if (f.vcfOpsPrimaryFqdn) nodes.push({ hostname:f.vcfOpsPrimaryFqdn, type:'master' })
+  if (f.vcfOpsReplicaFqdn) nodes.push({ hostname:f.vcfOpsReplicaFqdn, type:'replica' })
+  if (f.vcfOpsDataFqdn) nodes.push({ hostname:f.vcfOpsDataFqdn, type:'data' })
+  if (!nodes.length) return null
+  return {
+    applianceSize: sizeMap[f.vcfOpsSize] || 'small',
+    useExistingDeployment: false,
+    nodes,
+  }
+}
+
+function buildSddcManagerSpec(f) {
+  let hostname = f.sddcHostname || ''
+  if (hostname && !hostname.includes('.')) {
+    const domain = f.subDomainName || f.domainName || ''
+    if (domain) hostname = `${hostname}.${domain}`
+  }
+  return { hostname, useExistingDeployment: false }
+}
+
 const ALL_PAGES = [
   // ─── PLANNING ───
   {
@@ -1360,6 +1628,19 @@ const ALL_PAGES = [
     id:'deploy-mgmt', title:'Deploy Management Domain', icon:'🏗️', group:'mgmt',
     subtitle:'Step-by-step deployment configuration for the management domain',
     sections:[
+      {
+        title:'VCF Installer Export Settings',
+        description:'Used only by the "VCF Installer JSON" export (POST /v1/sddcs payload).',
+        fields:[
+          { key:'vcfInstanceName', label:'VCF Instance Name', type:'text', sample:'vcf001',
+            notes:'Maps to vcfInstanceName in the VCF Installer spec' },
+          { key:'sddcId',          label:'SDDC ID',           type:'text', sample:'md1',
+            notes:'3-20 chars, alphanumeric/hyphen only. Required by VCF Installer.' },
+          { key:'ceipEnabled',     label:'Enable CEIP',       type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'skipEsxThumbprintValidation', label:'Skip ESXi SSL Thumbprint Validation', type:'toggle', options:['Include','Exclude'], sample:'Include',
+            notes:'When included, host credentials/SSL thumbprints are omitted from the export' },
+        ]
+      },
       {
         title:'Download Binaries',
         fields:[
@@ -2884,6 +3165,52 @@ function vcfPlanner() {
       const blob = new Blob([csv], {type:'text/csv'})
       const url = URL.createObjectURL(blob)
       const a = Object.assign(document.createElement('a'), {href:url, download:`vcf-ipam-${new Date().toISOString().slice(0,10)}.csv`})
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    },
+    buildVcfInstallerSpec() {
+      const f = this.form
+      const spec = {
+        version: f.vcfVersion || '9.1.0.0',
+        vcfInstanceName: f.vcfInstanceName || f.deploymentInstance || 'vcf001',
+        sddcId: f.sddcId || '',
+        ceipEnabled: f.ceipEnabled === 'Include',
+        workflowType: f.deploymentType === 'VMware vSphere Foundation' ? 'VVF' : 'VCF',
+        skipEsxThumbprintValidation: f.skipEsxThumbprintValidation !== 'Exclude',
+        dnsSpec: buildDnsSpec(f),
+        ntpServers: buildNtpServers(f),
+        hostSpecs: buildHostSpecs(f),
+        networkSpecs: buildNetworkSpecs(f),
+        vcenterSpec: buildVcenterSpec(f),
+        clusterSpec: buildClusterSpec(f),
+        dvsSpecs: buildDvsSpecs(f),
+        sddcManagerSpec: buildSddcManagerSpec(f),
+      }
+      setIfPresent(spec, 'datastoreSpec', buildDatastoreSpec(f))
+      setIfPresent(spec, 'nsxtSpec', buildNsxtSpec(f))
+      setIfPresent(spec, 'vcfOperationsSpec', buildVcfOperationsSpec(f))
+      return spec
+    },
+    exportVcfInstallerJson() {
+      const f = this.form
+      const missing = []
+      if (!f.sddcId) missing.push('SDDC ID (Deploy Management Domain → VCF Installer Export Settings)')
+      else if (!/^[a-zA-Z0-9-]{3,20}$/.test(f.sddcId)) missing.push('SDDC ID must be 3-20 chars, alphanumeric/hyphen only')
+      if (!f.vcMgmtFqdn) missing.push('vCenter FQDN')
+      if (!f.vcRootPw) missing.push('vCenter Root Password')
+      if (!f.subDomainName) missing.push('Child Domain Name (DNS subdomain)')
+      if (!f.dnsServer1) missing.push('DNS Server 1')
+      if (![f.esxMgmtVlan, f.vmMgmtVlan, f.vmotionVlan].every(Boolean)) missing.push('Core network VLANs (Management / VM Management / vMotion)')
+
+      if (missing.length && !confirm('The following fields used by VCF Installer are missing or invalid:\n\n- ' + missing.join('\n- ') + '\n\nExport anyway?')) return
+
+      const spec = this.buildVcfInstallerSpec()
+      const blob = new Blob([JSON.stringify(spec, null, 2)], { type:'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = Object.assign(document.createElement('a'), {
+        href: url,
+        download: `vcf-installer-spec-${f.sddcId || 'sddc'}-${new Date().toISOString().slice(0,10)}.json`
+      })
       document.body.appendChild(a); a.click(); document.body.removeChild(a)
       URL.revokeObjectURL(url)
     },
