@@ -23,8 +23,7 @@ Or double-click `index.html` in Finder / Explorer.
 | **Deployment modes** | VCF and VVF · New Fleet, Additional Instance, Workload Domain, Additional Cluster |
 | **Sizing calculator** | Live host count + disk-per-host formulas matching the Excel workbook · WLD vCenter sizing (Shared/Dedicated with size & storage tier) · Instance Profile Size coupled to Cluster Model (Simple → forced Small) · VCF Management Services & Fleet Components included in component inclusions |
 | **Persistence** | Auto-save to `localStorage` · Export/Import JSON |
-| **Export** | JSON · Markdown As-Built · CSV IPAM table · Print to PDF |
-| **Sharing** | Share URL via `location.hash` (btoa-encoded state) |
+| **Export** | JSON · Markdown As-Built · CSV IPAM table |
 | **Validation** | VLAN conflict detection · IP conflict detection · CIDR overlap detection · FQDN format check · Constrained dropdowns matching the official Excel data-validation lists (appliance sizes, vSAN FTT, storage types, subnet masks, …) |
 | **Help bubbles** | Inline "ⓘ" tooltips on key sizing fields linking out to the official Broadcom VCF 9 design documentation |
 | **As-Built** | VLAN topology table · DNS pre-flight checklist · Completion dashboard |
@@ -112,8 +111,6 @@ index.html                  ← single file, ~2700 lines
 | 📊 CSV | Export all IP/text fields as CSV (IPAM) |
 | 🚀 Installer | Export a VCF Installer `SddcSpec` JSON (`POST /v1/sddcs` payload) |
 | ⬆ Installer | Best-effort import of a VCF Installer `SddcSpec` JSON back into the form |
-| 🔗 Share | Encode state in URL hash and copy to clipboard |
-| 🖨 Print | Browser print dialog (sidebar hidden via CSS) |
 | 🌙 / ☀️ | Toggle dark / light mode |
 | ↺ Reset | Clear all form data (with confirmation) |
 
@@ -161,6 +158,7 @@ To add a new page, add an entry to `ALL_PAGES` and a corresponding item to `NAV_
 - **v1.0.3** (2026-06-10) — VCF Installer JSON export: new "🚀 Installer" / "🚀 VCF Installer JSON" buttons export a `SddcSpec`-shaped JSON matching the VCF 9.1 Installer's `POST /v1/sddcs` payload (DNS, NTP, hosts, network specs, vCenter, cluster, datastore, distributed switches, NSX Manager, VCF Operations, SDDC Manager), built from the current form. Adds a "VCF Installer Export Settings" section (VCF Instance Name, SDDC ID, CEIP, ESXi SSL thumbprint validation). vSphere Supervisor and Fleet/SDDC LCM bootstrap options are not yet covered — review the output against official documentation before use.
 - **v1.0.4** (2026-06-10) — VCF Management Services fields: new "VCF Management Services" section on the Fleet Management Day-N page covers Fleet Components FQDN/IP, Instance Components FQDN/IP, VCF Services Runtime FQDN/IP, License Server FQDN/IP, and a shared SSH password for the vmware-system-user account, matching the workbook's "VCF Management services" block. Informational/IPAM only — not part of the VCF Installer JSON export.
 - **v1.0.5** (2026-06-10) — Import "VCF Installer Ready JSON": new "⬆ JSON VCF Installer ready" / "⬆ Import VCF Installer JSON" buttons (topbar and As-Built page) perform a best-effort reverse-import of a `SddcSpec`-shaped JSON (companion to the v1.0.3 export), restoring DNS, NTP, ESXi host FQDNs, network specs, vCenter, cluster, datastore, distributed switch names/MTUs, NSX Manager, VCF Operations, and SDDC Manager fields. A post-import summary flags items that cannot be restored from the spec (host/vCenter/NSX/VCF Operations management IPs, most passwords, the distributed switch profile/uplinks/LACP) for manual review.
+- **v1.0.6** (2026-06-10) — Removed Share & Print: the "🔗 Share" (URL-hash state encoding) and "🖨 Print" (browser print / PDF) toolbar buttons have been removed, along with the As-Built page's print button and the on-load URL-hash restore logic, to simplify the toolbar and avoid the size limits and staleness issues of hash-encoded state. Export JSON / Import JSON remain the supported way to back up, share, and restore your configuration, and Markdown / CSV exports remain available for As-Built reporting.
 
 ---
 

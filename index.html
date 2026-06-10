@@ -141,7 +141,7 @@
         VCF 9.1 Planning & Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.5</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.6</div>
     </div>
   </div>
   <div class="flex items-center gap-2 no-print">
@@ -156,8 +156,6 @@
     <button @click="exportCsv()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export CSV IPAM table">📊 CSV</button>
     <button @click="exportVcfInstallerJson()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export VCF Installer JSON (POST /v1/sddcs payload)">🚀 JSON VCF Installer ready</button>
     <button @click="importVcfInstallerTrigger()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Import VCF Installer Ready JSON (POST /v1/sddcs payload)">⬆ JSON VCF Installer ready</button>
-    <button @click="shareUrl()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Copy shareable URL to clipboard">🔗 Share</button>
-    <button @click="window.print()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Print / PDF">🖨 Print</button>
     <button @click="toggleDark()" class="px-2 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" :title="darkMode?'Switch to light mode':'Switch to dark mode'" x-text="darkMode?'☀️':'🌙'"></button>
     <button @click="navigate('about')" class="px-3 py-1.5 text-xs rounded font-medium"
       :style="currentPage==='about' ? 'background:rgba(255,255,255,.28);' : 'background:rgba(255,255,255,.12);'"
@@ -223,7 +221,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.5 · Updated June 10, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.6 · Updated June 10, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -249,7 +247,7 @@
           <li>✓ Cascading conditional logic (VCF vs VVF, deployment modes)</li>
           <li>✓ Live sizing calculator with host count formulas</li>
           <li>✓ "Value Missing" validation on required fields</li>
-          <li>✓ Export to JSON · Print / As-Built PDF</li>
+          <li>✓ Export to JSON · Markdown / CSV As-Built reports</li>
         </ul>
       </div>
     </div>
@@ -878,12 +876,9 @@
         </div>
       </div>
 
-      <!-- Print button -->
+      <!-- Export buttons -->
       <div class="text-center mt-8 mb-4 no-print">
-        <button @click="window.print()" class="px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#0E223A;">
-          🖨 Print / Export PDF
-        </button>
-        <button @click="exportJSON()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#4F5F69;">
+        <button @click="exportJSON()" class="px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#4F5F69;">
           ⬇ Export JSON
         </button>
         <button @click="exportMarkdown()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#1d4ed8;">
@@ -916,7 +911,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.0.5</span>
+              <span>v1.0.6</span>
               <span>·</span>
               <span>Updated June 10, 2026</span>
               <span>·</span>
@@ -957,7 +952,6 @@
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Auto-save · Export JSON · Import JSON</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Export &amp; import VCF Installer Ready JSON (<code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> / <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code>)</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Export Markdown As-Built · CSV IPAM table</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Share via URL hash · Print to PDF</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Contextual help bubbles linking to official Broadcom VCF design docs</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> VLAN / IP / CIDR conflict detection</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> DNS pre-flight checklist · VLAN topology table</li>
@@ -1035,12 +1029,12 @@
           <p class="leading-relaxed">The form auto-saves to <code class="bg-gray-100 px-1 rounded text-xs">localStorage</code> on every change. Use <strong>Export JSON</strong> to create a portable backup file, and <strong>Import JSON</strong> to restore it on another browser or device.</p>
         </div>
         <div>
-          <p class="font-semibold text-gray-700 mb-1">Sharing</p>
-          <p class="leading-relaxed">Click <strong>🔗 Share</strong> in the toolbar to encode the current state in the URL hash. Send the URL to a colleague — opening it in a browser will automatically restore all values.</p>
+          <p class="font-semibold text-gray-700 mb-1">Sharing with colleagues</p>
+          <p class="leading-relaxed">Use <strong>⬇ JSON</strong> to export your current configuration to a file, then send it to a colleague — they can use <strong>⬆ Import</strong> to load it and restore all values.</p>
         </div>
         <div>
           <p class="font-semibold text-gray-700 mb-1">As-Built export</p>
-          <p class="leading-relaxed">Use <strong>📄 MD</strong> for a Markdown document suitable for Confluence/Notion, <strong>📊 CSV</strong> for IPAM spreadsheets, and <strong>🖨 Print</strong> for a print-ready PDF.</p>
+          <p class="leading-relaxed">Use <strong>📄 MD</strong> for a Markdown document suitable for Confluence/Notion, and <strong>📊 CSV</strong> for IPAM spreadsheets.</p>
         </div>
         <div>
           <p class="font-semibold text-gray-700 mb-1">Disclaimer</p>
@@ -1100,6 +1094,13 @@
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Import "VCF Installer Ready JSON"</p>
             <p>New "⬆ JSON VCF Installer ready" / "⬆ Import VCF Installer JSON" buttons (topbar and As-Built page) let you load a previously exported <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON (the v1.0.3 export, or a real VCF Installer <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> payload) and restore it into the form — a best-effort companion to the v1.0.3 export. Restored: top-level options (VCF version, instance name, SDDC ID, CEIP, deployment type, ESXi thumbprint validation), DNS, NTP, ESXi host FQDNs, network specs (management/vMotion/vSAN/NFS CIDR, gateway, VLAN, MTU, IP range, uplink teaming policy), vCenter, cluster, datastore (vSAN/VMFS-FC/NFSv3), distributed switch names and per-network MTUs, NSX Manager FQDNs and overlay network, VCF Operations node FQDNs and appliance size, and SDDC Manager hostname. Not restored — and flagged in a post-import summary for manual review: ESXi host management IPs, vCenter IP, NSX Manager IPs, VCF Operations IPs/load balancer/HA mode, the distributed switch profile/uplink names/LACP configuration (<code class="bg-gray-100 px-1 rounded text-xs">dvsSpecs</code> reverse-mapping is deferred), and all passwords other than the ESXi root and vCenter root passwords — these are not present in the <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> JSON by design.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.6<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Removed Share &amp; Print</p>
+            <p>The "🔗 Share" (URL-hash state encoding) and "🖨 Print" (browser print / PDF) toolbar buttons have been removed, along with the As-Built page's print button and the on-load URL-hash restore logic, to simplify the toolbar and avoid the size limits and staleness issues of hash-encoded state. <strong>Export JSON</strong> / <strong>Import JSON</strong> remain the supported way to back up, share, and restore your configuration, and <strong>📄 MD</strong> / <strong>📊 CSV</strong> remain available for As-Built reporting.</p>
           </div>
         </div>
       </div>
@@ -3494,29 +3495,6 @@ function vcfPlanner() {
       document.body.appendChild(a); a.click(); document.body.removeChild(a)
       URL.revokeObjectURL(url)
     },
-    shareUrl() {
-      try {
-        const data = JSON.stringify({ form:this.form, sizing:this.sizing })
-        const encoded = btoa(unescape(encodeURIComponent(data)))
-        location.hash = encoded
-        navigator.clipboard?.writeText(location.href)
-          .then(()=>this.showCopyFeedback('URL copied to clipboard!'))
-          .catch(()=>this.showCopyFeedback('Hash set — copy the URL from the address bar'))
-      } catch(e) {
-        this.showCopyFeedback('State too large to share — use Export JSON instead')
-      }
-    },
-    loadFromHash() {
-      try {
-        const hash = location.hash.slice(1)
-        if (!hash || hash.length < 20) return
-        const data = JSON.parse(decodeURIComponent(escape(atob(hash))))
-        if (data.form) Object.assign(this.form, data.form)
-        if (data.sizing) Object.assign(this.sizing, data.sizing)
-        this.save()
-        this.showCopyFeedback('Configuration loaded from URL!')
-      } catch(e) { /* invalid or empty hash */ }
-    },
 
     // ─── VALIDATION ───
     vlanWarnings() {
@@ -3656,9 +3634,6 @@ function vcfPlanner() {
       ;['ab:sizing-summary','ab:vlan-topology','ab:dns-checklist'].forEach(k => {
         if (!this.openSections.includes(k)) this.openSections.push(k)
       })
-
-      // Load from URL hash if present (share URL feature)
-      this.loadFromHash()
 
       // Keyboard shortcuts: Alt+→ / Alt+← for page navigation
       window.addEventListener('keydown', (e) => {
