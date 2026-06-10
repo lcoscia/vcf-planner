@@ -141,7 +141,7 @@
         VCF 9.1 Planning & Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.3</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.5</div>
     </div>
   </div>
   <div class="flex items-center gap-2 no-print">
@@ -155,6 +155,7 @@
     <button @click="exportMarkdown()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export Markdown As-Built">📄 MD</button>
     <button @click="exportCsv()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export CSV IPAM table">📊 CSV</button>
     <button @click="exportVcfInstallerJson()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export VCF Installer JSON (POST /v1/sddcs payload)">🚀 JSON VCF Installer ready</button>
+    <button @click="importVcfInstallerTrigger()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Import VCF Installer Ready JSON (POST /v1/sddcs payload)">⬆ JSON VCF Installer ready</button>
     <button @click="shareUrl()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Copy shareable URL to clipboard">🔗 Share</button>
     <button @click="window.print()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Print / PDF">🖨 Print</button>
     <button @click="toggleDark()" class="px-2 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" :title="darkMode?'Switch to light mode':'Switch to dark mode'" x-text="darkMode?'☀️':'🌙'"></button>
@@ -163,6 +164,7 @@
       title="About this tool">ℹ️ About</button>
     <button @click="confirmReset()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(220,38,38,.4);" title="Reset all data">↺ Reset</button>
     <input type="file" id="import-file" accept=".json" class="hidden" @change="importJSON($event)">
+    <input type="file" id="import-vcf-installer-file" accept=".json" class="hidden" @change="importVcfInstallerJson($event)">
     <!-- Save indicator -->
     <div x-show="saveIndicator" x-transition class="text-xs opacity-70 ml-1">✓ Saved</div>
   </div>
@@ -221,7 +223,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.3 · Updated June 10, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.5 · Updated June 10, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -893,6 +895,9 @@
         <button @click="exportVcfInstallerJson()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#7c3aed;">
           🚀 VCF Installer JSON
         </button>
+        <button @click="importVcfInstallerTrigger()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#6d28d9;">
+          ⬆ Import VCF Installer JSON
+        </button>
       </div>
 
     </div>
@@ -911,7 +916,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.0.3</span>
+              <span>v1.0.5</span>
               <span>·</span>
               <span>Updated June 10, 2026</span>
               <span>·</span>
@@ -950,6 +955,7 @@
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> VCF vs VVF cascading conditional logic</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Live sizing calculator with host count formulas</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Auto-save · Export JSON · Import JSON</li>
+          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Export &amp; import VCF Installer Ready JSON (<code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> / <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code>)</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Export Markdown As-Built · CSV IPAM table</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Share via URL hash · Print to PDF</li>
           <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Contextual help bubbles linking to official Broadcom VCF design docs</li>
@@ -1080,6 +1086,20 @@
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">VCF Installer JSON export</p>
             <p>New "🚀 Installer" / "🚀 VCF Installer JSON" buttons (topbar and As-Built page) export a <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON file matching the VCF 9.1 Installer's <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> request body, built from your current form data (DNS, NTP, hosts, management/vMotion/vSAN/NFS network specs, vCenter, cluster, datastore, distributed switches, NSX Manager, VCF Operations, and SDDC Manager). A new "VCF Installer Export Settings" section on the Deploy Management Domain page adds VCF Instance Name, SDDC ID, CEIP, and ESXi SSL thumbprint validation fields used by this export. Note: vSphere Supervisor (vSphere IaaS Control Plane), Fleet/SDDC LCM bootstrap options, and a few other optional installer spec blocks are not yet covered by this export — always review the generated JSON against the official VCF Installer documentation before use.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.4<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">VCF Management Services fields</p>
+            <p>The Fleet Management Day-N page now includes a "VCF Management Services" section covering the fleet- and instance-level lifecycle components from the Planning &amp; Preparation workbook (Deploy Management Domain sheet, "VCF Management services" block): Fleet Components FQDN/IP, Instance Components FQDN/IP, VCF Services Runtime FQDN/IP, License Server FQDN/IP, and a shared SSH password for the vmware-system-user service account. These fields are informational/IPAM only — they are independent of the "VCF Services Runtime" / "License Server" toggles on the Management Domain Sizing calculator (which only affect resource-footprint math) and are not part of the VCF Installer JSON export, which covers Day-0 bring-up only.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.5<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Import "VCF Installer Ready JSON"</p>
+            <p>New "⬆ JSON VCF Installer ready" / "⬆ Import VCF Installer JSON" buttons (topbar and As-Built page) let you load a previously exported <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON (the v1.0.3 export, or a real VCF Installer <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> payload) and restore it into the form — a best-effort companion to the v1.0.3 export. Restored: top-level options (VCF version, instance name, SDDC ID, CEIP, deployment type, ESXi thumbprint validation), DNS, NTP, ESXi host FQDNs, network specs (management/vMotion/vSAN/NFS CIDR, gateway, VLAN, MTU, IP range, uplink teaming policy), vCenter, cluster, datastore (vSAN/VMFS-FC/NFSv3), distributed switch names and per-network MTUs, NSX Manager FQDNs and overlay network, VCF Operations node FQDNs and appliance size, and SDDC Manager hostname. Not restored — and flagged in a post-import summary for manual review: ESXi host management IPs, vCenter IP, NSX Manager IPs, VCF Operations IPs/load balancer/HA mode, the distributed switch profile/uplink names/LACP configuration (<code class="bg-gray-100 px-1 rounded text-xs">dvsSpecs</code> reverse-mapping is deferred), and all passwords other than the ESXi root and vCenter root passwords — these are not present in the <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> JSON by design.</p>
           </div>
         </div>
       </div>
@@ -1550,6 +1570,202 @@ function buildSddcManagerSpec(f) {
     if (domain) hostname = `${hostname}.${domain}`
   }
   return { hostname, useExistingDeployment: false }
+}
+
+// ─── VCF Installer JSON IMPORT — reverse mappers (best-effort) ───
+// Each apply* function mutates `form` in place, only setting keys the spec
+// actually provides (never blanking out existing form values).
+
+function unmapTeamingPolicyLowercase(policy) {
+  return ({
+    'loadbalance_ip': 'Route based on IP hash',
+    'loadbalance_srcmac': 'Route based on source MAC hash',
+    'loadbalance_srcid': 'Route based on source port ID',
+    'failover_explicit': 'Use explicit failover order',
+  })[policy] || null
+}
+
+function capitalizeSize(size, validOptions) {
+  if (!size) return null
+  return validOptions.find(o => o.toLowerCase() === String(size).toLowerCase()) || null
+}
+
+function applyTopLevelScalars(spec, form) {
+  if (spec.version) form.vcfVersion = spec.version
+  if (spec.vcfInstanceName) form.vcfInstanceName = spec.vcfInstanceName
+  if (spec.sddcId) form.sddcId = spec.sddcId
+  if (typeof spec.ceipEnabled === 'boolean') form.ceipEnabled = spec.ceipEnabled ? 'Include' : 'Exclude'
+  if (spec.workflowType) form.deploymentType = spec.workflowType === 'VVF' ? 'VMware vSphere Foundation' : 'VMware Cloud Foundation'
+  if (typeof spec.skipEsxThumbprintValidation === 'boolean') form.skipEsxThumbprintValidation = spec.skipEsxThumbprintValidation ? 'Include' : 'Exclude'
+}
+
+function applyDnsSpec(spec, form) {
+  const dns = spec.dnsSpec
+  if (!dns) return
+  if (dns.subdomain) form.subDomainName = dns.subdomain
+  if (Array.isArray(dns.nameservers)) {
+    if (dns.nameservers[0]) form.dnsServer1 = dns.nameservers[0]
+    if (dns.nameservers[1]) form.dnsServer2 = dns.nameservers[1]
+  }
+}
+
+function applyNtpServers(spec, form) {
+  const ntp = spec.ntpServers
+  if (!Array.isArray(ntp)) return
+  if (ntp[0]) form.ntpServer1 = ntp[0]
+  if (ntp[1]) form.ntpServer2 = ntp[1]
+}
+
+function applyHostSpecs(spec, form, warnings) {
+  const hosts = spec.hostSpecs
+  if (!Array.isArray(hosts) || !hosts.length) return
+  hosts.forEach((h, i) => {
+    if (i >= 16) return
+    if (h.hostname) form[`m01Host${i+1}Fqdn`] = h.hostname
+    if (h.credentials && h.credentials.password && !form.esxiRootPw) {
+      form.esxiRootPw = h.credentials.password
+    }
+  })
+  warnings.push(`ESXi host management IPs (m01Host1-${Math.min(hosts.length,16)} IP) are not present in the VCF Installer JSON — enter them manually.`)
+}
+
+function applyNetworkSpecs(spec, form, warnings) {
+  const nets = spec.networkSpecs
+  if (!Array.isArray(nets)) return
+  const typeToPrefix = { MANAGEMENT:'esxMgmt', VM_MANAGEMENT:'vmMgmt', VMOTION:'vmotion', VSAN:'vsan1', NFS:'nfs' }
+  let teamingApplied = false
+  nets.forEach(n => {
+    const prefix = typeToPrefix[n.networkType]
+    if (!prefix) return
+    if (n.subnet) form[`${prefix}Cidr`] = n.subnet
+    if (n.gateway) form[`${prefix}Gateway`] = n.gateway
+    if (n.vlanId !== undefined && n.vlanId !== null) form[`${prefix}Vlan`] = String(n.vlanId)
+    if (n.mtu) form[`${prefix}Mtu`] = String(n.mtu)
+    if (Array.isArray(n.includeIpAddressRanges) && n.includeIpAddressRanges[0]) {
+      const r = n.includeIpAddressRanges[0]
+      if (r.startIpAddress) form[`${prefix}IpStart`] = r.startIpAddress
+      if (r.endIpAddress) form[`${prefix}IpEnd`] = r.endIpAddress
+    }
+    if (!teamingApplied && n.teamingPolicy) {
+      const policy = unmapTeamingPolicyLowercase(n.teamingPolicy)
+      if (policy) form.dvsUplinkPolicy = policy
+      else warnings.push(`Teaming Policy "${n.teamingPolicy}" could not be mapped back to a Teaming Policy option — please verify the Distributed Switch Profile section.`)
+      teamingApplied = true
+    }
+  })
+}
+
+function applyVcenterSpec(spec, form, warnings) {
+  const vc = spec.vcenterSpec
+  if (!vc) return
+  if (vc.vcenterHostname) form.vcMgmtFqdn = vc.vcenterHostname
+  if (vc.rootVcenterPassword) form.vcRootPw = vc.rootVcenterPassword
+  if (vc.ssoDomain) form.vcSsoDomain = vc.ssoDomain
+  const size = capitalizeSize(vc.vmSize, ['Tiny','Small','Medium','Large','XLarge'])
+  if (size) form.vcMgmtSize = size
+  warnings.push('vCenter IP is not present in the VCF Installer JSON — enter it manually.')
+}
+
+function applyClusterSpec(spec, form) {
+  const c = spec.clusterSpec
+  if (!c) return
+  if (c.datacenterName) form.vcDatacenter = c.datacenterName
+  if (c.clusterName) form.vcCluster = c.clusterName
+}
+
+function applyDatastoreSpec(spec, form) {
+  const ds = spec.datastoreSpec
+  if (!ds) return
+  if (ds.vsanSpec) {
+    const v = ds.vsanSpec
+    form.principalStorage = (v.esaConfig && v.esaConfig.enabled) ? 'vSAN-ESA' : 'vSAN-OSA'
+    if (v.datastoreName) form.vcDatastore = v.datastoreName
+    if (v.failuresToTolerate !== undefined && v.failuresToTolerate !== null) form.vsanFtt = String(v.failuresToTolerate)
+    if (form.principalStorage === 'vSAN-OSA') form.vsanDedup = v.vsanDedup ? 'Selected' : 'Unselected'
+    if (v.encryptionConfig && v.encryptionConfig.dataInTransitConfig) {
+      form.vsanEncryptDit = v.encryptionConfig.dataInTransitConfig.enable ? 'Selected' : 'Unselected'
+    }
+  } else if (ds.vmfsDatastoreSpec) {
+    form.principalStorage = 'VMFS on Fibre Channel (FC)'
+    const fc = ds.vmfsDatastoreSpec.fcSpec
+    if (Array.isArray(fc) && fc[0] && fc[0].datastoreName) form.fcDatastore = fc[0].datastoreName
+  } else if (ds.nfsDatastoreSpec) {
+    form.principalStorage = 'NFSv3'
+    const vol = ds.nfsDatastoreSpec.nasVolume
+    if (vol) {
+      if (Array.isArray(vol.serverName) && vol.serverName[0]) form.nfsServer = vol.serverName[0]
+      if (vol.path) form.nfsPath = vol.path
+      form.nfsVmknicBinding = vol.enableBindToVmknic ? 'Enabled' : 'Disabled'
+    }
+  }
+}
+
+function applyDvsSpecs(spec, form, warnings) {
+  const dvss = spec.dvsSpecs
+  if (!Array.isArray(dvss) || !dvss.length) return
+  if (dvss[0] && dvss[0].dvsName) form.dvsName = dvss[0].dvsName
+  if (dvss[1] && dvss[1].dvsName) form.dvs2Name = dvss[1].dvsName
+  if (dvss[2] && dvss[2].dvsName) form.dvs3Name = dvss[2].dvsName
+  if (dvss[0] && dvss[0].mtu) form.vmotionMtu = String(dvss[0].mtu)
+  const storageDvs = dvss.find(d => Array.isArray(d.networks) && (d.networks.includes('VSAN') || d.networks.includes('NFS')))
+  if (storageDvs && storageDvs.mtu) {
+    if (form.principalStorage === 'NFSv3') form.nfsMtu = String(storageDvs.mtu)
+    else form.vsan1Mtu = String(storageDvs.mtu)
+  }
+  warnings.push('Distributed Switch Profile, uplink count/names, and LACP settings could not be reliably restored from dvsSpecs — please review the "Distributed Switch Profile" section on Deploy Management Domain.')
+}
+
+function applyNsxtSpec(spec, form, warnings) {
+  const nsx = spec.nsxtSpec
+  if (!nsx) return
+  if (nsx.vipFqdn) form.nsxVipFqdn = nsx.vipFqdn
+  if (Array.isArray(nsx.nsxtManagers)) {
+    if (nsx.nsxtManagers[0] && nsx.nsxtManagers[0].hostname) form.nsxMgr1Fqdn = nsx.nsxtManagers[0].hostname
+    if (nsx.nsxtManagers[1] && nsx.nsxtManagers[1].hostname) form.nsxMgr2Fqdn = nsx.nsxtManagers[1].hostname
+    if (nsx.nsxtManagers[2] && nsx.nsxtManagers[2].hostname) form.nsxMgr3Fqdn = nsx.nsxtManagers[2].hostname
+  }
+  if (nsx.transportVlanId !== undefined && nsx.transportVlanId !== null) form.overlayVlan = String(nsx.transportVlanId)
+  if (nsx.ipAddressPoolSpec && Array.isArray(nsx.ipAddressPoolSpec.subnets) && nsx.ipAddressPoolSpec.subnets[0]) {
+    const subnet = nsx.ipAddressPoolSpec.subnets[0]
+    if (subnet.cidr) form.overlayCidr = subnet.cidr
+    if (subnet.gateway) form.overlayGateway = subnet.gateway
+    if (Array.isArray(subnet.ipAddressPoolRanges) && subnet.ipAddressPoolRanges[0]) {
+      const r = subnet.ipAddressPoolRanges[0]
+      if (r.start) form.overlayIpStart = r.start
+      if (r.end) form.overlayIpEnd = r.end
+    }
+  }
+  if (nsx.nsxtManagerSize === 'medium') {
+    form.nsxMgrSize = 'Medium'
+    warnings.push('NSX Manager Appliance Size: the VCF Installer JSON value "medium" maps to either "Small" or "Medium" — defaulted to "Medium", please verify.')
+  } else if (nsx.nsxtManagerSize === 'large') {
+    form.nsxMgrSize = 'Large'
+  } else if (nsx.nsxtManagerSize === 'xlarge') {
+    form.nsxMgrSize = 'XLarge'
+  }
+  warnings.push('NSX Manager / VIP IP addresses and passwords are not present in the VCF Installer JSON — enter them manually.')
+}
+
+function applyVcfOperationsSpec(spec, form, warnings) {
+  const ops = spec.vcfOperationsSpec
+  if (!ops) return
+  form.vcfOpsInclude = 'Include'
+  const size = capitalizeSize(ops.applianceSize, ['Small','Medium','Large'])
+  if (size) form.vcfOpsSize = size
+  if (Array.isArray(ops.nodes)) {
+    ops.nodes.forEach(n => {
+      if (n.type === 'master' && n.hostname) form.vcfOpsPrimaryFqdn = n.hostname
+      if (n.type === 'replica' && n.hostname) form.vcfOpsReplicaFqdn = n.hostname
+      if (n.type === 'data' && n.hostname) form.vcfOpsDataFqdn = n.hostname
+    })
+  }
+  warnings.push('VCF Operations node IPs, Load Balancer FQDN/IP, HA mode, and the admin password are not present in the VCF Installer JSON — enter them manually.')
+}
+
+function applySddcManagerSpec(spec, form) {
+  const sddc = spec.sddcManagerSpec
+  if (!sddc || !sddc.hostname) return
+  form.sddcHostname = sddc.hostname.includes('.') ? sddc.hostname.split('.')[0] : sddc.hostname
 }
 
 const ALL_PAGES = [
@@ -2074,6 +2290,26 @@ const ALL_PAGES = [
           { key:'idBrokerFqdn',    label:'Identity Broker FQDN',    type:'text', sample:'sfo-m01-idm01.sfo.rainpole.io', showWhen:f=>f.idBrokerInclude==='Include' },
           { key:'idBrokerIp',      label:'Identity Broker IP',      type:'ip',     sample:'10.11.10.50', showWhen:f=>f.idBrokerInclude==='Include' },
           { key:'idBrokerSize',    label:'Identity Broker Size',    type:'select', options:['Small','Medium','Large','Extra-Large'], sample:'Medium', showWhen:f=>f.idBrokerInclude==='Include' },
+        ]
+      },
+      {
+        title:'VCF Management Services',
+        description:'Fleet- and instance-level lifecycle components hosted on the VCF services runtime.',
+        fields:[
+          { key:'fleetComponentsFqdn',    label:'Fleet Components FQDN',     type:'text', sample:'flt-fc01.rainpole.io',
+            notes:'FQDN to access the hosted fleet-level components which do not require a separate FQDN, for example, the fleet lifecycle component.' },
+          { key:'fleetComponentsIp',      label:'Fleet Components IP',       type:'ip',   sample:'10.11.10.20' },
+          { key:'instanceComponentsFqdn', label:'Instance Components FQDN',  type:'text', sample:'sfo-ic01.sfo.rainpole.io',
+            notes:'FQDN to access the hosted instance-level components which do not require a separate FQDN, for example, the SDDC lifecycle and real-time metrics components.' },
+          { key:'instanceComponentsIp',   label:'Instance Components IP',    type:'ip',   sample:'10.11.10.21' },
+          { key:'vcfSvcRuntimeFqdn',      label:'VCF Services Runtime FQDN', type:'text', sample:'sfo-sr01.sfo.rainpole.io',
+            notes:'FQDN to access the VCF services runtime component to troubleshoot issues, restart components, etc. The hostname from this FQDN is prefixed to the names of its node VMs and related objects.' },
+          { key:'vcfSvcRuntimeIp',        label:'VCF Services Runtime IP',   type:'ip',   sample:'10.11.10.10' },
+          { key:'licenseServerFqdn',      label:'License Server FQDN',       type:'text', sample:'flt-lc01.rainpole.io',
+            notes:'Fleet-level, portable License Server FQDN.' },
+          { key:'licenseServerIp',        label:'License Server IP',         type:'ip',   sample:'10.11.10.22' },
+          { key:'vcfMgmtSvcSshPw',        label:'SSH Password (vmware-system-user)', type:'password', sample:'',
+            notes:'Shared SSH credential for the vmware-system-user account on VCF Management Services runtime nodes.' },
         ]
       },
       {
@@ -3010,6 +3246,50 @@ function vcfPlanner() {
           if (d.form) { Object.assign(this.form, d.form); this.applyToggleDefaults(); this.save() }
           if (d.sizing) { Object.assign(this.sizing, d.sizing) }
           alert('Import successful!')
+        } catch(err) {
+          alert('Import failed: ' + err.message)
+        }
+        event.target.value = ''
+      }
+      reader.readAsText(file)
+    },
+    importVcfInstallerTrigger() {
+      document.getElementById('import-vcf-installer-file').click()
+    },
+    importVcfInstallerJson(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        try {
+          const spec = JSON.parse(e.target.result)
+          if (!spec.dnsSpec && !spec.networkSpecs && !spec.vcenterSpec) {
+            alert('Import failed: this file does not look like a VCF Installer JSON (missing dnsSpec/networkSpecs/vcenterSpec).')
+            event.target.value = ''; return
+          }
+          if (!confirm('This will overwrite matching fields in your current configuration with values from the VCF Installer JSON. Continue?')) {
+            event.target.value = ''; return
+          }
+          const warnings = []
+          applyTopLevelScalars(spec, this.form)
+          applyDnsSpec(spec, this.form)
+          applyNtpServers(spec, this.form)
+          applyHostSpecs(spec, this.form, warnings)
+          applyNetworkSpecs(spec, this.form, warnings)
+          applyVcenterSpec(spec, this.form, warnings)
+          applyClusterSpec(spec, this.form)
+          applyDatastoreSpec(spec, this.form)
+          applyDvsSpecs(spec, this.form, warnings)
+          applyNsxtSpec(spec, this.form, warnings)
+          applyVcfOperationsSpec(spec, this.form, warnings)
+          applySddcManagerSpec(spec, this.form)
+
+          this.applyToggleDefaults()
+          if (this.form.principalStorage) this.sizing.storageType = this.form.principalStorage
+          this.save()
+
+          warnings.push('Passwords other than the ESXi root password and vCenter root password (e.g. SSO admin, NSX Manager admin/audit, SDDC Manager admin/root, VCF Operations admin) are not present in the VCF Installer JSON — enter them manually.')
+          alert('Import completed. The following could not be fully restored and need manual review:\n\n- ' + warnings.join('\n- '))
         } catch(err) {
           alert('Import failed: ' + err.message)
         }

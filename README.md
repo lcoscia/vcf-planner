@@ -111,6 +111,7 @@ index.html                  ← single file, ~2700 lines
 | 📄 MD | Export As-Built report as Markdown |
 | 📊 CSV | Export all IP/text fields as CSV (IPAM) |
 | 🚀 Installer | Export a VCF Installer `SddcSpec` JSON (`POST /v1/sddcs` payload) |
+| ⬆ Installer | Best-effort import of a VCF Installer `SddcSpec` JSON back into the form |
 | 🔗 Share | Encode state in URL hash and copy to clipboard |
 | 🖨 Print | Browser print dialog (sidebar hidden via CSS) |
 | 🌙 / ☀️ | Toggle dark / light mode |
@@ -158,6 +159,8 @@ To add a new page, add an entry to `ALL_PAGES` and a corresponding item to `NAV_
 - **v1.0.1** (2026-06-10) — Bug fix: Include/Exclude toggle fields (Use Proxy, Deploy Cloud Proxy, vSAN Stretched Cluster, Supervisor, Identity Broker, VCF Automation/Logs/Operations for Networks, Site Protection & DR, Cyber Recovery, Ransomware Recovery, Cross Cloud Mobility, Private AI, etc.) now initialize to their documented default value, so the displayed label and the visibility of dependent fields are consistent from the start. Previously some toggles required an Include → Exclude → Include click sequence before their fill-in fields would appear.
 - **v1.0.2** (2026-06-10) — Storage type consistency & custom VDS NICs: the Management Domain Sizing "Storage Type" selector now matches "Principal Storage Type" (vSAN-ESA, vSAN-OSA, VMFS on Fibre Channel (FC), NFSv3) and the two stay in sync. The vSAN network segment and "vSAN Datastore Name" are no longer mandatory when FC or NFSv3 is selected. The Distributed Switch Profile now supports up to 10 NIC uplinks for "Custom Switch Configuration".
 - **v1.0.3** (2026-06-10) — VCF Installer JSON export: new "🚀 Installer" / "🚀 VCF Installer JSON" buttons export a `SddcSpec`-shaped JSON matching the VCF 9.1 Installer's `POST /v1/sddcs` payload (DNS, NTP, hosts, network specs, vCenter, cluster, datastore, distributed switches, NSX Manager, VCF Operations, SDDC Manager), built from the current form. Adds a "VCF Installer Export Settings" section (VCF Instance Name, SDDC ID, CEIP, ESXi SSL thumbprint validation). vSphere Supervisor and Fleet/SDDC LCM bootstrap options are not yet covered — review the output against official documentation before use.
+- **v1.0.4** (2026-06-10) — VCF Management Services fields: new "VCF Management Services" section on the Fleet Management Day-N page covers Fleet Components FQDN/IP, Instance Components FQDN/IP, VCF Services Runtime FQDN/IP, License Server FQDN/IP, and a shared SSH password for the vmware-system-user account, matching the workbook's "VCF Management services" block. Informational/IPAM only — not part of the VCF Installer JSON export.
+- **v1.0.5** (2026-06-10) — Import "VCF Installer Ready JSON": new "⬆ JSON VCF Installer ready" / "⬆ Import VCF Installer JSON" buttons (topbar and As-Built page) perform a best-effort reverse-import of a `SddcSpec`-shaped JSON (companion to the v1.0.3 export), restoring DNS, NTP, ESXi host FQDNs, network specs, vCenter, cluster, datastore, distributed switch names/MTUs, NSX Manager, VCF Operations, and SDDC Manager fields. A post-import summary flags items that cannot be restored from the spec (host/vCenter/NSX/VCF Operations management IPs, most passwords, the distributed switch profile/uplinks/LACP) for manual review.
 
 ---
 
