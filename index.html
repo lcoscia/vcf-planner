@@ -1324,73 +1324,10 @@
       <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📅</span> Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v0.1<br><span class="text-gray-300">2026-05-04</span></span>
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.0<br><span class="text-gray-300">2026-06-11</span></span>
           <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Initial release</p>
-            <p>Full conversion of the 27-sheet VCF 9.1 Excel workbook. All deployment modes (VCF/VVF), sizing calculator, NSX Federation, AVI LB, vSphere Supervisor, Private AI, Ransomware Recovery, HCX.</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0<br><span class="text-gray-300">2026-06-08</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Evolution update</p>
-            <p>Dark mode, keyboard navigation, share URL, expand/collapse all, jump to missing, Fill IPs, copy section, Markdown &amp; CSV export, VLAN/IP/CIDR conflict detection, DNS pre-flight checklist, VLAN topology table, vCPU bar chart, FQDN validation, sidebar progress bars, contextual help bubbles linking to official VCF design docs, and stricter selection-field validation aligned with the original Excel data-validation lists. Also added: WLD vCenter sizing (Shared/Dedicated, with size and storage tier) on the Deploy Workload Domain page, an Instance Profile Size field in the sizing calculator that is automatically forced to "Small" when the Cluster Model is set to Simple (matching the workbook's formula), and VCF Management Services / Fleet Components (VCF Services Runtime, Cloud Proxy, License Server, Identity Broker, Software Depot, Log Management Replicas, VCF Operations for Networks and its Collector, Real-time Metrics) now included in the live sizing calculator. The Fleet Management Day-N page now models VCF Operations as a full 4-node cluster (Primary, Replica, Data, and Load Balancer nodes, each with FQDN and IP), adds a VCF Automation IP pool (5 fields, noting that Small/Standard deployments need 2 IPs and HA deployments need 4), and adds Platform Node and Collector Node IPv4/IPv6 fields for VCF Operations for Networks (with a note that these IPs must reside in the VCF Management Network).</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.1<br><span class="text-gray-300">2026-06-10</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Bug fix</p>
-            <p>Fixed a display/visibility mismatch on Include/Exclude toggle fields (e.g. Use Proxy, Deploy Cloud Proxy, vSAN Stretched Cluster, Supervisor, Identity Broker, VCF Automation/Logs/Operations for Networks, Site Protection &amp; DR, Cyber Recovery, Ransomware Recovery, Cross Cloud Mobility, Private AI, and others) where the toggle button could display "Include" while its dependent fields stayed hidden, requiring an Include → Exclude → Include click sequence to reveal them. Toggle fields now initialize to their documented default value, so the displayed label and the visible fields are consistent from the start and a single click toggles both correctly.</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.2<br><span class="text-gray-300">2026-06-10</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Storage type consistency &amp; custom VDS NICs</p>
-            <p>The Management Domain Sizing "Storage Type" selector now offers the same four options as "Principal Storage Type" on the Deploy Management Domain page (vSAN-ESA, vSAN-OSA, VMFS on Fibre Channel (FC), NFSv3) and the two fields stay in sync — choosing one updates the other automatically. The vSAN network segment (VLAN/Gateway/CIDR/MTU/IP pool) and the "vSAN Datastore Name" field are no longer mandatory when a non-vSAN principal storage type (FC or NFSv3) is selected. The Distributed Switch Profile section now supports up to 10 NIC uplinks (a new "Number of Uplinks" field plus Uplink 3–10 Name fields) when "Custom Switch Configuration" is chosen as the DVS Profile.</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.3<br><span class="text-gray-300">2026-06-10</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">VCF Installer JSON export</p>
-            <p>New "🚀 Installer" / "🚀 VCF Installer JSON" buttons (topbar and As-Built page) export a <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON file matching the VCF 9.1 Installer's <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> request body, built from your current form data (DNS, NTP, hosts, management/vMotion/vSAN/NFS network specs, vCenter, cluster, datastore, distributed switches, NSX Manager, VCF Operations, and SDDC Manager). A new "VCF Installer Export Settings" section on the Deploy Management Domain page adds VCF Instance Name, SDDC ID, CEIP, and ESXi SSL thumbprint validation fields used by this export. Note: vSphere Supervisor (vSphere IaaS Control Plane), Fleet/SDDC LCM bootstrap options, and a few other optional installer spec blocks are not yet covered by this export — always review the generated JSON against the official VCF Installer documentation before use.</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.4<br><span class="text-gray-300">2026-06-10</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">VCF Management Services fields</p>
-            <p>The Fleet Management Day-N page now includes a "VCF Management Services" section covering the fleet- and instance-level lifecycle components from the Planning &amp; Preparation workbook (Deploy Management Domain sheet, "VCF Management services" block): Fleet Components FQDN/IP, Instance Components FQDN/IP, VCF Services Runtime FQDN/IP, License Server FQDN/IP, and a shared SSH password for the vmware-system-user service account. These fields are informational/IPAM only — they are independent of the "VCF Services Runtime" / "License Server" toggles on the Management Domain Sizing calculator (which only affect resource-footprint math) and are not part of the VCF Installer JSON export, which covers Day-0 bring-up only.</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.5<br><span class="text-gray-300">2026-06-10</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Import "VCF Installer Ready JSON"</p>
-            <p>New "⬆ JSON VCF Installer ready" / "⬆ Import VCF Installer JSON" buttons (topbar and As-Built page) let you load a previously exported <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON (the v1.0.3 export, or a real VCF Installer <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> payload) and restore it into the form — a best-effort companion to the v1.0.3 export. Restored: top-level options (VCF version, instance name, SDDC ID, CEIP, deployment type, ESXi thumbprint validation), DNS, NTP, ESXi host FQDNs, network specs (management/vMotion/vSAN/NFS CIDR, gateway, VLAN, MTU, IP range, uplink teaming policy), vCenter, cluster, datastore (vSAN/VMFS-FC/NFSv3), distributed switch names and per-network MTUs, NSX Manager FQDNs and overlay network, VCF Operations node FQDNs and appliance size, and SDDC Manager hostname. Not restored — and flagged in a post-import summary for manual review: ESXi host management IPs, vCenter IP, NSX Manager IPs, VCF Operations IPs/load balancer/HA mode, the distributed switch profile/uplink names/LACP configuration (<code class="bg-gray-100 px-1 rounded text-xs">dvsSpecs</code> reverse-mapping is deferred), and all passwords other than the ESXi root and vCenter root passwords — these are not present in the <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> JSON by design.</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.6<br><span class="text-gray-300">2026-06-10</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Removed Share &amp; Print</p>
-            <p>The "🔗 Share" (URL-hash state encoding) and "🖨 Print" (browser print / PDF) toolbar buttons have been removed, along with the As-Built page's print button and the on-load URL-hash restore logic, to simplify the toolbar and avoid the size limits and staleness issues of hash-encoded state. <strong>Export JSON</strong> / <strong>Import JSON</strong> remain the supported way to back up, share, and restore your configuration, and <strong>📄 MD</strong> / <strong>📊 CSV</strong> remain available for As-Built reporting.</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.7<br><span class="text-gray-300">2026-06-11</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Aligned with workbook v1.9.1.002 &amp; Advanced Sizer</p>
-            <p>Updated against Broadcom's <strong>v1.9.1.002</strong> revision of the VCF 9.1 Planning &amp; Preparation Workbook (fixed sizing for the Workload Domain NSX cluster, added an Advanced Sizer for the Management Domain). Changes: the Management Domain Sizing calculator gains a <strong>vCenter Storage Size</strong> selector (Default/Large/XLarge, affecting vCenter disk footprint), an <strong>NSX Manager Model</strong> selector (Mandatory - Single Node ×1 / Mandatory - HA Cluster ×3, replacing the previous hardcoded ×3), and a <strong>Cloud Proxy</strong> Small/Standard size tier; corrected VCF Automation (VCFA) sizing values (Small/Medium/Large) to match the workbook's Static Reference Tables; the vCenter Server appliance size default changed from Small to Medium (matching the updated workbook sample); the Workload Domain count now supports up to 35; the Configure Workload Domain page's "WLD NSX Network Connectivity" section adds a <strong>WLD Edge HA Mode</strong> field (Active-Active / Active-Standby); and the Fleet Management Day-N IP samples were renumbered from the <code class="bg-gray-100 px-1 rounded text-xs">10.11.10.x</code> range to <code class="bg-gray-100 px-1 rounded text-xs">10.11.99.x</code> to avoid overlap with Management Domain addressing.</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.8<br><span class="text-gray-300">2026-06-11</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Ports &amp; Protocols Reference</p>
-            <p>New "🔌 Ports &amp; Protocols" page (Reference section) provides a searchable, filterable matrix of <strong>1083 port/protocol entries</strong> across all 19 VCF 9.1 components, sourced from Broadcom's official <a href="https://ports.broadcom.com/" target="_blank" rel="noopener" class="text-blue-600 underline">Ports and Protocols Tool</a>. Browse grouped by component (collapsible), or filter by free-text search, traffic direction (Inbound/Outbound/Bidirectional/Unspecified), and component, with a "Show 100 more" pager for large result sets. A dedicated "⬇ CSV" button exports the currently filtered rows for firewall rule planning. Reference-only — not part of the VCF Installer JSON export or As-Built report.</p>
+            <p class="font-semibold text-gray-700">DEMO data, AD toggle, Log Management replicas &amp; navigation improvements</p>
+            <p>New "🧪 DEMO" topbar button instantly fills every Management Domain field (Planning, Deploy Management Domain, vCenter, SDDC Manager, NSX Manager 3-node cluster, and a 2-node NSX Edge cluster) with a consistent, ready-to-review example based on a 4-node vSAN-ESA cluster — a confirmation prompt warns before overwriting existing values. The Active Directory / LDAP page now has an "Include/Exclude" toggle (defaults to Exclude, like the AVI/NSX Edge/VCF Operations toggles) so the detailed AD inputs are hidden until needed. Log Management (under VCF Management Services / Fleet Management Day-N) gains an HA Mode selector with dedicated <strong>replica node</strong> and <strong>load balancer / cluster VIP</strong> FQDN/IP fields when "HA Cluster" is selected. The VCF Management Services section adds 3 spare "Additional IP" fields for fleet-level scale-out. Fleet MTU now defaults to 1500 (was 9000). All password fields now show "AUTO-GENERATED" as their default sample/placeholder for a consistent convention. Discoverability: a persistent "🔌 Ports" topbar button and an As-Built page callout banner now link directly to the Ports &amp; Protocols reference. The Ports &amp; Protocols matrix also gains a "Group by: By Component / By Category" toggle that organizes the 19 components into 5 functional categories (Core Infrastructure, Fleet Management &amp; Operations, Automation &amp; Security, Recovery &amp; Disaster Recovery, Private AI); within "By Category", each category is further sub-divided into collapsible per-component groups for easier navigation.</p>
           </div>
         </div>
         <div class="border-t border-gray-100 pt-3 flex gap-4">
@@ -1401,10 +1338,73 @@
           </div>
         </div>
         <div class="border-t border-gray-100 pt-3 flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.0<br><span class="text-gray-300">2026-06-11</span></span>
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.8<br><span class="text-gray-300">2026-06-11</span></span>
           <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">DEMO data, AD toggle, Log Management replicas &amp; navigation improvements</p>
-            <p>New "🧪 DEMO" topbar button instantly fills every Management Domain field (Planning, Deploy Management Domain, vCenter, SDDC Manager, NSX Manager 3-node cluster, and a 2-node NSX Edge cluster) with a consistent, ready-to-review example based on a 4-node vSAN-ESA cluster — a confirmation prompt warns before overwriting existing values. The Active Directory / LDAP page now has an "Include/Exclude" toggle (defaults to Exclude, like the AVI/NSX Edge/VCF Operations toggles) so the detailed AD inputs are hidden until needed. Log Management (under VCF Management Services / Fleet Management Day-N) gains an HA Mode selector with dedicated <strong>replica node</strong> and <strong>load balancer / cluster VIP</strong> FQDN/IP fields when "HA Cluster" is selected. The VCF Management Services section adds 3 spare "Additional IP" fields for fleet-level scale-out. Fleet MTU now defaults to 1500 (was 9000). All password fields now show "AUTO-GENERATED" as their default sample/placeholder for a consistent convention. Discoverability: a persistent "🔌 Ports" topbar button and an As-Built page callout banner now link directly to the Ports &amp; Protocols reference. The Ports &amp; Protocols matrix also gains a "Group by: By Component / By Category" toggle that organizes the 19 components into 5 functional categories (Core Infrastructure, Fleet Management &amp; Operations, Automation &amp; Security, Recovery &amp; Disaster Recovery, Private AI); within "By Category", each category is further sub-divided into collapsible per-component groups for easier navigation.</p>
+            <p class="font-semibold text-gray-700">Ports &amp; Protocols Reference</p>
+            <p>New "🔌 Ports &amp; Protocols" page (Reference section) provides a searchable, filterable matrix of <strong>1083 port/protocol entries</strong> across all 19 VCF 9.1 components, sourced from Broadcom's official <a href="https://ports.broadcom.com/" target="_blank" rel="noopener" class="text-blue-600 underline">Ports and Protocols Tool</a>. Browse grouped by component (collapsible), or filter by free-text search, traffic direction (Inbound/Outbound/Bidirectional/Unspecified), and component, with a "Show 100 more" pager for large result sets. A dedicated "⬇ CSV" button exports the currently filtered rows for firewall rule planning. Reference-only — not part of the VCF Installer JSON export or As-Built report.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.7<br><span class="text-gray-300">2026-06-11</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Aligned with workbook v1.9.1.002 &amp; Advanced Sizer</p>
+            <p>Updated against Broadcom's <strong>v1.9.1.002</strong> revision of the VCF 9.1 Planning &amp; Preparation Workbook (fixed sizing for the Workload Domain NSX cluster, added an Advanced Sizer for the Management Domain). Changes: the Management Domain Sizing calculator gains a <strong>vCenter Storage Size</strong> selector (Default/Large/XLarge, affecting vCenter disk footprint), an <strong>NSX Manager Model</strong> selector (Mandatory - Single Node ×1 / Mandatory - HA Cluster ×3, replacing the previous hardcoded ×3), and a <strong>Cloud Proxy</strong> Small/Standard size tier; corrected VCF Automation (VCFA) sizing values (Small/Medium/Large) to match the workbook's Static Reference Tables; the vCenter Server appliance size default changed from Small to Medium (matching the updated workbook sample); the Workload Domain count now supports up to 35; the Configure Workload Domain page's "WLD NSX Network Connectivity" section adds a <strong>WLD Edge HA Mode</strong> field (Active-Active / Active-Standby); and the Fleet Management Day-N IP samples were renumbered from the <code class="bg-gray-100 px-1 rounded text-xs">10.11.10.x</code> range to <code class="bg-gray-100 px-1 rounded text-xs">10.11.99.x</code> to avoid overlap with Management Domain addressing.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.6<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Removed Share &amp; Print</p>
+            <p>The "🔗 Share" (URL-hash state encoding) and "🖨 Print" (browser print / PDF) toolbar buttons have been removed, along with the As-Built page's print button and the on-load URL-hash restore logic, to simplify the toolbar and avoid the size limits and staleness issues of hash-encoded state. <strong>Export JSON</strong> / <strong>Import JSON</strong> remain the supported way to back up, share, and restore your configuration, and <strong>📄 MD</strong> / <strong>📊 CSV</strong> remain available for As-Built reporting.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.5<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Import "VCF Installer Ready JSON"</p>
+            <p>New "⬆ JSON VCF Installer ready" / "⬆ Import VCF Installer JSON" buttons (topbar and As-Built page) let you load a previously exported <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON (the v1.0.3 export, or a real VCF Installer <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> payload) and restore it into the form — a best-effort companion to the v1.0.3 export. Restored: top-level options (VCF version, instance name, SDDC ID, CEIP, deployment type, ESXi thumbprint validation), DNS, NTP, ESXi host FQDNs, network specs (management/vMotion/vSAN/NFS CIDR, gateway, VLAN, MTU, IP range, uplink teaming policy), vCenter, cluster, datastore (vSAN/VMFS-FC/NFSv3), distributed switch names and per-network MTUs, NSX Manager FQDNs and overlay network, VCF Operations node FQDNs and appliance size, and SDDC Manager hostname. Not restored — and flagged in a post-import summary for manual review: ESXi host management IPs, vCenter IP, NSX Manager IPs, VCF Operations IPs/load balancer/HA mode, the distributed switch profile/uplink names/LACP configuration (<code class="bg-gray-100 px-1 rounded text-xs">dvsSpecs</code> reverse-mapping is deferred), and all passwords other than the ESXi root and vCenter root passwords — these are not present in the <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> JSON by design.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.4<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">VCF Management Services fields</p>
+            <p>The Fleet Management Day-N page now includes a "VCF Management Services" section covering the fleet- and instance-level lifecycle components from the Planning &amp; Preparation workbook (Deploy Management Domain sheet, "VCF Management services" block): Fleet Components FQDN/IP, Instance Components FQDN/IP, VCF Services Runtime FQDN/IP, License Server FQDN/IP, and a shared SSH password for the vmware-system-user service account. These fields are informational/IPAM only — they are independent of the "VCF Services Runtime" / "License Server" toggles on the Management Domain Sizing calculator (which only affect resource-footprint math) and are not part of the VCF Installer JSON export, which covers Day-0 bring-up only.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.3<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">VCF Installer JSON export</p>
+            <p>New "🚀 Installer" / "🚀 VCF Installer JSON" buttons (topbar and As-Built page) export a <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON file matching the VCF 9.1 Installer's <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> request body, built from your current form data (DNS, NTP, hosts, management/vMotion/vSAN/NFS network specs, vCenter, cluster, datastore, distributed switches, NSX Manager, VCF Operations, and SDDC Manager). A new "VCF Installer Export Settings" section on the Deploy Management Domain page adds VCF Instance Name, SDDC ID, CEIP, and ESXi SSL thumbprint validation fields used by this export. Note: vSphere Supervisor (vSphere IaaS Control Plane), Fleet/SDDC LCM bootstrap options, and a few other optional installer spec blocks are not yet covered by this export — always review the generated JSON against the official VCF Installer documentation before use.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.2<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Storage type consistency &amp; custom VDS NICs</p>
+            <p>The Management Domain Sizing "Storage Type" selector now offers the same four options as "Principal Storage Type" on the Deploy Management Domain page (vSAN-ESA, vSAN-OSA, VMFS on Fibre Channel (FC), NFSv3) and the two fields stay in sync — choosing one updates the other automatically. The vSAN network segment (VLAN/Gateway/CIDR/MTU/IP pool) and the "vSAN Datastore Name" field are no longer mandatory when a non-vSAN principal storage type (FC or NFSv3) is selected. The Distributed Switch Profile section now supports up to 10 NIC uplinks (a new "Number of Uplinks" field plus Uplink 3–10 Name fields) when "Custom Switch Configuration" is chosen as the DVS Profile.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.1<br><span class="text-gray-300">2026-06-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Bug fix</p>
+            <p>Fixed a display/visibility mismatch on Include/Exclude toggle fields (e.g. Use Proxy, Deploy Cloud Proxy, vSAN Stretched Cluster, Supervisor, Identity Broker, VCF Automation/Logs/Operations for Networks, Site Protection &amp; DR, Cyber Recovery, Ransomware Recovery, Cross Cloud Mobility, Private AI, and others) where the toggle button could display "Include" while its dependent fields stayed hidden, requiring an Include → Exclude → Include click sequence to reveal them. Toggle fields now initialize to their documented default value, so the displayed label and the visible fields are consistent from the start and a single click toggles both correctly.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0<br><span class="text-gray-300">2026-06-08</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Evolution update</p>
+            <p>Dark mode, keyboard navigation, share URL, expand/collapse all, jump to missing, Fill IPs, copy section, Markdown &amp; CSV export, VLAN/IP/CIDR conflict detection, DNS pre-flight checklist, VLAN topology table, vCPU bar chart, FQDN validation, sidebar progress bars, contextual help bubbles linking to official VCF design docs, and stricter selection-field validation aligned with the original Excel data-validation lists. Also added: WLD vCenter sizing (Shared/Dedicated, with size and storage tier) on the Deploy Workload Domain page, an Instance Profile Size field in the sizing calculator that is automatically forced to "Small" when the Cluster Model is set to Simple (matching the workbook's formula), and VCF Management Services / Fleet Components (VCF Services Runtime, Cloud Proxy, License Server, Identity Broker, Software Depot, Log Management Replicas, VCF Operations for Networks and its Collector, Real-time Metrics) now included in the live sizing calculator. The Fleet Management Day-N page now models VCF Operations as a full 4-node cluster (Primary, Replica, Data, and Load Balancer nodes, each with FQDN and IP), adds a VCF Automation IP pool (5 fields, noting that Small/Standard deployments need 2 IPs and HA deployments need 4), and adds Platform Node and Collector Node IPv4/IPv6 fields for VCF Operations for Networks (with a note that these IPs must reside in the VCF Management Network).</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v0.1<br><span class="text-gray-300">2026-05-04</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Initial release</p>
+            <p>Full conversion of the 27-sheet VCF 9.1 Excel workbook. All deployment modes (VCF/VVF), sizing calculator, NSX Federation, AVI LB, vSphere Supervisor, Private AI, Ransomware Recovery, HCX.</p>
           </div>
         </div>
       </div>
