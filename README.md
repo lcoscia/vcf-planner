@@ -19,7 +19,7 @@ Or double-click `index.html` in Finder / Explorer.
 
 | Category | Details |
 |---|---|
-| **Coverage** | 18 pages · 600+ fields across all 27 original sheets |
+| **Coverage** | 19 pages · 600+ fields across all 27 original sheets |
 | **Deployment modes** | VCF and VVF · New Fleet, Additional Instance, Workload Domain, Additional Cluster |
 | **Sizing calculator** | Live host count + disk-per-host formulas matching the Excel workbook · Advanced Sizer (vCenter Storage Size tier, NSX Manager Model ×1/×3, Cloud Proxy Small/Standard) · WLD vCenter sizing (Shared/Dedicated with size & storage tier) · Instance Profile Size coupled to Cluster Model (Simple → forced Small) · VCF Management Services & Fleet Components included in component inclusions |
 | **Persistence** | Auto-save to `localStorage` · Export/Import JSON |
@@ -52,14 +52,15 @@ Or double-click `index.html` in Finder / Explorer.
 | 15 | Ransomware Recovery (Cloud) | Cloud-based DRaaS connectors |
 | 16 | Cross Cloud Mobility (HCX) | HCX deployment and network profiles |
 | 17 | Private AI Ready Infrastructure | GPU operator, vGPU, TKG, K8s CIDRs |
-| 18 | As-Built / Summary | Full recap, validation panels, export buttons |
+| 18 | Ports & Protocols | Searchable/filterable port matrix (1083 entries, 19 components) — source: Broadcom Ports and Protocols Tool |
+| 19 | As-Built / Summary | Full recap, validation panels, export buttons |
 
 ---
 
 ## Architecture
 
 ```
-index.html                  ← single file, ~2700 lines
+index.html                  ← single file, ~5000 lines
 ├── <head>
 │   ├── Alpine.js 3.14.1    (CDN, defer)
 │   ├── @alpinejs/collapse  (CDN, loaded before Alpine core)
@@ -72,10 +73,11 @@ index.html                  ← single file, ~2700 lines
     ├── LT                  Lookup tables (vCenter/NSX/AVI sizes — keys mirror the Excel Data Validation lists)
     ├── SUBNET_MASKS        Canonical 24-entry subnet mask list (from 'Static Reference Tables')
     ├── PREREQ_DATA         Prerequisite checklist rows
+    ├── PORTS_DATA          Ports & Protocols matrix (1083 rows — source: ports.broadcom.com)
     ├── makeNetFields()     Helper — network segment field group
     ├── makeHostFields()    Helper — N×(FQDN+IP) host fields
     ├── makeRackFields()    Helper — multi-rack section
-    ├── ALL_PAGES[]         Form schema — all 18 pages
+    ├── ALL_PAGES[]         Form schema — all 19 pages
     ├── NAV_GROUPS[]        Sidebar navigation structure
     └── vcfPlanner()        Alpine.js component (state + methods)
 ```
@@ -160,6 +162,7 @@ To add a new page, add an entry to `ALL_PAGES` and a corresponding item to `NAV_
 - **v1.0.5** (2026-06-10) — Import "VCF Installer Ready JSON": new "⬆ JSON VCF Installer ready" / "⬆ Import VCF Installer JSON" buttons (topbar and As-Built page) perform a best-effort reverse-import of a `SddcSpec`-shaped JSON (companion to the v1.0.3 export), restoring DNS, NTP, ESXi host FQDNs, network specs, vCenter, cluster, datastore, distributed switch names/MTUs, NSX Manager, VCF Operations, and SDDC Manager fields. A post-import summary flags items that cannot be restored from the spec (host/vCenter/NSX/VCF Operations management IPs, most passwords, the distributed switch profile/uplinks/LACP) for manual review.
 - **v1.0.6** (2026-06-10) — Removed Share & Print: the "🔗 Share" (URL-hash state encoding) and "🖨 Print" (browser print / PDF) toolbar buttons have been removed, along with the As-Built page's print button and the on-load URL-hash restore logic, to simplify the toolbar and avoid the size limits and staleness issues of hash-encoded state. Export JSON / Import JSON remain the supported way to back up, share, and restore your configuration, and Markdown / CSV exports remain available for As-Built reporting.
 - **v1.0.7** (2026-06-11) — Aligned with workbook v1.9.1.002 & Advanced Sizer: the Management Domain Sizing calculator gains a vCenter Storage Size selector (Default/Large/XLarge), an NSX Manager Model selector (Mandatory - Single Node ×1 / Mandatory - HA Cluster ×3, replacing the previous hardcoded ×3), and a Cloud Proxy Small/Standard size tier; corrected VCF Automation (VCFA) sizing values to match the workbook's Static Reference Tables; vCenter Server appliance size default changed from Small to Medium; Workload Domain count now supports up to 35; the Configure Workload Domain page adds a WLD Edge HA Mode field (Active-Active / Active-Standby); and Fleet Management Day-N IP samples were renumbered from `10.11.10.x` to `10.11.99.x` to avoid overlap with Management Domain addressing.
+- **v1.0.8** (2026-06-11) — Ports & Protocols reference page: new "🔌 Ports & Protocols" page (Reference section) with a searchable, filterable matrix of 1083 port/protocol entries across all 19 VCF 9.1 components, sourced from Broadcom's official [Ports and Protocols Tool](https://ports.broadcom.com/). Browse grouped by component (collapsible groups), or filter by free-text search, traffic direction (Inbound/Outbound/Bidirectional/Unspecified), and component, with a "Show 100 more" pager. Includes a dedicated CSV export of the filtered rows for firewall rule planning. Reference-only — not part of the VCF Installer JSON export or As-Built report.
 
 ---
 
