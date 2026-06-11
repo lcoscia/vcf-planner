@@ -142,7 +142,7 @@
         VCF 9.1 Planning & Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.9</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.1.0</div>
     </div>
   </div>
   <div class="flex items-center gap-2 no-print">
@@ -158,9 +158,13 @@
     <button @click="exportVcfInstallerJson()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export VCF Installer JSON (POST /v1/sddcs payload)">🚀 JSON VCF Installer ready</button>
     <button @click="importVcfInstallerTrigger()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Import VCF Installer Ready JSON (POST /v1/sddcs payload)">⬆ JSON VCF Installer ready</button>
     <button @click="toggleDark()" class="px-2 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" :title="darkMode?'Switch to light mode':'Switch to dark mode'" x-text="darkMode?'☀️':'🌙'"></button>
+    <button @click="navigate('ports')" class="px-3 py-1.5 text-xs rounded font-medium"
+      :style="currentPage==='ports' ? 'background:rgba(255,255,255,.28);' : 'background:rgba(255,255,255,.12);'"
+      title="Ports & Protocols reference">🔌 Ports</button>
     <button @click="navigate('about')" class="px-3 py-1.5 text-xs rounded font-medium"
       :style="currentPage==='about' ? 'background:rgba(255,255,255,.28);' : 'background:rgba(255,255,255,.12);'"
       title="About this tool">ℹ️ About</button>
+    <button @click="fillDemoManagementDomain()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(99,102,241,.4);" title="Fill Management Domain with demo data (4-node vSAN-ESA cluster + NSX Edge)">🧪 DEMO</button>
     <button @click="confirmReset()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(220,38,38,.4);" title="Reset all data">↺ Reset</button>
     <input type="file" id="import-file" accept=".json" class="hidden" @change="importJSON($event)">
     <input type="file" id="import-vcf-installer-file" accept=".json" class="hidden" @change="importVcfInstallerJson($event)">
@@ -222,7 +226,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.9 · Updated June 11, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.0 · Updated June 11, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -529,10 +533,19 @@
                         class="ml-2 underline hover:no-underline">Clear filters</button>
               </div>
             </div>
+            <div class="flex flex-wrap gap-2 items-center">
+              <span class="text-xs font-semibold text-gray-500 uppercase">Group by:</span>
+              <template x-for="mode in [['component','By Component'],['category','By Category']]" :key="mode[0]">
+                <button @click="portsFilter.groupBy = mode[0]"
+                        class="px-2 py-1 text-xs rounded border"
+                        :class="portsFilter.groupBy === mode[0] ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 hover:bg-gray-100'"
+                        x-text="mode[1]"></button>
+              </template>
+            </div>
           </div>
 
           <!-- GROUPED VIEW (no filters active) -->
-          <template x-if="!anyPortsFilterActive()">
+          <template x-if="portsFilter.groupBy==='component' && !anyPortsFilterActive()">
             <div class="space-y-2">
               <template x-for="grp in portsByProduct()" :key="grp.product">
                 <div class="bg-white rounded-lg shadow border overflow-hidden">
@@ -587,8 +600,66 @@
             </div>
           </template>
 
+          <!-- GROUPED BY CATEGORY VIEW -->
+          <template x-if="portsFilter.groupBy==='category'">
+            <div class="space-y-2">
+              <template x-for="grp in portsByCategory()" :key="grp.category">
+                <div class="bg-white rounded-lg shadow border overflow-hidden">
+                  <button @click="toggleCategoryGroup(grp.category)" class="w-full flex items-center justify-between px-4 py-2 sub-header text-sm font-semibold text-left">
+                    <span x-text="grp.category + ' (' + grp.rows.length + ')'"></span>
+                    <span x-text="openPortCategoryGroups.includes(grp.category) ? '▲' : '▼'"></span>
+                  </button>
+                  <div x-show="openPortCategoryGroups.includes(grp.category)" x-collapse>
+                    <table class="w-full text-sm">
+                      <thead><tr class="bg-gray-50 text-xs text-gray-500 border-b">
+                        <th class="text-left px-3 py-2">Component</th>
+                        <th class="text-left px-3 py-2">Port</th>
+                        <th class="text-left px-3 py-2">Protocol</th>
+                        <th class="text-left px-3 py-2">Source</th>
+                        <th class="text-left px-3 py-2">Destination</th>
+                        <th class="text-left px-3 py-2">Direction</th>
+                        <th class="text-left px-3 py-2">Purpose</th>
+                      </tr></thead>
+                      <tbody>
+                        <template x-for="(row, ri) in grp.rows" :key="ri">
+                          <tr class="border-b border-gray-100 hover:bg-gray-50">
+                            <td class="px-3 py-2 font-medium text-gray-800" x-text="row.product"></td>
+                            <td class="px-3 py-2 font-mono" x-text="row.port"></td>
+                            <td class="px-3 py-2" x-text="row.protocol"></td>
+                            <td class="px-3 py-2 text-gray-600">
+                              <div x-text="row.source"></div>
+                              <template x-if="portsFilter.showResolved">
+                                <template x-for="ep in resolveEndpoint(row.source)" :key="ep.label">
+                                  <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                                </template>
+                              </template>
+                            </td>
+                            <td class="px-3 py-2 text-gray-600">
+                              <div x-text="row.destination"></div>
+                              <template x-if="portsFilter.showResolved">
+                                <template x-for="ep in resolveEndpoint(row.destination)" :key="ep.label">
+                                  <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                                </template>
+                              </template>
+                            </td>
+                            <td class="px-3 py-2">
+                              <span class="px-2 py-0.5 rounded text-xs"
+                                    :class="{'bg-blue-50 text-blue-700': row.direction==='Inbound', 'bg-amber-50 text-amber-700': row.direction==='Outbound', 'bg-purple-50 text-purple-700': row.direction==='Bidirectional', 'bg-gray-100 text-gray-500': row.direction==='Unspecified'}"
+                                    x-text="row.direction"></span>
+                            </td>
+                            <td class="px-3 py-2 text-gray-500 text-xs" x-text="row.purpose"></td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+
           <!-- FLAT FILTERED VIEW -->
-          <template x-if="anyPortsFilterActive()">
+          <template x-if="portsFilter.groupBy==='component' && anyPortsFilterActive()">
             <div class="bg-white rounded-lg shadow border overflow-hidden">
               <table class="w-full text-sm">
                 <thead><tr class="bg-gray-50 text-xs text-gray-500 border-b">
@@ -789,6 +860,12 @@
           <div class="text-lg font-bold text-vcf-navy truncate" x-text="form.deploymentType==='VMware vSphere Foundation'?'VVF':'VCF '+('9.1')"></div>
           <div class="text-xs text-gray-500 mt-1" x-text="form.deploymentMode||'Mode not set'"></div>
         </div>
+      </div>
+
+      <!-- ── PORTS & PROTOCOLS CALLOUT ── -->
+      <div x-show="completionPct() > 50" class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 text-sm text-indigo-800 flex items-center justify-between gap-4 no-print">
+        <div>🔌 Your configuration is taking shape — check the <strong>Ports &amp; Protocols</strong> reference to see firewall rules with your actual FQDNs/IPs filled in via "Show my configured values".</div>
+        <button @click="navigate('ports')" class="px-3 py-1.5 text-xs rounded font-medium bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap">🔌 Open Ports & Protocols</button>
       </div>
 
       <!-- ── IDENTITY CARD ── -->
@@ -1076,7 +1153,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.0.9</span>
+              <span>v1.1.0</span>
               <span>·</span>
               <span>Updated June 11, 2026</span>
               <span>·</span>
@@ -1310,6 +1387,13 @@
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Live Ports Matrix &amp; Security Hardening</p>
             <p>The Ports &amp; Protocols page gains a "Show my configured values" toggle: when enabled, each row displays the actual FQDN/IP you entered elsewhere in the form (vCenter, ESXi hosts, NSX Manager/Edges, SDDC Manager, VCF Operations, AD, DNS/NTP, AVI, HCX, VCF Automation, VCF Operations for Networks, Log Management, vSAN Witness, Identity Broker) next to the generic role label, and the CSV export gains matching "Resolved Source/Destination" columns — turning the reference matrix into an as-built firewall rule list. Security hardening: the Alpine.js and @alpinejs/collapse CDN scripts are now pinned to v3.14.1 with Subresource Integrity (SRI) hashes, and a new "Privacy &amp; Data Handling" section was added to the About page and README documenting that no data ever leaves the browser and that password fields are stored/exported in plaintext.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.0<br><span class="text-gray-300">2026-06-11</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">DEMO data, AD toggle, Log Management replicas &amp; navigation improvements</p>
+            <p>New "🧪 DEMO" topbar button instantly fills every Management Domain field (Planning, Deploy Management Domain, vCenter, SDDC Manager, NSX Manager 3-node cluster, and a 2-node NSX Edge cluster) with a consistent, ready-to-review example based on a 4-node vSAN-ESA cluster — a confirmation prompt warns before overwriting existing values. The Active Directory / LDAP page now has an "Include/Exclude" toggle (defaults to Exclude, like the AVI/NSX Edge/VCF Operations toggles) so the detailed AD inputs are hidden until needed. Log Management (under VCF Management Services / Fleet Management Day-N) gains an HA Mode selector with dedicated <strong>replica node</strong> and <strong>load balancer / cluster VIP</strong> FQDN/IP fields when "HA Cluster" is selected. The VCF Management Services section adds 3 spare "Additional IP" fields for fleet-level scale-out. Fleet MTU now defaults to 1500 (was 9000). All password fields now show "AUTO-GENERATED" as their default sample/placeholder for a consistent convention. Discoverability: a persistent "🔌 Ports" topbar button and an As-Built page callout banner now link directly to the Ports &amp; Protocols reference. The Ports &amp; Protocols matrix also gains a "Group by: By Component / By Category" toggle that organizes the 19 components into 5 functional categories (Core Infrastructure, Fleet Management &amp; Operations, Automation &amp; Security, Recovery &amp; Disaster Recovery, Private AI).</p>
           </div>
         </div>
       </div>
@@ -2575,6 +2659,22 @@ const PORTS_DATA = [
 ]
 
 // ============================================================
+// PORTS & PROTOCOLS — COMPONENT → CATEGORY GROUPING
+// ============================================================
+const PORTS_CATEGORY_MAP = {
+  'SDDC Manager':'Core Infrastructure', 'vCenter':'Core Infrastructure', 'ESX':'Core Infrastructure',
+  'vSAN':'Core Infrastructure', 'NSX':'Core Infrastructure', 'Avi Load Balancer':'Core Infrastructure',
+  'VCF Operations':'Fleet Management & Operations', 'VCF Operations for Networks':'Fleet Management & Operations',
+  'VCF Operations HCX':'Fleet Management & Operations', 'Log Management':'Fleet Management & Operations',
+  'VCF Management Services':'Fleet Management & Operations',
+  'VCF Automation':'Automation & Security', 'DSM Data Services':'Automation & Security', 'VMware vDefend':'Automation & Security',
+  'Protection and Recovery':'Recovery & Disaster Recovery', 'Protection and Recovery Service for VCF Automation':'Recovery & Disaster Recovery',
+  'vSphere Replication':'Recovery & Disaster Recovery', 'VMware Live Recovery cloud':'Recovery & Disaster Recovery',
+  'VMware Private AI Services':'Private AI',
+}
+const PORTS_CATEGORY_ORDER = ['Core Infrastructure','Fleet Management & Operations','Automation & Security','Recovery & Disaster Recovery','Private AI']
+
+// ============================================================
 // PORTS & PROTOCOLS — ROLE LABEL → FORM FIELD RESOLUTION MAP
 // ============================================================
 // Maps PORTS_DATA `source`/`destination` role labels to the form fields
@@ -2679,13 +2779,16 @@ const PORTS_ENDPOINT_MAP = {
     { fqdnKey:'ccmHcxFqdn', ipKey:'ccmHcxIp', label:'HCX Manager', showWhen:f=>f.ccmInclude==='Include' },
   ],
   'VCF Operations for Logs Management IP address': [
-    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management', showWhen:f=>f.vcfLogsInclude==='Include' },
+    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management Primary', showWhen:f=>f.vcfLogsInclude==='Include' },
+    { fqdnKey:'vcfLogsLbFqdn', ipKey:'vcfLogsLbIp', label:'Log Management Cluster VIP', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
   ],
   'VCF Operations for Logs cluster (internal)': [
-    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management', showWhen:f=>f.vcfLogsInclude==='Include' },
+    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management Primary', showWhen:f=>f.vcfLogsInclude==='Include' },
+    { fqdnKey:'vcfLogsReplicaFqdn', ipKey:'vcfLogsReplicaIp', label:'Log Management Replica', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
   ],
   'VCF Operations for Logs CPLF': [
-    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management', showWhen:f=>f.vcfLogsInclude==='Include' },
+    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management Primary', showWhen:f=>f.vcfLogsInclude==='Include' },
+    { fqdnKey:'vcfLogsReplicaFqdn', ipKey:'vcfLogsReplicaIp', label:'Log Management Replica', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
   ],
   'VCF Automation Management IP address': [
     { fqdnKey:'vcfAutoFqdn', ipKey:'vcfAutoIp', label:'VCF Automation', showWhen:f=>f.vcfAutoInclude==='Include' },
@@ -2703,7 +2806,7 @@ const PORTS_ENDPOINT_MAP = {
     { fqdnKey:'aviClusterFqdn', ipKey:'aviClusterIp', label:'AVI Cluster VIP', showWhen:f=>f.aviInclude==='Include' },
   ],
   'Microsoft Active Directory Domain Controllers': [
-    { fqdnKey:'adDcFqdn', ipKey:'adDcIp', label:'AD Domain Controller' },
+    { fqdnKey:'adDcFqdn', ipKey:'adDcIp', label:'AD Domain Controller', showWhen:f=>f.adInclude==='Include' },
   ],
   'DNS Resolvers': [
     { fqdnKey:undefined, ipKey:'dnsServer1', label:'DNS Server 1' },
@@ -3344,7 +3447,7 @@ const ALL_PAGES = [
           { key:'proxyHost',     label:'Proxy Hostname/IP',  type:'text',   sample:'proxy.rainpole.io', showWhen:f=>f.proxyEnabled==='Include' },
           { key:'proxyPort',    label:'Proxy Port',         type:'number', sample:'3128', showWhen:f=>f.proxyEnabled==='Include' },
           { key:'proxyUser',    label:'Proxy Username',     type:'text',   sample:'', showWhen:f=>f.proxyEnabled==='Include' },
-          { key:'proxyPass',    label:'Proxy Password',     type:'password', sample:'', showWhen:f=>f.proxyEnabled==='Include' },
+          { key:'proxyPass',    label:'Proxy Password',     type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.proxyEnabled==='Include' },
         ]
       },
       {
@@ -3443,8 +3546,8 @@ const ALL_PAGES = [
           { key:'vcMgmtIp',      label:'vCenter IP',                type:'ip',   sample:'10.11.10.3', required:true },
           { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium', required:true },
           { key:'vcSsoDomain',   label:'SSO Domain',                type:'text', sample:'vsphere.local', required:true },
-          { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'', required:true, notes:'min 8 chars, complexity required' },
-          { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'', required:true },
+          { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'AUTO-GENERATED', required:true, notes:'min 8 chars, complexity required' },
+          { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'AUTO-GENERATED', required:true },
           { key:'vcDatacenter',  label:'Datacenter Name',           type:'text', sample:'sfo-m01-dc01', required:true },
           { key:'vcCluster',     label:'Cluster Name',              type:'text', sample:'sfo-m01-cl01', required:true },
           { key:'vcDatastore',   label:'vSAN Datastore Name',       type:'text', sample:'sfo-m01-cl01-ds-vsan01', required:true,
@@ -3455,9 +3558,9 @@ const ALL_PAGES = [
         title:'SDDC Manager',
         fields:[
           { key:'sddcHostname',  label:'SDDC Manager Hostname',    type:'text', sample:'sfo-m01-sddc01', required:true },
-          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'', required:true },
-          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'', required:true },
-          { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'', required:true, notes:'All management cluster hosts must share the same root password' },
+          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'AUTO-GENERATED', required:true },
+          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'AUTO-GENERATED', required:true },
+          { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'AUTO-GENERATED', required:true, notes:'All management cluster hosts must share the same root password' },
           { key:'sddcLocation',  label:'SDDC Manager Location', type:'select', options:['Deployed on one of the management domain hosts','External deployment'], sample:'Deployed on one of the management domain hosts' },
         ]
       },
@@ -3474,8 +3577,8 @@ const ALL_PAGES = [
           { key:'nsxMgr3Ip',     label:'NSX Manager 3 IP',         type:'ip',   sample:'10.11.10.73' },
           { key:'nsxVipFqdn',    label:'NSX Cluster VIP FQDN',     type:'text', sample:'sfo-m01-nsx01.sfo.rainpole.io', required:true },
           { key:'nsxVipIp',      label:'NSX Cluster VIP IP',       type:'ip',   sample:'10.11.10.74', required:true },
-          { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'', required:true },
-          { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'' },
+          { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'AUTO-GENERATED', required:true },
+          { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'AUTO-GENERATED' },
           { key:'nsxMgrSize',    label:'NSX Manager Appliance Size', type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small', required:true },
         ]
       },
@@ -3500,7 +3603,7 @@ const ALL_PAGES = [
           { key:'nsxEdgeUplink1Vlan', label:'Edge Uplink 1 VLAN',  type:'number', sample:'2711', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdgeUplink2Vlan', label:'Edge Uplink 2 VLAN',  type:'number', sample:'2712', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdgeBgpAsn',  label:'Edge BGP ASN',            type:'number', sample:'65101', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'nsxEdgePw',      label:'Edge Root Password',      type:'password', sample:'', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgePw',      label:'Edge Root Password',      type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
         ]
       },
       {
@@ -3560,7 +3663,7 @@ const ALL_PAGES = [
           { key:'cloudProxyInclude', label:'Deploy Cloud Proxy',        type:'toggle',   options:['Include','Exclude'], sample:'Exclude' },
           { key:'cloudProxyFqdn',    label:'Cloud Proxy FQDN',          type:'text',     sample:'sfo-m01-cpxy01.sfo.rainpole.io', showWhen:f=>f.cloudProxyInclude==='Include' },
           { key:'cloudProxyIp',      label:'Cloud Proxy IP',            type:'ip',       sample:'10.11.10.91', showWhen:f=>f.cloudProxyInclude==='Include' },
-          { key:'cloudProxyPw',      label:'Cloud Proxy Root Password', type:'password', sample:'', showWhen:f=>f.cloudProxyInclude==='Include' },
+          { key:'cloudProxyPw',      label:'Cloud Proxy Root Password', type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.cloudProxyInclude==='Include' },
         ]
       },
     ]
@@ -3578,10 +3681,10 @@ const ALL_PAGES = [
           { key:'sftpHost',          label:'SFTP Server FQDN/IP',    type:'text',   sample:'sftp.sfo.rainpole.io', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
           { key:'sftpPort',          label:'SFTP Port',              type:'number', sample:'22', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
           { key:'sftpUser',          label:'SFTP Username',          type:'text',   sample:'vcf-backup', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
-          { key:'sftpPass',          label:'SFTP Password',          type:'password', sample:'', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
+          { key:'sftpPass',          label:'SFTP Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
           { key:'sftpPath',          label:'SFTP Backup Path',       type:'text',     sample:'/vcf/backups', showWhen:f=>f.sftpBackupInclude!=='Exclude' },
           { key:'sftpFingerprint',   label:'SFTP Host Fingerprint',  type:'text',     sample:'', showWhen:f=>f.sftpBackupInclude==='Include' },
-          { key:'sftpPassphrase',    label:'SFTP Passphrase',        type:'password', sample:'', notes:'Min 8 chars, 2 upper, 2 lower, 2 digits', showWhen:f=>f.sftpBackupInclude==='Include' },
+          { key:'sftpPassphrase',    label:'SFTP Passphrase',        type:'password', sample:'AUTO-GENERATED', notes:'Min 8 chars, 2 upper, 2 lower, 2 digits', showWhen:f=>f.sftpBackupInclude==='Include' },
         ]
       },
       {
@@ -3590,7 +3693,7 @@ const ALL_PAGES = [
           { key:'caType',        label:'Certificate Authority',     type:'select', options:['Exclude','Microsoft CA','OpenSSL CA'], sample:'Microsoft CA' },
           { key:'caFqdn',        label:'CA Server FQDN',            type:'text',   sample:'rpl-dc01.rainpole.io', showWhen:f=>f.caType&&f.caType!=='Exclude' },
           { key:'caAdminUser',   label:'CA Admin Username',         type:'text',   sample:'svc-vcf-ca@rainpole.io', showWhen:f=>f.caType&&f.caType!=='Exclude' },
-          { key:'caAdminPass',   label:'CA Admin Password',         type:'password', sample:'', showWhen:f=>f.caType&&f.caType!=='Exclude' },
+          { key:'caAdminPass',   label:'CA Admin Password',         type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.caType&&f.caType!=='Exclude' },
           { key:'caTemplate',    label:'Certificate Template',      type:'text',   sample:'VMwareWebServer', showWhen:f=>f.caType==='Microsoft CA' },
           { key:'certKeySize',   label:'Key Size',                  type:'select', options:['2048','4096'], sample:'2048', showWhen:f=>f.caType&&f.caType!=='Exclude' },
           { key:'caOrg',         label:'Organization (O)',          type:'text',   sample:'Rainpole', showWhen:f=>f.caType==='OpenSSL CA' },
@@ -3630,9 +3733,9 @@ const ALL_PAGES = [
           { key:'nsxGmNode2Ip',  label:'GM Node 2 IP',              type:'ip',       sample:'10.11.10.92', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
           { key:'nsxGmNode3Fqdn',label:'GM Node 3 FQDN',            type:'text',     sample:'sfo-m01-gm01c.rainpole.io', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
           { key:'nsxGmNode3Ip',  label:'GM Node 3 IP',              type:'ip',       sample:'10.11.10.93', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
-          { key:'nsxGmAdminPw',  label:'GM Admin Password',         type:'password', sample:'', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
-          { key:'nsxGmRootPw',   label:'GM Root Password',          type:'password', sample:'', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
-          { key:'nsxGmAuditPw',  label:'GM Audit Password',         type:'password', sample:'', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmAdminPw',  label:'GM Admin Password',         type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmRootPw',   label:'GM Root Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmAuditPw',  label:'GM Audit Password',         type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
         ]
       },
       {
@@ -3665,7 +3768,7 @@ const ALL_PAGES = [
           { key:'aviCtrl2Ip',      label:'AVI Controller 2 IP',        type:'ip',     sample:'10.11.10.69', showWhen:f=>f.aviInclude==='Include' },
           { key:'aviCtrl3Fqdn',    label:'AVI Controller 3 FQDN',      type:'text',   sample:'sfo-m01-avi01c.sfo.rainpole.io', showWhen:f=>f.aviInclude==='Include' },
           { key:'aviCtrl3Ip',      label:'AVI Controller 3 IP',        type:'ip',     sample:'10.11.10.71', showWhen:f=>f.aviInclude==='Include' },
-          { key:'aviAdminPass',    label:'AVI Admin Password',          type:'password', sample:'', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviAdminPass',    label:'AVI Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.aviInclude==='Include' },
           { key:'aviVersion',      label:'AVI Version',                 type:'text',   sample:'31.1.1', showWhen:f=>f.aviInclude==='Include' },
           { key:'aviFormFactor',   label:'AVI Form Factor',             type:'select', options:['Edge Cluster Medium','Large'], sample:'Edge Cluster Medium', showWhen:f=>f.aviInclude==='Include' },
           { key:'aviSize',         label:'AVI Controller Size',         type:'select', options:['Small','Large','Extra-Large'], sample:'Small', showWhen:f=>f.aviInclude==='Include' },
@@ -3695,7 +3798,8 @@ const ALL_PAGES = [
           { key:'fleetCidr',    label:'Fleet Deployment CIDR',    type:'select',
             options:['198.18.0.0/15','240.0.0.0/15','250.0.0.0/15'],
             sample:'198.18.0.0/15', required:true, notes:'Non-routable CIDR used for fleet component communication' },
-          { key:'fleetMtu',     label:'Fleet MTU',                type:'number', sample:'9000' },
+          { key:'fleetMtu',     label:'Fleet MTU',                type:'number', sample:'1500',
+            notes:'Standard Ethernet MTU (1500) is sufficient for fleet management traffic; jumbo frames are not required.' },
         ]
       },
       {
@@ -3712,7 +3816,7 @@ const ALL_PAGES = [
           { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'sfo-m01-vrops01.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include', notes:'Optional in Single Node mode — useful for connecting an external load balancer in HA Cluster mode' },
           { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.99.21', showWhen:f=>f.vcfOpsInclude==='Include' },
           { key:'vcfOpsSize',      label:'VCF Operations Size',     type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsInclude==='Include' },
-          { key:'vcfOpsAdminPw',   label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsAdminPw',   label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsInclude==='Include' },
         ]
       },
       {
@@ -3726,17 +3830,23 @@ const ALL_PAGES = [
           { key:'vcfAutoIpPool3',  label:'VCF Automation IP Pool #3', type:'ip',   sample:'10.11.99.48', showWhen:f=>f.vcfAutoInclude==='Include' },
           { key:'vcfAutoIpPool4',  label:'VCF Automation IP Pool #4', type:'ip',   sample:'10.11.99.49', showWhen:f=>f.vcfAutoInclude==='Include' },
           { key:'vcfAutoIpPool5',  label:'VCF Automation IP Pool #5', type:'ip',   sample:'10.11.99.50', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfAutoInclude==='Include' },
         ]
       },
       {
         title:'Log Management',
         fields:[
           { key:'vcfLogsInclude',  label:'Include Log Management',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
-          { key:'vcfLogsFqdn',     label:'Log Management FQDN',     type:'text',   sample:'sfo-m01-vrli01.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' },
-          { key:'vcfLogsIp',       label:'Log Management IP',       type:'ip',     sample:'10.11.10.43', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsHaMode',   label:'Log Management HA Mode',  type:'select', options:['Single Node','HA Cluster'], sample:'Single Node', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsFqdn',     label:'Log Management Primary Node FQDN', type:'text',   sample:'sfo-m01-vrli01a.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsIp',       label:'Log Management Primary Node IP',   type:'ip',     sample:'10.11.10.43', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsReplicaFqdn', label:'Log Management Replica Node FQDN', type:'text', sample:'sfo-m01-vrli01b.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
+          { key:'vcfLogsReplicaIp',   label:'Log Management Replica Node IP',   type:'ip',   sample:'10.11.10.44', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
+          { key:'vcfLogsLbFqdn',      label:'Log Management Load Balancer / Cluster VIP FQDN', type:'text', sample:'sfo-m01-vrli01.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster',
+            notes:'Virtual IP / load balancer FQDN used to access the Log Management cluster as a single entity in HA Cluster mode.' },
+          { key:'vcfLogsLbIp',        label:'Log Management Load Balancer / Cluster VIP IP',   type:'ip',   sample:'10.11.10.45', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
           { key:'vcfLogsSize',     label:'Log Management Size',     type:'select', options:['Small','Medium'], sample:'Small', showWhen:f=>f.vcfLogsInclude==='Include' },
-          { key:'vcfLogsAdminPw',  label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfLogsInclude==='Include' },
         ]
       },
       {
@@ -3777,7 +3887,11 @@ const ALL_PAGES = [
           { key:'licenseServerFqdn',      label:'License Server FQDN',       type:'text', sample:'flt-lc01.rainpole.io',
             notes:'Fleet-level, portable License Server FQDN.' },
           { key:'licenseServerIp',        label:'License Server IP',         type:'ip',   sample:'10.11.99.22' },
-          { key:'vcfMgmtSvcSshPw',        label:'SSH Password (vmware-system-user)', type:'password', sample:'',
+          { key:'mgmtSvcAdditionalIp1', label:'Additional IP #1', type:'ip', sample:'10.11.99.30',
+            notes:'Spare IP addresses reserved on the VCF Management Services / fleet runtime subnet for future component scale-out (e.g. additional fleet-level services added post-deployment). The VCF 9.1 Planning & Preparation workbook recommends reserving a small pool (2-3 addresses) in addition to the Fleet Components, Instance Components, VCF Services Runtime, and License Server IPs above.' },
+          { key:'mgmtSvcAdditionalIp2', label:'Additional IP #2', type:'ip', sample:'10.11.99.31' },
+          { key:'mgmtSvcAdditionalIp3', label:'Additional IP #3', type:'ip', sample:'10.11.99.32' },
+          { key:'vcfMgmtSvcSshPw',        label:'SSH Password (vmware-system-user)', type:'password', sample:'AUTO-GENERATED',
             notes:'Shared SSH credential for the vmware-system-user account on VCF Management Services runtime nodes.' },
         ]
       },
@@ -3797,26 +3911,34 @@ const ALL_PAGES = [
     subtitle:'AD / LDAP identity configuration for all VCF components',
     sections:[
       {
+        title:'Active Directory / LDAP Configuration',
+        fields:[
+          { key:'adInclude', label:'Configure Active Directory / LDAP', type:'toggle', options:['Include','Exclude'], sample:'Exclude',
+            notes:'Include to fill in detailed parent/child domain, security group, and service account inputs on this page. Exclude if AD/LDAP is already deployed and documented externally.' },
+        ]
+      },
+      {
         title:'Parent Domain',
         fields:[
-          { key:'adParentFqdn',     label:'Parent Domain FQDN',      type:'text', sample:'rainpole.io', required:true },
-          { key:'adParentNetbios',  label:'Parent NETBIOS Name',      type:'text', sample:'RAINPOLE', required:true },
-          { key:'adParentAdminUser',label:'Admin User (UPN)',          type:'text', sample:'administrator@rainpole.io', required:true },
-          { key:'adParentAdminPass',label:'Admin Password',            type:'password', sample:'', required:true },
-          { key:'adParentBaseDn',   label:'Base DN',                  type:'text', sample:'dc=rainpole,dc=io', required:true },
-          { key:'adParentSecGrpOu', label:'Security Groups OU',       type:'text', sample:'ou=Security Groups,dc=rainpole,dc=io' },
-          { key:'adParentSecUsrOu', label:'Security Users OU',        type:'text', sample:'ou=Security Users,dc=rainpole,dc=io' },
+          { key:'adParentFqdn',     label:'Parent Domain FQDN',      type:'text', sample:'rainpole.io', required:true, showWhen:f=>f.adInclude==='Include' },
+          { key:'adParentNetbios',  label:'Parent NETBIOS Name',      type:'text', sample:'RAINPOLE', required:true, showWhen:f=>f.adInclude==='Include' },
+          { key:'adParentAdminUser',label:'Admin User (UPN)',          type:'text', sample:'administrator@rainpole.io', required:true, showWhen:f=>f.adInclude==='Include' },
+          { key:'adParentAdminPass',label:'Admin Password',            type:'password', sample:'AUTO-GENERATED', required:true, showWhen:f=>f.adInclude==='Include' },
+          { key:'adParentBaseDn',   label:'Base DN',                  type:'text', sample:'dc=rainpole,dc=io', required:true, showWhen:f=>f.adInclude==='Include' },
+          { key:'adParentSecGrpOu', label:'Security Groups OU',       type:'text', sample:'ou=Security Groups,dc=rainpole,dc=io', showWhen:f=>f.adInclude==='Include' },
+          { key:'adParentSecUsrOu', label:'Security Users OU',        type:'text', sample:'ou=Security Users,dc=rainpole,dc=io', showWhen:f=>f.adInclude==='Include' },
         ]
       },
       {
         title:'Child Domain',
+        showWhen: f=>f.adInclude==='Include',
         fields:[
           { key:'adChildFqdn',      label:'Child Domain FQDN',        type:'text', sample:'sfo.rainpole.io', required:true },
           { key:'adChildNetbios',   label:'Child NETBIOS Name',        type:'text', sample:'SFO', required:true },
           { key:'adChildBaseDn',    label:'Child Base DN',             type:'text', sample:'dc=sfo,dc=rainpole,dc=io', required:true },
           { key:'adChildSecGrpOu',  label:'Child Security Groups OU',  type:'text', sample:'ou=Security Groups,dc=sfo,dc=rainpole,dc=io' },
           { key:'adBindUser',       label:'Bind User (UPN)',           type:'text', sample:'svc-vcf-ad@sfo.rainpole.io', required:true },
-          { key:'adBindPass',       label:'Bind Password',             type:'password', sample:'', required:true },
+          { key:'adBindPass',       label:'Bind Password',             type:'password', sample:'AUTO-GENERATED', required:true },
           { key:'adDcFqdn',         label:'Domain Controller FQDN',   type:'text', sample:'sfo-rpl-dc01.sfo.rainpole.io', required:true },
           { key:'adDcIp',           label:'Domain Controller IP',     type:'ip',   sample:'10.11.0.2', required:true },
         ]
@@ -3824,6 +3946,7 @@ const ALL_PAGES = [
       {
         title:'VCF Security Groups',
         description:'AD security groups used for role-based access control in VCF components.',
+        showWhen: f=>f.adInclude==='Include',
         fields:[
           { key:'sgVcfAdmins',              label:'VCF Administrators Group',         type:'text', sample:'gg-vcf-admins' },
           { key:'sgVcfUsers',               label:'VCF Read-Only Group',              type:'text', sample:'gg-vcf-readonly' },
@@ -3839,6 +3962,7 @@ const ALL_PAGES = [
       },
       {
         title:'Service Accounts (VCF Components)',
+        showWhen: f=>f.adInclude==='Include',
         fields:[
           { key:'svcVcfAd',      label:'svc-vcf-ad (AD Integration)',     type:'text', sample:'svc-vcf-ad@rainpole.io' },
           { key:'svcOpsVcf',     label:'svc-ops-vcf (VCF Operations)',    type:'text', sample:'svc-ops-vcf@rainpole.io' },
@@ -3875,7 +3999,7 @@ const ALL_PAGES = [
           { key:'wldVcDatacenter', label:'WLD Datacenter Name',   type:'text', sample:'sfo-w01-dc01' },
           { key:'wldVcCluster',  label:'WLD Cluster Name',        type:'text', sample:'sfo-w01-cl01' },
           { key:'wldVcDatastore', label:'WLD vSAN Datastore',     type:'text', sample:'sfo-w01-cl01-ds-vsan01' },
-          { key:'wldVcAdminPw',  label:'vCenter Admin Password',  type:'password', sample:'' },
+          { key:'wldVcAdminPw',  label:'vCenter Admin Password',  type:'password', sample:'AUTO-GENERATED' },
           { key:'wldVcModel', label:'vCenter Model',           type:'select', options:['Shared','Dedicated'], sample:'Shared', notes:'Shared reuses the Management Domain vCenter; Dedicated deploys a separate VCSA for this workload domain.' },
           { key:'wldVcSize',  label:'WLD vCenter Appliance Size', type:'select', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Small', showWhen:f=>f.wldVcModel==='Dedicated', notes:'Size the dedicated VCSA based on the number of hosts/VMs it will manage — see VCF Fleet Sizing Models.', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)' },
           { key:'wldVcStorageTier', label:'WLD vCenter Storage Tier', type:'select', options:['Default','Large','XLarge'], sample:'Default', showWhen:f=>f.wldVcModel==='Dedicated', notes:'Increase the storage tier if you plan to retain longer task/event/stats history on this vCenter.' },
@@ -3932,7 +4056,7 @@ const ALL_PAGES = [
           { key:'wldCaType',        label:'WLD Certificate Authority',    type:'select', options:['Exclude','Microsoft CA','OpenSSL CA'], sample:'Microsoft CA' },
           { key:'wldCaFqdn',        label:'WLD CA Server FQDN',           type:'text',   sample:'rpl-dc01.rainpole.io', showWhen:f=>f.wldCaType&&f.wldCaType!=='Exclude' },
           { key:'wldCaAdminUser',   label:'WLD CA Admin Username',        type:'text',   sample:'svc-vcf-ca@rainpole.io', showWhen:f=>f.wldCaType&&f.wldCaType!=='Exclude' },
-          { key:'wldCaAdminPass',   label:'WLD CA Admin Password',        type:'password', sample:'', showWhen:f=>f.wldCaType&&f.wldCaType!=='Exclude' },
+          { key:'wldCaAdminPass',   label:'WLD CA Admin Password',        type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.wldCaType&&f.wldCaType!=='Exclude' },
           { key:'wldCaTemplate',    label:'WLD Certificate Template',     type:'text',   sample:'VMwareWebServer', showWhen:f=>f.wldCaType==='Microsoft CA' },
           { key:'wldCertKeySize',   label:'WLD Key Size',                 type:'select', options:['2048','4096'], sample:'2048', showWhen:f=>f.wldCaType&&f.wldCaType!=='Exclude' },
           { key:'wldCaOrgName',     label:'WLD Organization Name',        type:'text',   sample:'Rainpole Inc.', showWhen:f=>f.wldCaType==='OpenSSL CA' },
@@ -4074,7 +4198,7 @@ const ALL_PAGES = [
           { key:'edrInclude',      label:'Include Cyber Recovery',      type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'edrProduct',      label:'EDR Product',                 type:'select', options:['Carbon Black','CrowdStrike'], sample:'Carbon Black', showWhen:f=>f.edrInclude==='Include' },
           { key:'edrServerFqdn',   label:'EDR Server FQDN/IP',          type:'text',   sample:'cb-server.rainpole.io', showWhen:f=>f.edrInclude==='Include' },
-          { key:'edrApiKey',       label:'EDR API Key',                 type:'password', sample:'', showWhen:f=>f.edrInclude==='Include' },
+          { key:'edrApiKey',       label:'EDR API Key',                 type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.edrInclude==='Include' },
           { key:'edrAgentVersion', label:'Agent Version',               type:'text',   sample:'3.9.1.5', showWhen:f=>f.edrInclude==='Include' },
           { key:'edrGroupName',    label:'Sensor Group / Policy Name',  type:'text',   sample:'VCF-Hosts-Policy', showWhen:f=>f.edrInclude==='Include' },
           { key:'edrProxyHost',    label:'EDR Proxy Host (optional)',   type:'text',   sample:'', showWhen:f=>f.edrInclude==='Include' },
@@ -4110,7 +4234,7 @@ const ALL_PAGES = [
           { key:'rwrRetentionDays',  label:'Retention Period (days)',               type:'number', sample:'30', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrProtectedVms',   label:'Protected VM Count (estimate)',         type:'number', sample:'50', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrSnapshotCount',  label:'Snapshots per VM',                     type:'number', sample:'24', showWhen:f=>f.rwrOnpremInclude==='Include' },
-          { key:'rwrAdminPw',        label:'Recovery Appliance Admin Password',    type:'password', sample:'', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrAdminPw',        label:'Recovery Appliance Admin Password',    type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrNtp1',           label:'NTP Server 1',                         type:'text',     sample:'ntp.sfo.rainpole.io', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrNtp2',           label:'NTP Server 2',                         type:'text',     sample:'', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrDns1',           label:'DNS Server 1',                         type:'ip',       sample:'10.11.0.2', showWhen:f=>f.rwrOnpremInclude==='Include' },
@@ -4140,7 +4264,7 @@ const ALL_PAGES = [
           { key:'cbrConnector2Fqdn',label:'DRaaS Connector 2 FQDN',              type:'text',   sample:'sfo-cbr-cdp01b.sfo.rainpole.io', showWhen:f=>f.cbrInclude==='Include' },
           { key:'cbrConnector2Ip',  label:'DRaaS Connector 2 IP',                type:'ip',     sample:'10.11.10.45', showWhen:f=>f.cbrInclude==='Include' },
           { key:'cbrOrgId',         label:'Cloud DR Organization ID',             type:'text',   sample:'', showWhen:f=>f.cbrInclude==='Include' },
-          { key:'cbrApiToken',      label:'Cloud DR API Token',                   type:'password', sample:'', showWhen:f=>f.cbrInclude==='Include' },
+          { key:'cbrApiToken',      label:'Cloud DR API Token',                   type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.cbrInclude==='Include' },
         ]
       },
     ]
@@ -4162,7 +4286,7 @@ const ALL_PAGES = [
           { key:'ccmArchitecture',label:'Architecture',                  type:'select', options:['Standard','Consolidated'], sample:'Standard', showWhen:f=>f.ccmInclude==='Include' },
           { key:'ccmHcxFqdn',     label:'HCX Manager FQDN',             type:'text',   sample:'sfo-ccm-hcx01.sfo.rainpole.io', showWhen:f=>f.ccmInclude==='Include' },
           { key:'ccmHcxIp',       label:'HCX Manager IP',               type:'ip',     sample:'10.11.10.46', showWhen:f=>f.ccmInclude==='Include' },
-          { key:'ccmHcxAdminPw',  label:'HCX Admin Password',           type:'password', sample:'', showWhen:f=>f.ccmInclude==='Include' },
+          { key:'ccmHcxAdminPw',  label:'HCX Admin Password',           type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.ccmInclude==='Include' },
           { key:'hcxLicenseKey',  label:'HCX License Key',              type:'text', required:true, sample:'', showWhen:f=>f.ccmInclude==='Include' },
         ]
       },
@@ -4276,7 +4400,8 @@ function vcfPlanner() {
     openGroups: ['welcome','planning'],
     openSections: [],
     openPortGroups: [],
-    portsFilter: { search:'', products:[], directions:[], visibleCount:100, showResolved:false },
+    openPortCategoryGroups: [],
+    portsFilter: { search:'', products:[], directions:[], visibleCount:100, showResolved:false, groupBy:'component' },
     saveIndicator: false,
     darkMode: false,
     copyFeedback: '',
@@ -4871,6 +4996,116 @@ function vcfPlanner() {
       this.save()
       this.showCopyFeedback('Host IPs auto-filled!')
     },
+    fillDemoManagementDomain() {
+      if (!confirm('This fills in ALL Management Domain fields with demo data for a 4-node vSAN-ESA cluster (with a 3-node NSX Manager and a 2-node NSX Edge cluster). Existing values in these fields will be overwritten. Continue?')) return
+
+      // Sizing calculator
+      this.sizing.storageType = 'vSAN-ESA'
+      this.sizing.clusterModel = 'High Availability (Three-Node)'
+      this.sizing.components.nsx_edge = true
+      this.syncStorageType()
+      this.syncInstanceProfileSize()
+
+      Object.assign(this.form, {
+        // VCF & VVF Planning
+        vcfVersion: '9.1.0.0',
+        deploymentType: 'VMware Cloud Foundation',
+        deploymentMode: 'New VCF Fleet',
+        deploymentOperation: 'Deploy a new VCF fleet',
+        deploymentInstance: 'm01',
+        primarySiteName: 'sfo',
+        deploymentScale: 'Standard (4+ hosts)',
+        deploymentRegion: 'sfo',
+
+        // VCF Installer Export Settings
+        vcfInstanceName: 'vcf01',
+        sddcId: 'sfo-m01',
+        ceipEnabled: 'Exclude',
+        skipEsxThumbprintValidation: 'Include',
+
+        // Download Binaries
+        depotType: 'Online',
+        activationCode: 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
+
+        // Cluster & Scale Options
+        mgmtClusterType: 'High Availability (Three-Node)',
+        evcMode: 'Disabled',
+        nsxDeployType: 'Create new NSX Manager Instance',
+        nsxMgrCount: 'NSX Management Cluster (3 nodes)',
+
+        // Network Options
+        ipScheme: 'IPv4 Only',
+        nicsPerHost: '2',
+        transitGwType: 'Distributed Connectivity',
+
+        // Storage Options
+        principalStorage: 'vSAN-ESA',
+        vsanFtt: '1',
+        vsanEncryptDit: 'Unselected',
+
+        // General Information
+        domainName: 'rainpole.io',
+        subDomainName: 'sfo.rainpole.io',
+        vcfSddcFqdn: 'sfo-m01-sddc01.sfo.rainpole.io',
+        vcfSddcIp: '10.11.10.4',
+        ntpServer1: 'ntp.sfo.rainpole.io',
+        dnsServer1: '10.11.0.2',
+        dnsServer2: '10.11.0.3',
+
+        // Hosts (Management Cluster) — 4 nodes
+        m01Host1Fqdn: 'sfo-m01-esxi01.sfo.rainpole.io', m01Host1Ip: '10.11.10.11',
+        m01Host2Fqdn: 'sfo-m01-esxi02.sfo.rainpole.io', m01Host2Ip: '10.11.10.12',
+        m01Host3Fqdn: 'sfo-m01-esxi03.sfo.rainpole.io', m01Host3Ip: '10.11.10.13',
+        m01Host4Fqdn: 'sfo-m01-esxi04.sfo.rainpole.io', m01Host4Ip: '10.11.10.14',
+
+        // Networks — Management
+        esxMgmtVlan: '1110', esxMgmtGateway: '10.11.10.1', esxMgmtCidr: '10.11.10.0/24', esxMgmtMtu: '1500', esxMgmtIpStart: '10.11.10.101', esxMgmtIpEnd: '10.11.10.110',
+        vmMgmtVlan: '1111', vmMgmtGateway: '10.11.11.1', vmMgmtCidr: '10.11.11.0/24', vmMgmtMtu: '1500', vmMgmtIpStart: '10.11.11.101', vmMgmtIpEnd: '10.11.11.110',
+        vcfMgmtVlan: '1112', vcfMgmtGateway: '10.11.12.1', vcfMgmtCidr: '10.11.12.0/24', vcfMgmtMtu: '1500', vcfMgmtIpStart: '10.11.12.101', vcfMgmtIpEnd: '10.11.12.110',
+
+        // Networks — vMotion, vSAN & Overlay
+        vmotionVlan: '1113', vmotionGateway: '10.11.13.1', vmotionCidr: '10.11.13.0/24', vmotionMtu: '9000', vmotionIpStart: '10.11.13.101', vmotionIpEnd: '10.11.13.110',
+        vsan1Vlan: '1114', vsan1Gateway: '10.11.14.1', vsan1Cidr: '10.11.14.0/24', vsan1Mtu: '9000', vsan1IpStart: '10.11.14.101', vsan1IpEnd: '10.11.14.110',
+        overlayVlan: '1116', overlayGateway: '10.11.16.1', overlayCidr: '10.11.16.0/24', overlayMtu: '9000', overlayIpStart: '10.11.16.101', overlayIpEnd: '10.11.16.110',
+
+        // vCenter Server
+        vcMgmtFqdn: 'sfo-m01-vc01.sfo.rainpole.io', vcMgmtIp: '10.11.10.3',
+        vcMgmtSize: 'Medium', vcSsoDomain: 'vsphere.local',
+        vcSsoAdminPw: 'AUTO-GENERATED', vcRootPw: 'AUTO-GENERATED',
+        vcDatacenter: 'sfo-m01-dc01', vcCluster: 'sfo-m01-cl01', vcDatastore: 'sfo-m01-cl01-ds-vsan01',
+
+        // SDDC Manager
+        sddcHostname: 'sfo-m01-sddc01', sddcAdminPw: 'AUTO-GENERATED', sddcRootPw: 'AUTO-GENERATED',
+        esxiRootPw: 'AUTO-GENERATED', sddcLocation: 'Deployed on one of the management domain hosts',
+
+        // NSX Manager Cluster
+        nsxMgr1Fqdn: 'sfo-m01-nsx01a.sfo.rainpole.io', nsxMgr1Ip: '10.11.10.71',
+        nsxMgr2Fqdn: 'sfo-m01-nsx01b.sfo.rainpole.io', nsxMgr2Ip: '10.11.10.72',
+        nsxMgr3Fqdn: 'sfo-m01-nsx01c.sfo.rainpole.io', nsxMgr3Ip: '10.11.10.73',
+        nsxVipFqdn: 'sfo-m01-nsx01.sfo.rainpole.io', nsxVipIp: '10.11.10.74',
+        nsxAdminPw: 'AUTO-GENERATED', nsxAuditPw: 'AUTO-GENERATED', nsxMgrSize: 'Medium',
+
+        // NSX Edge Nodes (2-node cluster)
+        nsxEdgeInclude: 'Include',
+        nsxEdge1Fqdn: 'sfo-m01-nsx01-edge01.sfo.rainpole.io', nsxEdge1Ip: '10.11.10.81',
+        nsxEdge2Fqdn: 'sfo-m01-nsx01-edge02.sfo.rainpole.io', nsxEdge2Ip: '10.11.10.82',
+        nsxEdgeSize: 'NSX Edge Large', edgeHaMode: 'Active-Active',
+        edgeTepVlan: '1116', edgeTepIpStart: '10.11.16.100', edgeTepIpEnd: '10.11.16.200',
+        edge1UplinkVlan1: '2711', edge1UplinkVlan2: '2712',
+        edge2UplinkVlan1: '2711', edge2UplinkVlan2: '2712',
+        nsxEdgeUplink1Vlan: '2711', nsxEdgeUplink2Vlan: '2712',
+        nsxEdgeBgpAsn: '65101', nsxEdgePw: 'AUTO-GENERATED',
+
+        // Distributed Switch Profile
+        dvsProfile: 'Default', dvsName: 'sfo-m01-cl01-dvs01', dvsVersion: '9.0.0',
+        dvsUplinkPolicy: 'Route based on IP hash', dvsLacpEnabled: 'Exclude',
+        dvsUplink1Name: 'uplink1', dvsUplink2Name: 'uplink2',
+      })
+
+      this.applyToggleDefaults()
+      this.save()
+      this.showCopyFeedback('Management Domain demo data filled in!')
+    },
 
     // ─── EXPORT EXTRAS ───
     exportMarkdown() {
@@ -4972,6 +5207,22 @@ function vcfPlanner() {
       const i = this.openPortGroups.indexOf(product)
       if (i === -1) this.openPortGroups.push(product)
       else this.openPortGroups.splice(i, 1)
+    },
+    portsByCategory() {
+      const groups = {}
+      for (const row of this.filteredPorts()) {
+        const cat = PORTS_CATEGORY_MAP[row.product] || 'Other'
+        if (!groups[cat]) groups[cat] = []
+        groups[cat].push(row)
+      }
+      return Object.keys(groups)
+        .sort((a,b) => PORTS_CATEGORY_ORDER.indexOf(a) - PORTS_CATEGORY_ORDER.indexOf(b))
+        .map(category => ({ category, rows: groups[category] }))
+    },
+    toggleCategoryGroup(category) {
+      const i = this.openPortCategoryGroups.indexOf(category)
+      if (i === -1) this.openPortCategoryGroups.push(category)
+      else this.openPortCategoryGroups.splice(i, 1)
     },
     toggleArrayValue(arr, value) {
       const i = arr.indexOf(value)
