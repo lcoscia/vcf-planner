@@ -118,6 +118,16 @@ index.html                  ← single file, ~5000 lines
 
 ---
 
+## Privacy & Data Handling
+
+This tool makes **zero network requests containing your data**. All processing happens client-side; the only network traffic is the one-time load of the Alpine.js / Tailwind CDN scripts on page load (none of which receive form data). Your configuration is saved only to your browser's `localStorage` (key `vcf-planner-v1`), which other websites cannot read due to the browser's same-origin policy.
+
+The Alpine.js and `@alpinejs/collapse` scripts are loaded with **Subresource Integrity (SRI)** hashes (pinned to v3.14.1), so the browser refuses to run them if the CDN ever serves a modified file.
+
+⚠️ **Password fields are stored in plaintext** in `localStorage` and are included unencrypted in **Export JSON** backups (root/SSO/SSH passwords, API keys/tokens) and, where applicable, in the **VCF Installer JSON** export (ESXi root and vCenter root passwords only). Treat exported `.json` files as sensitive credentials — don't commit them to public repos or share over unencrypted channels. Anyone with access to the same browser profile/device can also read this data via DevTools, as with any localStorage-based app.
+
+---
+
 ## Development
 
 The file is self-contained — edit it directly in any text editor. No npm, no build step.
@@ -163,6 +173,7 @@ To add a new page, add an entry to `ALL_PAGES` and a corresponding item to `NAV_
 - **v1.0.6** (2026-06-10) — Removed Share & Print: the "🔗 Share" (URL-hash state encoding) and "🖨 Print" (browser print / PDF) toolbar buttons have been removed, along with the As-Built page's print button and the on-load URL-hash restore logic, to simplify the toolbar and avoid the size limits and staleness issues of hash-encoded state. Export JSON / Import JSON remain the supported way to back up, share, and restore your configuration, and Markdown / CSV exports remain available for As-Built reporting.
 - **v1.0.7** (2026-06-11) — Aligned with workbook v1.9.1.002 & Advanced Sizer: the Management Domain Sizing calculator gains a vCenter Storage Size selector (Default/Large/XLarge), an NSX Manager Model selector (Mandatory - Single Node ×1 / Mandatory - HA Cluster ×3, replacing the previous hardcoded ×3), and a Cloud Proxy Small/Standard size tier; corrected VCF Automation (VCFA) sizing values to match the workbook's Static Reference Tables; vCenter Server appliance size default changed from Small to Medium; Workload Domain count now supports up to 35; the Configure Workload Domain page adds a WLD Edge HA Mode field (Active-Active / Active-Standby); and Fleet Management Day-N IP samples were renumbered from `10.11.10.x` to `10.11.99.x` to avoid overlap with Management Domain addressing.
 - **v1.0.8** (2026-06-11) — Ports & Protocols reference page: new "🔌 Ports & Protocols" page (Reference section) with a searchable, filterable matrix of 1083 port/protocol entries across all 19 VCF 9.1 components, sourced from Broadcom's official [Ports and Protocols Tool](https://ports.broadcom.com/). Browse grouped by component (collapsible groups), or filter by free-text search, traffic direction (Inbound/Outbound/Bidirectional/Unspecified), and component, with a "Show 100 more" pager. Includes a dedicated CSV export of the filtered rows for firewall rule planning. Reference-only — not part of the VCF Installer JSON export or As-Built report.
+- **v1.0.9** (2026-06-11) — Live ports matrix & security hardening: the Ports & Protocols page gains a "Show my configured values" toggle that resolves each row's generic Source/Destination role (vCenter, ESXi hosts, NSX Manager/Edges, SDDC Manager, VCF Operations, AD, DNS/NTP, AVI, HCX, VCF Automation, VCF Operations for Networks, Log Management, vSAN Witness, Identity Broker) to the FQDN/IP you actually configured, with matching "Resolved Source/Destination" columns in the CSV export — turning the reference matrix into an as-built firewall rule list. Security: Alpine.js and @alpinejs/collapse CDN scripts are pinned to v3.14.1 with Subresource Integrity (SRI) hashes; added a "Privacy & Data Handling" section to the About page and README.
 
 ---
 

@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VCF 9.1 Planning & Preparation Workbook</title>
-  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.14.1/dist/cdn.min.js" integrity="sha384-NArNwzWsUSF+kY2lgW4YriEkjLqi+J+za6HrENUn/3nZqkBnWbxV22kCJEK5Uu6n" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" integrity="sha384-l8f0VcPi/M1iHPv8egOnY/15TDwqgbOR1anMIJWvU6nLRgZVLTLSaNqi/TOoT5Fh" crossorigin="anonymous"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -107,6 +107,7 @@
     .dark .text-gray-600 { color:#94a3b8 !important; }
     .dark .text-gray-500 { color:#64748b !important; }
     .dark .text-gray-400 { color:#475569 !important; }
+    .dark .text-indigo-600 { color:#a5b4fc !important; }
     .dark .divide-gray-100 { --tw-divide-opacity:1; border-color:rgb(51 65 85/var(--tw-divide-opacity)) !important; }
     .dark input[type=text], .dark input[type=number], .dark input[type=email], .dark input[type=password], .dark select, .dark textarea {
       background:#1e3a5f; border-color:#2d5a8e; color:#e2e8f0;
@@ -141,7 +142,7 @@
         VCF 9.1 Planning & Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.8</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.0.9</div>
     </div>
   </div>
   <div class="flex items-center gap-2 no-print">
@@ -221,7 +222,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.8 · Updated June 11, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.0.9 · Updated June 11, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -517,10 +518,16 @@
                         x-text="prod"></button>
               </template>
             </div>
-            <div class="text-xs text-gray-500" x-show="anyPortsFilterActive()">
-              <span x-text="filteredPorts().length"></span> matching rows
-              <button @click="portsFilter.search=''; portsFilter.products=[]; portsFilter.directions=[]; portsFilter.visibleCount=100"
-                      class="ml-2 underline hover:no-underline">Clear filters</button>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label class="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
+                <input type="checkbox" x-model="portsFilter.showResolved" class="rounded">
+                Show my configured values (FQDN/IP from your inputs)
+              </label>
+              <div class="text-xs text-gray-500" x-show="anyPortsFilterActive()">
+                <span x-text="filteredPorts().length"></span> matching rows
+                <button @click="portsFilter.search=''; portsFilter.products=[]; portsFilter.directions=[]; portsFilter.visibleCount=100"
+                        class="ml-2 underline hover:no-underline">Clear filters</button>
+              </div>
             </div>
           </div>
 
@@ -548,8 +555,22 @@
                           <tr class="border-b border-gray-100 hover:bg-gray-50">
                             <td class="px-3 py-2 font-mono" x-text="row.port"></td>
                             <td class="px-3 py-2" x-text="row.protocol"></td>
-                            <td class="px-3 py-2 text-gray-600" x-text="row.source"></td>
-                            <td class="px-3 py-2 text-gray-600" x-text="row.destination"></td>
+                            <td class="px-3 py-2 text-gray-600">
+                              <div x-text="row.source"></div>
+                              <template x-if="portsFilter.showResolved">
+                                <template x-for="ep in resolveEndpoint(row.source)" :key="ep.label">
+                                  <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                                </template>
+                              </template>
+                            </td>
+                            <td class="px-3 py-2 text-gray-600">
+                              <div x-text="row.destination"></div>
+                              <template x-if="portsFilter.showResolved">
+                                <template x-for="ep in resolveEndpoint(row.destination)" :key="ep.label">
+                                  <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                                </template>
+                              </template>
+                            </td>
                             <td class="px-3 py-2">
                               <span class="px-2 py-0.5 rounded text-xs"
                                     :class="{'bg-blue-50 text-blue-700': row.direction==='Inbound', 'bg-amber-50 text-amber-700': row.direction==='Outbound', 'bg-purple-50 text-purple-700': row.direction==='Bidirectional', 'bg-gray-100 text-gray-500': row.direction==='Unspecified'}"
@@ -585,8 +606,22 @@
                       <td class="px-3 py-2 font-medium text-gray-800" x-text="row.product"></td>
                       <td class="px-3 py-2 font-mono" x-text="row.port"></td>
                       <td class="px-3 py-2" x-text="row.protocol"></td>
-                      <td class="px-3 py-2 text-gray-600" x-text="row.source"></td>
-                      <td class="px-3 py-2 text-gray-600" x-text="row.destination"></td>
+                      <td class="px-3 py-2 text-gray-600">
+                        <div x-text="row.source"></div>
+                        <template x-if="portsFilter.showResolved">
+                          <template x-for="ep in resolveEndpoint(row.source)" :key="ep.label">
+                            <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                          </template>
+                        </template>
+                      </td>
+                      <td class="px-3 py-2 text-gray-600">
+                        <div x-text="row.destination"></div>
+                        <template x-if="portsFilter.showResolved">
+                          <template x-for="ep in resolveEndpoint(row.destination)" :key="ep.label">
+                            <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                          </template>
+                        </template>
+                      </td>
                       <td class="px-3 py-2">
                         <span class="px-2 py-0.5 rounded text-xs"
                               :class="{'bg-blue-50 text-blue-700': row.direction==='Inbound', 'bg-amber-50 text-amber-700': row.direction==='Outbound', 'bg-purple-50 text-purple-700': row.direction==='Bidirectional', 'bg-gray-100 text-gray-500': row.direction==='Unspecified'}"
@@ -1041,7 +1076,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.0.8</span>
+              <span>v1.0.9</span>
               <span>·</span>
               <span>Updated June 11, 2026</span>
               <span>·</span>
@@ -1173,6 +1208,29 @@
       </div>
     </div>
 
+    <!-- Privacy & data handling -->
+    <div class="bg-white rounded-xl p-6 shadow border border-gray-100 mb-4">
+      <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>🔒</span> Privacy &amp; Data Handling</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+        <div>
+          <p class="font-semibold text-gray-700 mb-1">Your data never leaves your browser</p>
+          <p class="leading-relaxed">This tool makes <strong>zero network requests containing your data</strong>. Everything you type is processed entirely client-side and saved only to your browser's <code class="bg-gray-100 px-1 rounded text-xs">localStorage</code> (key <code class="bg-gray-100 px-1 rounded text-xs">vcf-planner-v1</code>), which other websites cannot read. The only network traffic is the one-time download of the Alpine.js / Tailwind CDN scripts when the page first loads.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-700 mb-1">Password fields are stored in plaintext</p>
+          <p class="leading-relaxed">Root/SSO/SSH passwords and API keys you enter are saved <strong>unencrypted</strong> in <code class="bg-gray-100 px-1 rounded text-xs">localStorage</code> and are included in plaintext in <strong>Export JSON</strong> backups (and the ESXi/vCenter root passwords in the <strong>VCF Installer JSON</strong> export). Treat exported <code class="bg-gray-100 px-1 rounded text-xs">.json</code> files as sensitive credentials — don't commit them to public repositories or share them over unencrypted channels.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-700 mb-1">Same browser / same device</p>
+          <p class="leading-relaxed">Anyone with access to the same browser profile on your computer (e.g. a shared workstation) can open DevTools and read this stored data — this is an inherent characteristic of any browser-local storage and applies to all such tools, not just this one. Use a private/dedicated profile if your machine is shared.</p>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-700 mb-1">Supply-chain integrity</p>
+          <p class="leading-relaxed">The Alpine.js framework scripts are loaded with <strong>Subresource Integrity (SRI)</strong> hashes, so the browser refuses to execute them if the CDN ever serves a modified file — protecting your locally-stored data from a compromised third-party script.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Version history -->
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📅</span> Version History</div>
@@ -1245,6 +1303,13 @@
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Ports &amp; Protocols Reference</p>
             <p>New "🔌 Ports &amp; Protocols" page (Reference section) provides a searchable, filterable matrix of <strong>1083 port/protocol entries</strong> across all 19 VCF 9.1 components, sourced from Broadcom's official <a href="https://ports.broadcom.com/" target="_blank" rel="noopener" class="text-blue-600 underline">Ports and Protocols Tool</a>. Browse grouped by component (collapsible), or filter by free-text search, traffic direction (Inbound/Outbound/Bidirectional/Unspecified), and component, with a "Show 100 more" pager for large result sets. A dedicated "⬇ CSV" button exports the currently filtered rows for firewall rule planning. Reference-only — not part of the VCF Installer JSON export or As-Built report.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.9<br><span class="text-gray-300">2026-06-11</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Live Ports Matrix &amp; Security Hardening</p>
+            <p>The Ports &amp; Protocols page gains a "Show my configured values" toggle: when enabled, each row displays the actual FQDN/IP you entered elsewhere in the form (vCenter, ESXi hosts, NSX Manager/Edges, SDDC Manager, VCF Operations, AD, DNS/NTP, AVI, HCX, VCF Automation, VCF Operations for Networks, Log Management, vSAN Witness, Identity Broker) next to the generic role label, and the CSV export gains matching "Resolved Source/Destination" columns — turning the reference matrix into an as-built firewall rule list. Security hardening: the Alpine.js and @alpinejs/collapse CDN scripts are now pinned to v3.14.1 with Subresource Integrity (SRI) hashes, and a new "Privacy &amp; Data Handling" section was added to the About page and README documenting that no data ever leaves the browser and that password fields are stored/exported in plaintext.</p>
           </div>
         </div>
       </div>
@@ -2508,6 +2573,158 @@ const PORTS_DATA = [
   {"product": "vSphere Replication", "port": "32032", "protocol": "TCP", "source": "ESXi host on the source site", "destination": "ESX host of the target site", "direction": "Bidirectional", "purpose": "Replication traffic ports required for Enhanced vSphere Replication", "description": "Initial and outgoing replication traffic from the source ESX hosts on which the replicated VMs are running to the target ESX hosts of the cluster containing the target datastore"},
   {"product": "vSphere Replication", "port": "32032", "protocol": "SSL", "source": "ESXi host on the source site", "destination": "vSphere Replication server on the target site", "direction": "Inbound", "purpose": "Replication traffic for Legacy vSphere Replication", "description": "Initial and outgoing replication traffic from the ESXi host on the source site to the vSphere Replication or vSphere Replication server on the target site for replication traffic with network encryption"},
 ]
+
+// ============================================================
+// PORTS & PROTOCOLS — ROLE LABEL → FORM FIELD RESOLUTION MAP
+// ============================================================
+// Maps PORTS_DATA `source`/`destination` role labels to the form fields
+// (FQDN/IP) the user has actually configured, so the Ports & Protocols
+// page can show real endpoints instead of generic role names.
+// Resolver shapes:
+//   { fqdnKey, ipKey, label, showWhen }  -> single instance
+//   { hosts:'m01'|'w01'|'w01cl02', label, showWhen } -> 16-host array (makeHostFields naming)
+const PORTS_ENDPOINT_MAP = {
+  'vCenter Server Management IP address': [
+    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
+    { fqdnKey:'wldVcFqdn',  ipKey:'wldVcIp',  label:'WLD vCenter', showWhen:f=>f.wldInclude!=='Exclude' },
+  ],
+  'vCenter Server (internal/loopback)': [
+    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
+  ],
+  'Remote vCenter Server Management IP address': [
+    { fqdnKey:'wldVcFqdn', ipKey:'wldVcIp', label:'WLD vCenter', showWhen:f=>f.wldInclude!=='Exclude' },
+  ],
+  'vCenter Server': [
+    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
+  ],
+  'vCenter': [
+    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
+  ],
+  'Local vCenter Server': [
+    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
+  ],
+  'ESX Management IP addresses': [
+    { hosts:'m01', label:'Mgmt Domain ESXi Host' },
+    { hosts:'w01', label:'WLD ESXi Host', showWhen:f=>f.wldInclude!=='Exclude' },
+  ],
+  'ESXi Management IP addresses': [
+    { hosts:'m01', label:'Mgmt Domain ESXi Host' },
+    { hosts:'w01', label:'WLD ESXi Host', showWhen:f=>f.wldInclude!=='Exclude' },
+  ],
+  'ESXi': [
+    { hosts:'m01', label:'Mgmt Domain ESXi Host' },
+  ],
+  'Remote ESX Management IP addresses': [
+    { hosts:'w01cl02', label:'Additional Cluster ESXi Host', showWhen:f=>f.clusterInclude==='Include' },
+  ],
+  'NSX Manager': [
+    { fqdnKey:'nsxVipFqdn',  ipKey:'nsxVipIp',  label:'NSX Manager VIP' },
+    { fqdnKey:'nsxMgr1Fqdn', ipKey:undefined,   label:'NSX Manager Node 1' },
+    { fqdnKey:'nsxMgr2Fqdn', ipKey:'nsxMgr2Ip', label:'NSX Manager Node 2' },
+    { fqdnKey:'nsxMgr3Fqdn', ipKey:'nsxMgr3Ip', label:'NSX Manager Node 3' },
+  ],
+  'NSX Local Manager': [
+    { fqdnKey:'nsxVipFqdn', ipKey:'nsxVipIp', label:'NSX Manager VIP' },
+  ],
+  'NSX Edge nodes': [
+    { fqdnKey:'nsxEdge1Fqdn', ipKey:'nsxEdge1Ip', label:'NSX Edge 1', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+    { fqdnKey:'nsxEdge2Fqdn', ipKey:'nsxEdge2Ip', label:'NSX Edge 2', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+  ],
+  'NSX Edge / Host': [
+    { fqdnKey:'nsxEdge1Fqdn', ipKey:'nsxEdge1Ip', label:'NSX Edge 1', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+    { fqdnKey:'nsxEdge2Fqdn', ipKey:'nsxEdge2Ip', label:'NSX Edge 2', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+    { hosts:'m01', label:'Mgmt Domain ESXi Host' },
+  ],
+  'SDDC Manager Management IP address': [
+    { fqdnKey:'vcfSddcFqdn', ipKey:'vcfSddcIp', label:'SDDC Manager' },
+  ],
+  'SDDC Manager (internal/loopback)': [
+    { fqdnKey:'vcfSddcFqdn', ipKey:'vcfSddcIp', label:'SDDC Manager' },
+  ],
+  'SDDC Manager IP address': [
+    { fqdnKey:'vcfSddcFqdn', ipKey:'vcfSddcIp', label:'SDDC Manager' },
+  ],
+  'VCF Operations Management IP address': [
+    { fqdnKey:'vcfOpsLbFqdn', ipKey:'vcfOpsLbIp', label:'VCF Operations LB', showWhen:f=>f.vcfOpsInclude==='Include' },
+  ],
+  'VCF Operations Cluster Nodes': [
+    { fqdnKey:'vcfOpsPrimaryFqdn', ipKey:'vcfOpsPrimaryIp', label:'VCF Operations Primary', showWhen:f=>f.vcfOpsInclude==='Include' },
+    { fqdnKey:'vcfOpsReplicaFqdn', ipKey:'vcfOpsReplicaIp', label:'VCF Operations Replica', showWhen:f=>f.vcfOpsInclude==='Include' },
+    { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsInclude==='Include' },
+  ],
+  'VCF Operations Cluster (internal)': [
+    { fqdnKey:'vcfOpsPrimaryFqdn', ipKey:'vcfOpsPrimaryIp', label:'VCF Operations Primary', showWhen:f=>f.vcfOpsInclude==='Include' },
+    { fqdnKey:'vcfOpsReplicaFqdn', ipKey:'vcfOpsReplicaIp', label:'VCF Operations Replica', showWhen:f=>f.vcfOpsInclude==='Include' },
+    { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsInclude==='Include' },
+  ],
+  'VCF Operations Cloud Proxy': [
+    { fqdnKey:'cloudProxyFqdn', ipKey:'cloudProxyIp', label:'Cloud Proxy', showWhen:f=>f.cloudProxyInclude==='Include' },
+  ],
+  'VCF Operations for Networks Management IP address': [
+    { fqdnKey:'vcfNetOpsFqdn', ipKey:'vcfNetOpsIp', label:'VCF Operations for Networks', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+  ],
+  'VCF Operations for Networks': [
+    { fqdnKey:'vcfNetOpsFqdn', ipKey:'vcfNetOpsIp', label:'VCF Operations for Networks', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+  ],
+  'VCF Operations for Networks (internal/loopback)': [
+    { fqdnKey:'vcfNetOpsFqdn', ipKey:'vcfNetOpsIp', label:'VCF Operations for Networks', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+  ],
+  'VCF Operations HCX Management IP address': [
+    { fqdnKey:'ccmHcxFqdn', ipKey:'ccmHcxIp', label:'HCX Manager', showWhen:f=>f.ccmInclude==='Include' },
+  ],
+  'VCF Operations HCX (internal/loopback)': [
+    { fqdnKey:'ccmHcxFqdn', ipKey:'ccmHcxIp', label:'HCX Manager', showWhen:f=>f.ccmInclude==='Include' },
+  ],
+  'HCX Manager': [
+    { fqdnKey:'ccmHcxFqdn', ipKey:'ccmHcxIp', label:'HCX Manager', showWhen:f=>f.ccmInclude==='Include' },
+  ],
+  'VCF Operations for Logs Management IP address': [
+    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management', showWhen:f=>f.vcfLogsInclude==='Include' },
+  ],
+  'VCF Operations for Logs cluster (internal)': [
+    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management', showWhen:f=>f.vcfLogsInclude==='Include' },
+  ],
+  'VCF Operations for Logs CPLF': [
+    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management', showWhen:f=>f.vcfLogsInclude==='Include' },
+  ],
+  'VCF Automation Management IP address': [
+    { fqdnKey:'vcfAutoFqdn', ipKey:'vcfAutoIp', label:'VCF Automation', showWhen:f=>f.vcfAutoInclude==='Include' },
+  ],
+  'VCF Identity Broker': [
+    { fqdnKey:'idBrokerFqdn', ipKey:'idBrokerIp', label:'Identity Broker', showWhen:f=>f.idBrokerInclude==='Include' },
+  ],
+  'Avi Controller': [
+    { fqdnKey:'aviClusterFqdn', ipKey:'aviClusterIp', label:'AVI Cluster VIP', showWhen:f=>f.aviInclude==='Include' },
+    { fqdnKey:'aviCtrl1Fqdn', ipKey:'aviCtrl1Ip', label:'AVI Controller 1', showWhen:f=>f.aviInclude==='Include' },
+    { fqdnKey:'aviCtrl2Fqdn', ipKey:'aviCtrl2Ip', label:'AVI Controller 2', showWhen:f=>f.aviInclude==='Include' },
+    { fqdnKey:'aviCtrl3Fqdn', ipKey:'aviCtrl3Ip', label:'AVI Controller 3', showWhen:f=>f.aviInclude==='Include' },
+  ],
+  'Avi VIP (Service Engine Data interface)': [
+    { fqdnKey:'aviClusterFqdn', ipKey:'aviClusterIp', label:'AVI Cluster VIP', showWhen:f=>f.aviInclude==='Include' },
+  ],
+  'Microsoft Active Directory Domain Controllers': [
+    { fqdnKey:'adDcFqdn', ipKey:'adDcIp', label:'AD Domain Controller' },
+  ],
+  'DNS Resolvers': [
+    { fqdnKey:undefined, ipKey:'dnsServer1', label:'DNS Server 1' },
+    { fqdnKey:undefined, ipKey:'dnsServer2', label:'DNS Server 2', showWhen:f=>!!f.dnsServer2 },
+  ],
+  'DNS server': [
+    { fqdnKey:undefined, ipKey:'dnsServer1', label:'DNS Server 1' },
+    { fqdnKey:undefined, ipKey:'dnsServer2', label:'DNS Server 2', showWhen:f=>!!f.dnsServer2 },
+  ],
+  'NTP Server': [
+    { fqdnKey:'ntpServer1', ipKey:undefined, label:'NTP Server 1' },
+    { fqdnKey:'ntpServer2', ipKey:undefined, label:'NTP Server 2', showWhen:f=>!!f.ntpServer2 },
+  ],
+  'NTP Servers': [
+    { fqdnKey:'ntpServer1', ipKey:undefined, label:'NTP Server 1' },
+    { fqdnKey:'ntpServer2', ipKey:undefined, label:'NTP Server 2', showWhen:f=>!!f.ntpServer2 },
+  ],
+  'vSAN Witness IP address': [
+    { fqdnKey:'vsanWitnessHost', ipKey:'vsanWitnessIp', label:'vSAN Witness', showWhen:f=>f.vsanStretchInclude==='Include' },
+  ],
+}
 
 // ============================================================
 // FORM SCHEMA — all pages and their fields
@@ -4059,7 +4276,7 @@ function vcfPlanner() {
     openGroups: ['welcome','planning'],
     openSections: [],
     openPortGroups: [],
-    portsFilter: { search:'', products:[], directions:[], visibleCount:100 },
+    portsFilter: { search:'', products:[], directions:[], visibleCount:100, showResolved:false },
     saveIndicator: false,
     darkMode: false,
     copyFeedback: '',
@@ -4761,11 +4978,45 @@ function vcfPlanner() {
       if (i === -1) arr.push(value)
       else arr.splice(i, 1)
     },
+    resolveEndpoint(roleLabel) {
+      const specs = PORTS_ENDPOINT_MAP[roleLabel]
+      if (!specs) return []
+      const f = this.form
+      const out = []
+      for (const spec of specs) {
+        if (spec.showWhen && !spec.showWhen(f)) continue
+        if (spec.hosts) {
+          for (let i=1; i<=16; i++) {
+            const fqdn = f[`${spec.hosts}Host${i}Fqdn`]
+            const ip   = f[`${spec.hosts}Host${i}Ip`]
+            if (!fqdn && !ip) continue
+            out.push({ label: `${spec.label} ${i}`, fqdn: fqdn||'', ip: ip||'' })
+          }
+        } else {
+          const fqdn = spec.fqdnKey ? (f[spec.fqdnKey]||'') : ''
+          const ip   = spec.ipKey   ? (f[spec.ipKey]||'')   : ''
+          if (!fqdn && !ip) continue
+          out.push({ label: spec.label, fqdn, ip })
+        }
+      }
+      return out
+    },
+    formatResolvedEndpoints(roleLabel) {
+      return this.resolveEndpoint(roleLabel)
+        .map(ep => `${ep.label}: ${ep.fqdn}${ep.ip ? ' ('+ep.ip+')' : ''}`)
+        .join('; ')
+    },
     exportPortsCsv() {
       const esc = v => `"${(v||'').replace(/"/g,'""')}"`
-      const rows = [['Component','Port','Protocol','Source','Destination','Direction','Purpose','Description']]
+      const header = ['Component','Port','Protocol','Source','Destination','Direction','Purpose','Description']
+      if (this.portsFilter.showResolved) header.push('Resolved Source','Resolved Destination')
+      const rows = [header]
       for (const row of this.filteredPorts()) {
-        rows.push([esc(row.product),esc(row.port),esc(row.protocol),esc(row.source),esc(row.destination),esc(row.direction),esc(row.purpose),esc(row.description)])
+        const r = [esc(row.product),esc(row.port),esc(row.protocol),esc(row.source),esc(row.destination),esc(row.direction),esc(row.purpose),esc(row.description)]
+        if (this.portsFilter.showResolved) {
+          r.push(esc(this.formatResolvedEndpoints(row.source)), esc(this.formatResolvedEndpoints(row.destination)))
+        }
+        rows.push(r)
       }
       const csv = rows.map(r=>r.join(',')).join('\n')
       const blob = new Blob([csv], {type:'text/csv'})
