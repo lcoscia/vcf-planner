@@ -255,7 +255,10 @@
       <div class="text-sm font-bold text-gray-700 mb-2">Version History</div>
       <table class="text-sm w-full">
         <thead><tr class="text-left text-gray-500 border-b"><th class="pb-1 pr-4">Version</th><th class="pb-1 pr-4">Date</th><th class="pb-1">Details</th></tr></thead>
-        <tbody><tr><td class="py-1 pr-4 font-mono">v1.9.1.001</td><td class="py-1 pr-4">May 4, 2026</td><td class="py-1">Initial Release for VCF 9.1.0.0</td></tr></tbody>
+        <tbody>
+          <tr><td class="py-1 pr-4 font-mono">v1.9.1.002</td><td class="py-1 pr-4">May 22, 2026</td><td class="py-1">Fixed sizing calculation for Workload Domain 01 NSX Cluster. Added an advanced sizer allowing users to select a more granular size for each component in the Management Domain.</td></tr>
+          <tr><td class="py-1 pr-4 font-mono">v1.9.1.001</td><td class="py-1 pr-4">May 4, 2026</td><td class="py-1">Initial Release for VCF 9.1.0.0</td></tr>
+        </tbody>
       </table>
     </div>
     <div class="mt-6 text-center">
@@ -353,7 +356,7 @@
                 </div>
                 <div class="flex items-center justify-between">
                   <label class="text-sm font-medium text-gray-700">Workload Domains</label>
-                  <input type="number" x-model.number="sizing.wldCount" min="0" max="24" class="w-28 text-right" placeholder="0">
+                  <input type="number" x-model.number="sizing.wldCount" min="0" max="35" class="w-28 text-right" placeholder="0">
                 </div>
               </div>
               <div class="sub-header px-4 py-2 text-sm font-semibold">Component Inclusions</div>
@@ -362,13 +365,25 @@
                   <div>
                     <div class="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-2" x-show="comp.group && (compIdx===0 || sizingComponents[compIdx-1].group !== comp.group)" x-text="comp.group"></div>
                     <div class="flex items-center justify-between">
-                    <label class="font-medium text-gray-700" x-text="comp.label"></label>
+                    <label class="font-medium text-gray-700" x-text="comp.key==='nsx_manager' ? `NSX Manager (×${sizing.compSizes.nsx_manager_model==='Mandatory - Single Node'?1:3})` : comp.label"></label>
                     <div class="flex items-center gap-2">
                       <button @click="toggleSizingComp(comp.key)" class="toggle-btn" :class="sizing.components[comp.key]?'toggle-include':'toggle-exclude'" x-text="sizing.components[comp.key]?'Include':'Exclude'"></button>
                       <select x-show="sizing.components[comp.key] && comp.sizes" x-model="sizing.compSizes[comp.key]" class="w-24 text-xs">
                         <template x-for="sz in (comp.sizes||[])" :key="sz"><option x-text="sz"></option></template>
                       </select>
                     </div>
+                  </div>
+                  <div class="flex items-center justify-between mt-1" x-show="sizing.components[comp.key] && comp.modelOptions">
+                    <label class="text-xs text-gray-400">NSX Manager Model</label>
+                    <select x-model="sizing.compSizes.nsx_manager_model" class="w-44 text-xs">
+                      <template x-for="m in (comp.modelOptions||[])" :key="m"><option x-text="m"></option></template>
+                    </select>
+                  </div>
+                  <div class="flex items-center justify-between mt-1" x-show="sizing.components[comp.key] && comp.storageSizes">
+                    <label class="text-xs text-gray-400">vCenter Storage Size</label>
+                    <select x-model="sizing.compSizes.vcenterStorage" class="w-24 text-xs">
+                      <template x-for="sz in (comp.storageSizes||[])" :key="sz"><option x-text="sz"></option></template>
+                    </select>
                   </div>
                   </div>
                 </template>
@@ -911,9 +926,9 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.0.6</span>
+              <span>v1.0.7</span>
               <span>·</span>
-              <span>Updated June 10, 2026</span>
+              <span>Updated June 11, 2026</span>
               <span>·</span>
               <span>Single-file · No server · No build step</span>
             </div>
@@ -1103,6 +1118,13 @@
             <p>The "🔗 Share" (URL-hash state encoding) and "🖨 Print" (browser print / PDF) toolbar buttons have been removed, along with the As-Built page's print button and the on-load URL-hash restore logic, to simplify the toolbar and avoid the size limits and staleness issues of hash-encoded state. <strong>Export JSON</strong> / <strong>Import JSON</strong> remain the supported way to back up, share, and restore your configuration, and <strong>📄 MD</strong> / <strong>📊 CSV</strong> remain available for As-Built reporting.</p>
           </div>
         </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.7<br><span class="text-gray-300">2026-06-11</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Aligned with workbook v1.9.1.002 &amp; Advanced Sizer</p>
+            <p>Updated against Broadcom's <strong>v1.9.1.002</strong> revision of the VCF 9.1 Planning &amp; Preparation Workbook (fixed sizing for the Workload Domain NSX cluster, added an Advanced Sizer for the Management Domain). Changes: the Management Domain Sizing calculator gains a <strong>vCenter Storage Size</strong> selector (Default/Large/XLarge, affecting vCenter disk footprint), an <strong>NSX Manager Model</strong> selector (Mandatory - Single Node ×1 / Mandatory - HA Cluster ×3, replacing the previous hardcoded ×3), and a <strong>Cloud Proxy</strong> Small/Standard size tier; corrected VCF Automation (VCFA) sizing values (Small/Medium/Large) to match the workbook's Static Reference Tables; the vCenter Server appliance size default changed from Small to Medium (matching the updated workbook sample); the Workload Domain count now supports up to 35; the Configure Workload Domain page's "WLD NSX Network Connectivity" section adds a <strong>WLD Edge HA Mode</strong> field (Active-Active / Active-Standby); and the Fleet Management Day-N IP samples were renumbered from the <code class="bg-gray-100 px-1 rounded text-xs">10.11.10.x</code> range to <code class="bg-gray-100 px-1 rounded text-xs">10.11.99.x</code> to avoid overlap with Management Domain addressing.</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1121,6 +1143,15 @@ const LT = {
     'Medium': { vcpu:8,  ram:30,  disk:858  },
     'Large':  { vcpu:16, ram:39,  disk:1158 },
     'XLarge': { vcpu:24, ram:58,  disk:1783 },
+  },
+  // vCenter disk size by Appliance Size + Storage Size tier (Default/Large/XLarge) — used by the
+  // Advanced Management Domain Sizer's "vCenter Storage Size" selector
+  vcenter_disk_tiers: {
+    'Tiny':   { Default:604,  Large:1494, XLarge:2874 },
+    'Small':  { Default:694,  Large:1519, XLarge:2899 },
+    'Medium': { Default:858,  Large:1658, XLarge:3038 },
+    'Large':  { Default:1158, Large:1708, XLarge:3088 },
+    'XLarge': { Default:1783, Large:1833, XLarge:3213 },
   },
   // Workload Domain dedicated vCenter Server Appliance — same VCSA specs as the management vCenter
   wld_vcenter: {
@@ -1167,8 +1198,9 @@ const LT = {
     'Extra-Large':{ vcpu:16, ram:128,disk:512 },
   },
   vcfa: {
-    'Small':  { vcpu:4,  ram:16, disk:120 },
-    'Medium': { vcpu:8,  ram:32, disk:120 },
+    'Small':  { vcpu:24, ram:96,  disk:717 },
+    'Medium': { vcpu:24, ram:96,  disk:334 },
+    'Large':  { vcpu:32, ram:128, disk:430 },
   },
   ssp: {
     'Excluded': { vcpu:0,  ram:0,   disk:0   },
@@ -1182,7 +1214,12 @@ const LT = {
   // can read LT.key.vcpu directly without special-casing a tier lookup.
   vcf_svc_runtime_control:    { vcpu:4,  ram:10, disk:100  }, // 1 node
   vcf_svc_runtime_worker:     { vcpu:36, ram:72, disk:2900 }, // 3-node worker set (cluster aggregate)
-  cloud_proxy:                { vcpu:4,  ram:16, disk:264  }, // 1 node
+  cloud_proxy:                { vcpu:4,  ram:16, disk:264  }, // 1 node, default/fallback (= 'Small' tier)
+  // VCF Operations Proxy (Cloud Proxy) sizing tiers — Advanced Sizer "Cloud Proxy" selector
+  vcfops_proxy: {
+    'Small':    { vcpu:4, ram:16, disk:264 },
+    'Standard': { vcpu:8, ram:48, disk:264 },
+  },
   license_server:             { vcpu:2,  ram:4,  disk:12   }, // 1 node
   vcf_ops_networks:           { vcpu:4,  ram:16, disk:1024 }, // 1 node
   vcf_ops_networks_collector: { vcpu:2,  ram:4,  disk:250  }, // 1 node
@@ -1973,7 +2010,7 @@ const ALL_PAGES = [
         fields:[
           { key:'vcMgmtFqdn',    label:'vCenter FQDN',              type:'text', sample:'sfo-m01-vc01.sfo.rainpole.io', required:true },
           { key:'vcMgmtIp',      label:'vCenter IP',                type:'ip',   sample:'10.11.10.3', required:true },
-          { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Small', required:true },
+          { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium', required:true },
           { key:'vcSsoDomain',   label:'SSO Domain',                type:'text', sample:'vsphere.local', required:true },
           { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'', required:true, notes:'min 8 chars, complexity required' },
           { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'', required:true },
@@ -2081,7 +2118,7 @@ const ALL_PAGES = [
         amber: true,
         description:'These values are used when deploying via API/PowerShell. UI deployments auto-select sizing.',
         fields:[
-          { key:'apiVcenterSize', label:'vCenter Size (API)',       type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Small' },
+          { key:'apiVcenterSize', label:'vCenter Size (API)',       type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium' },
           { key:'apiNsxSize',     label:'NSX Manager Size (API)',   type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small' },
           { key:'apiNsxOpMode',   label:'NSX Operation Mode',       type:'select', options:['Standard','Enhanced Datapath Standard','Enhanced Datapath Dedicated'], sample:'Standard' },
         ]
@@ -2236,13 +2273,13 @@ const ALL_PAGES = [
           { key:'vcfOpsInclude',   label:'Include VCF Operations',  type:'toggle', options:['Include','Exclude'], sample:'Include' },
           { key:'vcfOpsHaMode',    label:'VCF Operations HA Mode',  type:'select', options:['Single Node','HA Cluster'], sample:'HA Cluster', showWhen:f=>f.vcfOpsInclude==='Include' },
           { key:'vcfOpsPrimaryFqdn', label:'VCF Operations Primary Node FQDN', type:'text', sample:'sfo-m01-vrops01a.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include' },
-          { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.10.42', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.99.52', showWhen:f=>f.vcfOpsInclude==='Include' },
           { key:'vcfOpsReplicaFqdn', label:'VCF Operations Replica Node FQDN', type:'text', sample:'sfo-m01-vrops01b.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include' },
-          { key:'vcfOpsReplicaIp',   label:'VCF Operations Replica Node IP',   type:'ip',   sample:'10.11.10.43', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsReplicaIp',   label:'VCF Operations Replica Node IP',   type:'ip',   sample:'10.11.99.53', showWhen:f=>f.vcfOpsInclude==='Include' },
           { key:'vcfOpsDataFqdn',    label:'VCF Operations Data Node FQDN',    type:'text', sample:'sfo-m01-vrops01c.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include' },
-          { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.10.44', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.99.54', showWhen:f=>f.vcfOpsInclude==='Include' },
           { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'sfo-m01-vrops01.sfo.rainpole.io', showWhen:f=>f.vcfOpsInclude==='Include', notes:'Optional in Single Node mode — useful for connecting an external load balancer in HA Cluster mode' },
-          { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.45', showWhen:f=>f.vcfOpsInclude==='Include' },
+          { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.99.21', showWhen:f=>f.vcfOpsInclude==='Include' },
           { key:'vcfOpsSize',      label:'VCF Operations Size',     type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsInclude==='Include' },
           { key:'vcfOpsAdminPw',   label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfOpsInclude==='Include' },
         ]
@@ -2252,12 +2289,12 @@ const ALL_PAGES = [
         fields:[
           { key:'vcfAutoInclude',  label:'Include VCF Automation',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'vcfAutoFqdn',     label:'VCF Automation FQDN',     type:'text',   sample:'sfo-m01-vra01.sfo.rainpole.io', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIp',       label:'VCF Automation IP',       type:'ip',     sample:'10.11.10.45', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIpPool1',  label:'VCF Automation IP Pool #1', type:'ip',   sample:'10.11.10.51', showWhen:f=>f.vcfAutoInclude==='Include', notes:'2 IPs required for Small/Standard deployment, 4 IPs required for High Availability deployment' },
-          { key:'vcfAutoIpPool2',  label:'VCF Automation IP Pool #2', type:'ip',   sample:'10.11.10.52', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIpPool3',  label:'VCF Automation IP Pool #3', type:'ip',   sample:'10.11.10.53', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIpPool4',  label:'VCF Automation IP Pool #4', type:'ip',   sample:'10.11.10.54', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIpPool5',  label:'VCF Automation IP Pool #5', type:'ip',   sample:'10.11.10.55', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIp',       label:'VCF Automation IP',       type:'ip',     sample:'10.11.99.25', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool1',  label:'VCF Automation IP Pool #1', type:'ip',   sample:'10.11.99.46', showWhen:f=>f.vcfAutoInclude==='Include', notes:'2 IPs required for Small/Standard deployment, 4 IPs required for High Availability deployment' },
+          { key:'vcfAutoIpPool2',  label:'VCF Automation IP Pool #2', type:'ip',   sample:'10.11.99.47', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool3',  label:'VCF Automation IP Pool #3', type:'ip',   sample:'10.11.99.48', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool4',  label:'VCF Automation IP Pool #4', type:'ip',   sample:'10.11.99.49', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool5',  label:'VCF Automation IP Pool #5', type:'ip',   sample:'10.11.99.50', showWhen:f=>f.vcfAutoInclude==='Include' },
           { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'', showWhen:f=>f.vcfAutoInclude==='Include' },
         ]
       },
@@ -2277,10 +2314,10 @@ const ALL_PAGES = [
         fields:[
           { key:'vcfNetOpsInclude', label:'Include VCF Operations for Networks', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'vcfNetOpsFqdn',    label:'VCF Ops for Networks FQDN',           type:'text', sample:'sfo-m01-vvrni01.sfo.rainpole.io', showWhen:f=>f.vcfNetOpsInclude==='Include' },
-          { key:'vcfNetOpsIp',      label:'VCF Ops for Networks IP',             type:'ip',   sample:'10.11.10.44', showWhen:f=>f.vcfNetOpsInclude==='Include' },
-          { key:'vcfNetOpsPlatformIpv4',  label:'Platform Node IPv4',            type:'ip',   sample:'10.11.10.60', showWhen:f=>f.vcfNetOpsInclude==='Include', notes:'IP address must reside within the VCF Management Network — the UI deployment method does not allow choosing a different network or vDPG' },
+          { key:'vcfNetOpsIp',      label:'VCF Ops for Networks IP',             type:'ip',   sample:'10.11.99.44', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+          { key:'vcfNetOpsPlatformIpv4',  label:'Platform Node IPv4',            type:'ip',   sample:'10.11.99.60', showWhen:f=>f.vcfNetOpsInclude==='Include', notes:'IP address must reside within the same subnet as VCF Operations — the UI deployment method does not allow choosing a different network or vDPG' },
           { key:'vcfNetOpsPlatformIpv6',  label:'Platform Node IPv6 (optional)', type:'ip',   sample:'', showWhen:f=>f.vcfNetOpsInclude==='Include' },
-          { key:'vcfNetOpsCollectorIpv4', label:'Collector Node IPv4',           type:'ip',   sample:'10.11.10.61', showWhen:f=>f.vcfNetOpsInclude==='Include' },
+          { key:'vcfNetOpsCollectorIpv4', label:'Collector Node IPv4',           type:'ip',   sample:'10.11.99.61', showWhen:f=>f.vcfNetOpsInclude==='Include' },
           { key:'vcfNetOpsCollectorIpv6', label:'Collector Node IPv6 (optional)', type:'ip',  sample:'', showWhen:f=>f.vcfNetOpsInclude==='Include' },
         ]
       },
@@ -2289,7 +2326,7 @@ const ALL_PAGES = [
         fields:[
           { key:'idBrokerInclude', label:'Include Identity Broker', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'idBrokerFqdn',    label:'Identity Broker FQDN',    type:'text', sample:'sfo-m01-idm01.sfo.rainpole.io', showWhen:f=>f.idBrokerInclude==='Include' },
-          { key:'idBrokerIp',      label:'Identity Broker IP',      type:'ip',     sample:'10.11.10.50', showWhen:f=>f.idBrokerInclude==='Include' },
+          { key:'idBrokerIp',      label:'Identity Broker IP',      type:'ip',     sample:'10.11.99.23', showWhen:f=>f.idBrokerInclude==='Include' },
           { key:'idBrokerSize',    label:'Identity Broker Size',    type:'select', options:['Small','Medium','Large','Extra-Large'], sample:'Medium', showWhen:f=>f.idBrokerInclude==='Include' },
         ]
       },
@@ -2299,16 +2336,16 @@ const ALL_PAGES = [
         fields:[
           { key:'fleetComponentsFqdn',    label:'Fleet Components FQDN',     type:'text', sample:'flt-fc01.rainpole.io',
             notes:'FQDN to access the hosted fleet-level components which do not require a separate FQDN, for example, the fleet lifecycle component.' },
-          { key:'fleetComponentsIp',      label:'Fleet Components IP',       type:'ip',   sample:'10.11.10.20' },
+          { key:'fleetComponentsIp',      label:'Fleet Components IP',       type:'ip',   sample:'10.11.99.20' },
           { key:'instanceComponentsFqdn', label:'Instance Components FQDN',  type:'text', sample:'sfo-ic01.sfo.rainpole.io',
             notes:'FQDN to access the hosted instance-level components which do not require a separate FQDN, for example, the SDDC lifecycle and real-time metrics components.' },
-          { key:'instanceComponentsIp',   label:'Instance Components IP',    type:'ip',   sample:'10.11.10.21' },
+          { key:'instanceComponentsIp',   label:'Instance Components IP',    type:'ip',   sample:'10.11.99.11' },
           { key:'vcfSvcRuntimeFqdn',      label:'VCF Services Runtime FQDN', type:'text', sample:'sfo-sr01.sfo.rainpole.io',
             notes:'FQDN to access the VCF services runtime component to troubleshoot issues, restart components, etc. The hostname from this FQDN is prefixed to the names of its node VMs and related objects.' },
-          { key:'vcfSvcRuntimeIp',        label:'VCF Services Runtime IP',   type:'ip',   sample:'10.11.10.10' },
+          { key:'vcfSvcRuntimeIp',        label:'VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.10' },
           { key:'licenseServerFqdn',      label:'License Server FQDN',       type:'text', sample:'flt-lc01.rainpole.io',
             notes:'Fleet-level, portable License Server FQDN.' },
-          { key:'licenseServerIp',        label:'License Server IP',         type:'ip',   sample:'10.11.10.22' },
+          { key:'licenseServerIp',        label:'License Server IP',         type:'ip',   sample:'10.11.99.22' },
           { key:'vcfMgmtSvcSshPw',        label:'SSH Password (vmware-system-user)', type:'password', sample:'',
             notes:'Shared SSH credential for the vmware-system-user account on VCF Management Services runtime nodes.' },
         ]
@@ -2477,6 +2514,7 @@ const ALL_PAGES = [
           { key:'wldNsxConnectivity',  label:'WLD NSX Connectivity',    type:'select', options:['Exclude','Centralized Connectivity','Distributed Connectivity'], sample:'Centralized Connectivity' },
           { key:'wldNsxT0Name',        label:'WLD Tier-0 Gateway',      type:'text',   sample:'sfo-w01-ec01-t0-gw01', showWhen:f=>f.wldNsxConnectivity&&f.wldNsxConnectivity!=='Exclude' },
           { key:'wldNsxT0Asn',         label:'WLD T0 BGP ASN',          type:'number', sample:'65002', showWhen:f=>f.wldNsxConnectivity&&f.wldNsxConnectivity!=='Exclude' },
+          { key:'wldEdgeHaMode',       label:'WLD Edge HA Mode',        type:'select', options:['Active-Active','Active-Standby'], sample:'Active-Standby', showWhen:f=>f.wldNsxConnectivity&&f.wldNsxConnectivity!=='Exclude' },
           { key:'wldNsxExtIpBlock',    label:'WLD External IP Block',   type:'cidr',   sample:'192.168.12.0/24', showWhen:f=>f.wldNsxConnectivity&&f.wldNsxConnectivity!=='Exclude' },
         ]
       },
@@ -2835,14 +2873,17 @@ function vcfPlanner() {
         log_mgmt_replicas: false,
       },
       compSizes: {
-        vcenter: 'Small',
+        vcenter: 'Medium',
+        vcenterStorage: 'Large',
         wldVcSize: 'Small',
-        nsx_manager: 'Small',
+        nsx_manager: 'Medium',
+        nsx_manager_model: 'Mandatory - HA Cluster',
         nsx_edge: 'NSX Edge Medium',
         vcf_operations: 'Small',
         vcf_logs: 'Small',
         avi_lb: 'Small',
         vcfa: 'Small',
+        cloud_proxy: 'Standard',
         ssp: 'Medium',
       },
     },
@@ -2853,18 +2894,18 @@ function vcfPlanner() {
     prerequisiteData: PREREQ_DATA,
     sizingComponents: [
       { key:'sddc_manager',  label:'SDDC Manager' },
-      { key:'vcenter',       label:'vCenter Server', sizes:['Tiny','Small','Medium','Large','XLarge'] },
-      { key:'nsx_manager',   label:'NSX Manager (×3)', sizes:['Small','Medium','Large','XLarge'] },
+      { key:'vcenter',       label:'vCenter Server', sizes:['Tiny','Small','Medium','Large','XLarge'], storageSizes:['Default','Large','XLarge'] },
+      { key:'nsx_manager',   label:'NSX Manager (×3)', sizes:['Small','Medium','Large','XLarge'], modelOptions:['Mandatory - Single Node','Mandatory - HA Cluster'] },
       { key:'nsx_edge',      label:'NSX Edge Nodes (×2)', sizes:['Excluded','NSX Edge Small','NSX Edge Medium','NSX Edge Large','NSX Edge XLarge','VNA Small','VNA Medium','VNA Large','VNA XLarge'] },
       { key:'vcf_operations',label:'VCF Operations', sizes:['Extra-Small','Small','Medium','Large','Extra-Large'] },
       { key:'vcf_automation',label:'VCF Automation' },
       { key:'vcf_logs',      label:'Log Management', sizes:['Small','Medium'] },
       { key:'avi_lb',        label:'AVI Load Balancer (×3)', sizes:['Small','Large','Extra-Large'] },
-      { key:'vcfa',          label:'VCFA', sizes:['Small','Medium'] },
+      { key:'vcfa',          label:'VCFA', sizes:['Small','Medium','Large'] },
       { key:'ssp',           label:'vDefend SSP (Shared NSX only)', sizes:['Excluded','Medium','Large','X-Large'] },
       // ── VCF Management Services ──
       { key:'vcf_svc_runtime',            label:'VCF Services Runtime — Control + Worker Nodes', group:'VCF Management Services' },
-      { key:'cloud_proxy',                label:'Cloud Proxy', group:'VCF Management Services' },
+      { key:'cloud_proxy',                label:'Cloud Proxy', group:'VCF Management Services', sizes:['Small','Standard'] },
       { key:'license_server',             label:'License Server', group:'VCF Management Services' },
       { key:'identity_broker',            label:'Identity Broker (Additional Instance)', group:'VCF Management Services' },
       { key:'software_depot',             label:'Software Depot (Additional Instance)', group:'VCF Management Services' },
@@ -3024,7 +3065,7 @@ function vcfPlanner() {
       const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
       if (c.sddc_manager) t += LT.sddc_manager.vcpu
       if (c.vcenter)      t += LT.vcenter[cs.vcenter]?.vcpu || 0
-      if (c.nsx_manager)  t += (LT.nsx_manager[cs.nsx_manager]?.vcpu || 0) * 3
+      if (c.nsx_manager)  t += (LT.nsx_manager[cs.nsx_manager]?.vcpu || 0) * (cs.nsx_manager_model==='Mandatory - Single Node' ? 1 : 3)
       if (c.nsx_edge)     t += (LT.nsx_edge[cs.nsx_edge]?.vcpu || 0) * 2
       if (c.vcf_operations) t += LT.vcf_operations[cs.vcf_operations]?.vcpu || 0
       if (c.vcf_automation) t += LT.vcf_automation.vcpu * 3
@@ -3033,7 +3074,7 @@ function vcfPlanner() {
       if (c.vcfa)         t += LT.vcfa[cs.vcfa]?.vcpu || 0
       if (c.ssp)          t += LT.ssp[cs.ssp]?.vcpu || 0
       if (c.vcf_svc_runtime)            t += LT.vcf_svc_runtime_control.vcpu + LT.vcf_svc_runtime_worker.vcpu
-      if (c.cloud_proxy)                t += LT.cloud_proxy.vcpu
+      if (c.cloud_proxy)                t += LT.vcfops_proxy[cs.cloud_proxy]?.vcpu || LT.cloud_proxy.vcpu
       if (c.license_server)             t += LT.license_server.vcpu
       if (c.vcf_ops_networks)           t += LT.vcf_ops_networks.vcpu
       if (c.vcf_ops_networks_collector) t += LT.vcf_ops_networks_collector.vcpu
@@ -3054,7 +3095,7 @@ function vcfPlanner() {
       const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
       if (c.sddc_manager) t += LT.sddc_manager.ram
       if (c.vcenter)      t += LT.vcenter[cs.vcenter]?.ram || 0
-      if (c.nsx_manager)  t += (LT.nsx_manager[cs.nsx_manager]?.ram || 0) * 3
+      if (c.nsx_manager)  t += (LT.nsx_manager[cs.nsx_manager]?.ram || 0) * (cs.nsx_manager_model==='Mandatory - Single Node' ? 1 : 3)
       if (c.nsx_edge)     t += (LT.nsx_edge[cs.nsx_edge]?.ram || 0) * 2
       if (c.vcf_operations) t += LT.vcf_operations[cs.vcf_operations]?.ram || 0
       if (c.vcf_automation) t += LT.vcf_automation.ram * 3
@@ -3063,7 +3104,7 @@ function vcfPlanner() {
       if (c.vcfa)         t += LT.vcfa[cs.vcfa]?.ram || 0
       if (c.ssp)          t += LT.ssp[cs.ssp]?.ram || 0
       if (c.vcf_svc_runtime)            t += LT.vcf_svc_runtime_control.ram + LT.vcf_svc_runtime_worker.ram
-      if (c.cloud_proxy)                t += LT.cloud_proxy.ram
+      if (c.cloud_proxy)                t += LT.vcfops_proxy[cs.cloud_proxy]?.ram || LT.cloud_proxy.ram
       if (c.license_server)             t += LT.license_server.ram
       if (c.vcf_ops_networks)           t += LT.vcf_ops_networks.ram
       if (c.vcf_ops_networks_collector) t += LT.vcf_ops_networks_collector.ram
@@ -3082,8 +3123,8 @@ function vcfPlanner() {
     calcRawDisk() {
       const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
       if (c.sddc_manager) t += LT.sddc_manager.disk
-      if (c.vcenter)      t += LT.vcenter[cs.vcenter]?.disk || 0
-      if (c.nsx_manager)  t += (LT.nsx_manager[cs.nsx_manager]?.disk || 0) * 3
+      if (c.vcenter)      t += LT.vcenter_disk_tiers[cs.vcenter]?.[cs.vcenterStorage] ?? LT.vcenter[cs.vcenter]?.disk ?? 0
+      if (c.nsx_manager)  t += (LT.nsx_manager[cs.nsx_manager]?.disk || 0) * (cs.nsx_manager_model==='Mandatory - Single Node' ? 1 : 3)
       if (c.nsx_edge)     t += (LT.nsx_edge[cs.nsx_edge]?.disk || 0) * 2
       if (c.vcf_operations) t += LT.vcf_operations[cs.vcf_operations]?.disk || 0
       if (c.vcf_automation) t += LT.vcf_automation.disk * 3
@@ -3092,7 +3133,7 @@ function vcfPlanner() {
       if (c.vcfa)         t += LT.vcfa[cs.vcfa]?.disk || 0
       if (c.ssp)          t += LT.ssp[cs.ssp]?.disk || 0
       if (c.vcf_svc_runtime)            t += LT.vcf_svc_runtime_control.disk + LT.vcf_svc_runtime_worker.disk
-      if (c.cloud_proxy)                t += LT.cloud_proxy.disk
+      if (c.cloud_proxy)                t += LT.vcfops_proxy[cs.cloud_proxy]?.disk || LT.cloud_proxy.disk
       if (c.license_server)             t += LT.license_server.disk
       if (c.vcf_ops_networks)           t += LT.vcf_ops_networks.disk
       if (c.vcf_ops_networks_collector) t += LT.vcf_ops_networks_collector.disk
@@ -3138,9 +3179,13 @@ function vcfPlanner() {
       const s = this.sizing; const c = s.components; const cs = s.compSizes
       const rows = [
         { name:'SDDC Manager',      excluded:!c.sddc_manager, vcpu:LT.sddc_manager.vcpu, ram:LT.sddc_manager.ram, disk:LT.sddc_manager.disk },
-        { name:`vCenter (${cs.vcenter})`, excluded:!c.vcenter, ...( LT.vcenter[cs.vcenter] || {vcpu:0,ram:0,disk:0}) },
-        { name:`NSX Manager ×3 (${cs.nsx_manager})`, excluded:!c.nsx_manager,
-          vcpu:(LT.nsx_manager[cs.nsx_manager]?.vcpu||0)*3, ram:(LT.nsx_manager[cs.nsx_manager]?.ram||0)*3, disk:(LT.nsx_manager[cs.nsx_manager]?.disk||0)*3 },
+        { name:`vCenter (${cs.vcenter}, ${cs.vcenterStorage} storage)`, excluded:!c.vcenter,
+          ...( LT.vcenter[cs.vcenter] || {vcpu:0,ram:0,disk:0}),
+          disk: LT.vcenter_disk_tiers[cs.vcenter]?.[cs.vcenterStorage] ?? LT.vcenter[cs.vcenter]?.disk ?? 0 },
+        { name:`NSX Manager ×${cs.nsx_manager_model==='Mandatory - Single Node'?1:3} (${cs.nsx_manager})`, excluded:!c.nsx_manager,
+          vcpu:(LT.nsx_manager[cs.nsx_manager]?.vcpu||0)*(cs.nsx_manager_model==='Mandatory - Single Node'?1:3),
+          ram:(LT.nsx_manager[cs.nsx_manager]?.ram||0)*(cs.nsx_manager_model==='Mandatory - Single Node'?1:3),
+          disk:(LT.nsx_manager[cs.nsx_manager]?.disk||0)*(cs.nsx_manager_model==='Mandatory - Single Node'?1:3) },
         { name:`NSX Edge ×2 (${cs.nsx_edge})`, excluded:!c.nsx_edge,
           vcpu:(LT.nsx_edge[cs.nsx_edge]?.vcpu||0)*2, ram:(LT.nsx_edge[cs.nsx_edge]?.ram||0)*2, disk:(LT.nsx_edge[cs.nsx_edge]?.disk||0)*2 },
         { name:`VCF Operations (${cs.vcf_operations})`, excluded:!c.vcf_operations, ...(LT.vcf_operations[cs.vcf_operations]||{vcpu:0,ram:0,disk:0}) },
@@ -3154,7 +3199,7 @@ function vcfPlanner() {
           vcpu:LT.vcf_svc_runtime_control.vcpu+LT.vcf_svc_runtime_worker.vcpu,
           ram:LT.vcf_svc_runtime_control.ram+LT.vcf_svc_runtime_worker.ram,
           disk:LT.vcf_svc_runtime_control.disk+LT.vcf_svc_runtime_worker.disk },
-        { name:'Cloud Proxy', excluded:!c.cloud_proxy, ...LT.cloud_proxy },
+        { name:`Cloud Proxy (${cs.cloud_proxy})`, excluded:!c.cloud_proxy, ...(LT.vcfops_proxy[cs.cloud_proxy] || LT.cloud_proxy) },
         { name:'License Server', excluded:!c.license_server, ...LT.license_server },
         { name:'VCF Operations for Networks', excluded:!c.vcf_ops_networks, ...LT.vcf_ops_networks },
         { name:'VCF Operations for Networks — Collector', excluded:!c.vcf_ops_networks_collector, ...LT.vcf_ops_networks_collector },
@@ -3206,7 +3251,7 @@ function vcfPlanner() {
     // ─── EXPORT / IMPORT ───
     exportJSON() {
       const out = {
-        meta: { version:'1.9.1.001', exported: new Date().toISOString(), tool:'VCF 9.1 Web Planner' },
+        meta: { version:'1.9.1.002', exported: new Date().toISOString(), tool:'VCF 9.1 Web Planner' },
         globalSettings: {
           vcfVersion: this.form.vcfVersion || '9.1.0.0',
           deploymentType: this.form.deploymentType || 'VMware Cloud Foundation',
@@ -3239,7 +3284,7 @@ function vcfPlanner() {
             alert('Import failed: this file does not appear to be a VCF Planner export (missing "form" key).')
             event.target.value = ''; return
           }
-          if (d.meta && d.meta.version && d.meta.version !== '1.9.1.001') {
+          if (d.meta && d.meta.version && d.meta.version !== '1.9.1.002') {
             if (!confirm(`Warning: importing data exported from version ${d.meta.version}. Some fields may not match. Continue?`)) {
               event.target.value = ''; return
             }
