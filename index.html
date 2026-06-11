@@ -610,48 +610,59 @@
                     <span x-text="openPortCategoryGroups.includes(grp.category) ? '▲' : '▼'"></span>
                   </button>
                   <div x-show="openPortCategoryGroups.includes(grp.category)" x-collapse>
-                    <table class="w-full text-sm">
-                      <thead><tr class="bg-gray-50 text-xs text-gray-500 border-b">
-                        <th class="text-left px-3 py-2">Component</th>
-                        <th class="text-left px-3 py-2">Port</th>
-                        <th class="text-left px-3 py-2">Protocol</th>
-                        <th class="text-left px-3 py-2">Source</th>
-                        <th class="text-left px-3 py-2">Destination</th>
-                        <th class="text-left px-3 py-2">Direction</th>
-                        <th class="text-left px-3 py-2">Purpose</th>
-                      </tr></thead>
-                      <tbody>
-                        <template x-for="(row, ri) in grp.rows" :key="ri">
-                          <tr class="border-b border-gray-100 hover:bg-gray-50">
-                            <td class="px-3 py-2 font-medium text-gray-800" x-text="row.product"></td>
-                            <td class="px-3 py-2 font-mono" x-text="row.port"></td>
-                            <td class="px-3 py-2" x-text="row.protocol"></td>
-                            <td class="px-3 py-2 text-gray-600">
-                              <div x-text="row.source"></div>
-                              <template x-if="portsFilter.showResolved">
-                                <template x-for="ep in resolveEndpoint(row.source)" :key="ep.label">
-                                  <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                    <div class="divide-y divide-gray-100">
+                      <template x-for="pgrp in grp.productGroups" :key="grp.category + '::' + pgrp.product">
+                        <div>
+                          <button @click="toggleCategoryProductGroup(grp.category, pgrp.product)"
+                                  class="w-full flex items-center justify-between px-6 py-1.5 bg-gray-50 hover:bg-gray-100 text-xs font-semibold text-gray-600 text-left">
+                            <span x-text="pgrp.product + ' (' + pgrp.rows.length + ')'"></span>
+                            <span x-text="openPortCategoryProductGroups.includes(grp.category+'::'+pgrp.product) ? '▲' : '▼'"></span>
+                          </button>
+                          <div x-show="openPortCategoryProductGroups.includes(grp.category+'::'+pgrp.product)">
+                            <table class="w-full text-sm">
+                              <thead><tr class="bg-gray-50 text-xs text-gray-500 border-b">
+                                <th class="text-left px-3 py-2">Port</th>
+                                <th class="text-left px-3 py-2">Protocol</th>
+                                <th class="text-left px-3 py-2">Source</th>
+                                <th class="text-left px-3 py-2">Destination</th>
+                                <th class="text-left px-3 py-2">Direction</th>
+                                <th class="text-left px-3 py-2">Purpose</th>
+                              </tr></thead>
+                              <tbody>
+                                <template x-for="(row, ri) in pgrp.rows" :key="ri">
+                                  <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                    <td class="px-3 py-2 font-mono" x-text="row.port"></td>
+                                    <td class="px-3 py-2" x-text="row.protocol"></td>
+                                    <td class="px-3 py-2 text-gray-600">
+                                      <div x-text="row.source"></div>
+                                      <template x-if="portsFilter.showResolved">
+                                        <template x-for="ep in resolveEndpoint(row.source)" :key="ep.label">
+                                          <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                                        </template>
+                                      </template>
+                                    </td>
+                                    <td class="px-3 py-2 text-gray-600">
+                                      <div x-text="row.destination"></div>
+                                      <template x-if="portsFilter.showResolved">
+                                        <template x-for="ep in resolveEndpoint(row.destination)" :key="ep.label">
+                                          <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                                        </template>
+                                      </template>
+                                    </td>
+                                    <td class="px-3 py-2">
+                                      <span class="px-2 py-0.5 rounded text-xs"
+                                            :class="{'bg-blue-50 text-blue-700': row.direction==='Inbound', 'bg-amber-50 text-amber-700': row.direction==='Outbound', 'bg-purple-50 text-purple-700': row.direction==='Bidirectional', 'bg-gray-100 text-gray-500': row.direction==='Unspecified'}"
+                                            x-text="row.direction"></span>
+                                    </td>
+                                    <td class="px-3 py-2 text-gray-500 text-xs" x-text="row.purpose"></td>
+                                  </tr>
                                 </template>
-                              </template>
-                            </td>
-                            <td class="px-3 py-2 text-gray-600">
-                              <div x-text="row.destination"></div>
-                              <template x-if="portsFilter.showResolved">
-                                <template x-for="ep in resolveEndpoint(row.destination)" :key="ep.label">
-                                  <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
-                                </template>
-                              </template>
-                            </td>
-                            <td class="px-3 py-2">
-                              <span class="px-2 py-0.5 rounded text-xs"
-                                    :class="{'bg-blue-50 text-blue-700': row.direction==='Inbound', 'bg-amber-50 text-amber-700': row.direction==='Outbound', 'bg-purple-50 text-purple-700': row.direction==='Bidirectional', 'bg-gray-100 text-gray-500': row.direction==='Unspecified'}"
-                                    x-text="row.direction"></span>
-                            </td>
-                            <td class="px-3 py-2 text-gray-500 text-xs" x-text="row.purpose"></td>
-                          </tr>
-                        </template>
-                      </tbody>
-                    </table>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
                   </div>
                 </div>
               </template>
@@ -1393,7 +1404,7 @@
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.0<br><span class="text-gray-300">2026-06-11</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">DEMO data, AD toggle, Log Management replicas &amp; navigation improvements</p>
-            <p>New "🧪 DEMO" topbar button instantly fills every Management Domain field (Planning, Deploy Management Domain, vCenter, SDDC Manager, NSX Manager 3-node cluster, and a 2-node NSX Edge cluster) with a consistent, ready-to-review example based on a 4-node vSAN-ESA cluster — a confirmation prompt warns before overwriting existing values. The Active Directory / LDAP page now has an "Include/Exclude" toggle (defaults to Exclude, like the AVI/NSX Edge/VCF Operations toggles) so the detailed AD inputs are hidden until needed. Log Management (under VCF Management Services / Fleet Management Day-N) gains an HA Mode selector with dedicated <strong>replica node</strong> and <strong>load balancer / cluster VIP</strong> FQDN/IP fields when "HA Cluster" is selected. The VCF Management Services section adds 3 spare "Additional IP" fields for fleet-level scale-out. Fleet MTU now defaults to 1500 (was 9000). All password fields now show "AUTO-GENERATED" as their default sample/placeholder for a consistent convention. Discoverability: a persistent "🔌 Ports" topbar button and an As-Built page callout banner now link directly to the Ports &amp; Protocols reference. The Ports &amp; Protocols matrix also gains a "Group by: By Component / By Category" toggle that organizes the 19 components into 5 functional categories (Core Infrastructure, Fleet Management &amp; Operations, Automation &amp; Security, Recovery &amp; Disaster Recovery, Private AI).</p>
+            <p>New "🧪 DEMO" topbar button instantly fills every Management Domain field (Planning, Deploy Management Domain, vCenter, SDDC Manager, NSX Manager 3-node cluster, and a 2-node NSX Edge cluster) with a consistent, ready-to-review example based on a 4-node vSAN-ESA cluster — a confirmation prompt warns before overwriting existing values. The Active Directory / LDAP page now has an "Include/Exclude" toggle (defaults to Exclude, like the AVI/NSX Edge/VCF Operations toggles) so the detailed AD inputs are hidden until needed. Log Management (under VCF Management Services / Fleet Management Day-N) gains an HA Mode selector with dedicated <strong>replica node</strong> and <strong>load balancer / cluster VIP</strong> FQDN/IP fields when "HA Cluster" is selected. The VCF Management Services section adds 3 spare "Additional IP" fields for fleet-level scale-out. Fleet MTU now defaults to 1500 (was 9000). All password fields now show "AUTO-GENERATED" as their default sample/placeholder for a consistent convention. Discoverability: a persistent "🔌 Ports" topbar button and an As-Built page callout banner now link directly to the Ports &amp; Protocols reference. The Ports &amp; Protocols matrix also gains a "Group by: By Component / By Category" toggle that organizes the 19 components into 5 functional categories (Core Infrastructure, Fleet Management &amp; Operations, Automation &amp; Security, Recovery &amp; Disaster Recovery, Private AI); within "By Category", each category is further sub-divided into collapsible per-component groups for easier navigation.</p>
           </div>
         </div>
       </div>
@@ -4401,6 +4412,7 @@ function vcfPlanner() {
     openSections: [],
     openPortGroups: [],
     openPortCategoryGroups: [],
+    openPortCategoryProductGroups: [],
     portsFilter: { search:'', products:[], directions:[], visibleCount:100, showResolved:false, groupBy:'component' },
     saveIndicator: false,
     darkMode: false,
@@ -5217,12 +5229,28 @@ function vcfPlanner() {
       }
       return Object.keys(groups)
         .sort((a,b) => PORTS_CATEGORY_ORDER.indexOf(a) - PORTS_CATEGORY_ORDER.indexOf(b))
-        .map(category => ({ category, rows: groups[category] }))
+        .map(category => {
+          const rows = groups[category]
+          const prodGroups = {}
+          for (const row of rows) {
+            if (!prodGroups[row.product]) prodGroups[row.product] = []
+            prodGroups[row.product].push(row)
+          }
+          const productGroups = Object.keys(prodGroups).sort()
+            .map(product => ({ product, rows: prodGroups[product] }))
+          return { category, rows, productGroups }
+        })
     },
     toggleCategoryGroup(category) {
       const i = this.openPortCategoryGroups.indexOf(category)
       if (i === -1) this.openPortCategoryGroups.push(category)
       else this.openPortCategoryGroups.splice(i, 1)
+    },
+    toggleCategoryProductGroup(category, product) {
+      const key = category + '::' + product
+      const i = this.openPortCategoryProductGroups.indexOf(key)
+      if (i === -1) this.openPortCategoryProductGroups.push(key)
+      else this.openPortCategoryProductGroups.splice(i, 1)
     },
     toggleArrayValue(arr, value) {
       const i = arr.indexOf(value)
