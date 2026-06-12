@@ -142,7 +142,7 @@
         VCF 9.1 Planning & Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.1.2</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.1.3</div>
     </div>
   </div>
   <div class="flex items-center gap-2 no-print">
@@ -226,7 +226,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.2 · Updated June 12, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.3 · Updated June 12, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -1181,7 +1181,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.1.2</span>
+              <span>v1.1.3</span>
               <span>·</span>
               <span>Updated June 12, 2026</span>
               <span>·</span>
@@ -1342,6 +1342,13 @@
       <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📅</span> Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.3<br><span class="text-gray-300">2026-06-12</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">FQDN/IP prerequisites aligned with VCF 9.1 Components FQDNs and IP Addresses &amp; Management Services design docs</p>
+            <p>The Fleet Management Day-N page's <strong>Log Management</strong>, <strong>Identity Broker</strong>, <strong>VCF Automation</strong>, and <strong>VCF Management Services</strong> sections were corrected against the official "VCF Components FQDNs and IP Addresses", "VCF Management Services in the First VCF Instance Model", "VCF Automation Network Design Options", and "VCF Operations for Logs Deployment Models" pages. <strong>Log Management</strong> now reflects 1 FQDN with all of its IPs (6 for the initial deployment, +2 per additional replica) drawn from the VCF Services Runtime IP block rather than separate Management VM Network / Fleet VLAN addresses — sample IPs moved from the <code>10.11.10.x</code> range to the <code>10.11.99.x</code> Runtime range, and the former "Load Balancer / Cluster VIP" fields are now labeled as an optional additional VIP on the same Integrated Load Balancer. <strong>VCF Management Services</strong> gains a clarified description and notes: the VCF Services Runtime IP block must sit on the VCF Management Network with a minimum of 12 IPs (/28) and up to 30 IPs (/27) recommended for Day-N scale-out (Log Management replicas, Real-time Metrics, etc.), and License Server is now explicitly called out as having its own FQDN/IP on the VCF Management Network, separate from the VCF Management Services FQDN set (Fleet Components, Instance Components, VCF Services Runtime, Identity Broker). <strong>Identity Broker</strong> gains a note that its single FQDN is one of the required First VCF Instance Day-0 FQDNs alongside that set. <strong>VCF Automation</strong> gains a new "Dedicated VCF Services Runtime FQDN/IP" pair (1 FQDN, separate from the fleet-level VCF Services Runtime) and the 5-address node IP pool notes are corrected to the documented /29 model — 3 IPs assigned to the VCF Automation 9.1 nodes plus 2 buffer IPs for redeploy/rolling updates, deployed by default on the VM management network or optionally on a dedicated VLAN via the fleet lifecycle API. All newly-documented FQDN fields gain a "Do not use capital letters in the FQDN (lowercase only)" note per the official requirement.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.2<br><span class="text-gray-300">2026-06-12</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Audit fixes — sizing formulas &amp; validation lists</p>
@@ -2876,7 +2883,7 @@ const PORTS_ENDPOINT_MAP = {
   ],
   'VCF Operations for Logs Management IP address': [
     { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management Primary', showWhen:f=>f.vcfLogsInclude==='Include' },
-    { fqdnKey:'vcfLogsLbFqdn', ipKey:'vcfLogsLbIp', label:'Log Management Cluster VIP', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
+    { fqdnKey:'vcfLogsLbFqdn', ipKey:'vcfLogsLbIp', label:'Log Management Additional VIP', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
   ],
   'VCF Operations for Logs cluster (internal)': [
     { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management Primary', showWhen:f=>f.vcfLogsInclude==='Include' },
@@ -3917,30 +3924,40 @@ const ALL_PAGES = [
       },
       {
         title:'VCF Automation',
+        description:'VCF Automation 9.1 requires 1 FQDN for its VIP, 1 FQDN for its dedicated VCF Services Runtime, and a /29 block of 5 IPs for its nodes (separate from the fleet-level VCF Services Runtime IP block under VCF Management Services).',
         fields:[
           { key:'vcfAutoInclude',  label:'Include VCF Automation',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
-          { key:'vcfAutoFqdn',     label:'VCF Automation FQDN',     type:'text',   sample:'sfo-m01-vra01.sfo.rainpole.io', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIp',       label:'VCF Automation IP',       type:'ip',     sample:'10.11.99.25', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIpPool1',  label:'VCF Automation IP Pool #1', type:'ip',   sample:'10.11.99.46', showWhen:f=>f.vcfAutoInclude==='Include', notes:'2 IPs required for Small/Standard deployment, 4 IPs required for High Availability deployment' },
-          { key:'vcfAutoIpPool2',  label:'VCF Automation IP Pool #2', type:'ip',   sample:'10.11.99.47', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIpPool3',  label:'VCF Automation IP Pool #3', type:'ip',   sample:'10.11.99.48', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIpPool4',  label:'VCF Automation IP Pool #4', type:'ip',   sample:'10.11.99.49', showWhen:f=>f.vcfAutoInclude==='Include' },
-          { key:'vcfAutoIpPool5',  label:'VCF Automation IP Pool #5', type:'ip',   sample:'10.11.99.50', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoFqdn',     label:'VCF Automation FQDN (VIP)', type:'text',   sample:'sfo-m01-vra01.sfo.rainpole.io', showWhen:f=>f.vcfAutoInclude==='Include',
+            notes:'1 FQDN for the VCF Automation VIP. Do not use capital letters in the FQDN (lowercase only).' },
+          { key:'vcfAutoIp',       label:'VCF Automation IP (VIP)',  type:'ip',     sample:'10.11.99.25', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoSvcRuntimeFqdn', label:'VCF Automation — Dedicated VCF Services Runtime FQDN', type:'text', sample:'sfo-vra-sr01.sfo.rainpole.io', showWhen:f=>f.vcfAutoInclude==='Include',
+            notes:'1 dedicated VCF Services Runtime FQDN for VCF Automation, separate from the fleet-level "VCF Services Runtime FQDN" under VCF Management Services. Do not use capital letters in the FQDN (lowercase only).' },
+          { key:'vcfAutoSvcRuntimeIp',   label:'VCF Automation — Dedicated VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.45', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool1',  label:'VCF Automation Node IP Pool — Address 1', type:'ip',   sample:'10.11.99.46', showWhen:f=>f.vcfAutoInclude==='Include',
+            notes:'VCF Automation 9.1 nodes use a dedicated /29 block of 5 IP addresses (this field + the 4 below): 3 are assigned to the VCF Automation nodes and the remaining 2 are kept as a buffer for redeploy / rolling-update operations. By default the nodes are deployed on the VM management network; they can alternatively be placed on a dedicated VLAN via the fleet lifecycle API.' },
+          { key:'vcfAutoIpPool2',  label:'VCF Automation Node IP Pool — Address 2', type:'ip',   sample:'10.11.99.47', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool3',  label:'VCF Automation Node IP Pool — Address 3', type:'ip',   sample:'10.11.99.48', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool4',  label:'VCF Automation Node IP Pool — Address 4 (buffer)', type:'ip',   sample:'10.11.99.49', showWhen:f=>f.vcfAutoInclude==='Include' },
+          { key:'vcfAutoIpPool5',  label:'VCF Automation Node IP Pool — Address 5 (buffer)', type:'ip',   sample:'10.11.99.50', showWhen:f=>f.vcfAutoInclude==='Include' },
           { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfAutoInclude==='Include' },
         ]
       },
       {
         title:'Log Management',
+        description:'Log Management (VCF Operations for Logs) requires 1 FQDN. Its IP addresses are not separate allocations in the Management VM Network or Fleet VLAN — they are drawn from the VCF Services Runtime IP block (see "VCF Services Runtime IP" under VCF Management Services): 6 IPs for the initial deployment, plus 2 IPs for every additional replica beyond the first (set via "Log Management Replicas" on the Management Domain Sizing page).',
         fields:[
           { key:'vcfLogsInclude',  label:'Include Log Management',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'vcfLogsHaMode',   label:'Log Management HA Mode',  type:'select', options:['Single Node','HA Cluster'], sample:'Single Node', showWhen:f=>f.vcfLogsInclude==='Include' },
-          { key:'vcfLogsFqdn',     label:'Log Management Primary Node FQDN', type:'text',   sample:'sfo-m01-vrli01a.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' },
-          { key:'vcfLogsIp',       label:'Log Management Primary Node IP',   type:'ip',     sample:'10.11.10.43', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsFqdn',     label:'Log Management FQDN', type:'text',   sample:'sfo-m01-vrli01a.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include',
+            notes:'1 FQDN for Log Management. Do not use capital letters in the FQDN (lowercase only).' },
+          { key:'vcfLogsIp',       label:'Log Management IP',   type:'ip',     sample:'10.11.99.43', showWhen:f=>f.vcfLogsInclude==='Include',
+            notes:'First of the 6 IPs allocated from the VCF Services Runtime IP block for the initial Log Management deployment.' },
           { key:'vcfLogsReplicaFqdn', label:'Log Management Replica Node FQDN', type:'text', sample:'sfo-m01-vrli01b.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
-          { key:'vcfLogsReplicaIp',   label:'Log Management Replica Node IP',   type:'ip',   sample:'10.11.10.44', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
-          { key:'vcfLogsLbFqdn',      label:'Log Management Load Balancer / Cluster VIP FQDN', type:'text', sample:'sfo-m01-vrli01.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster',
-            notes:'Virtual IP / load balancer FQDN used to access the Log Management cluster as a single entity in HA Cluster mode.' },
-          { key:'vcfLogsLbIp',        label:'Log Management Load Balancer / Cluster VIP IP',   type:'ip',   sample:'10.11.10.45', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
+          { key:'vcfLogsReplicaIp',   label:'Log Management Replica Node IP',   type:'ip',   sample:'10.11.99.44', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster',
+            notes:'Part of the same VCF Services Runtime IP block — each additional replica beyond the first consumes 2 more IPs from that block (1 for Small/Medium replicas, 2 for Large).' },
+          { key:'vcfLogsLbFqdn',      label:'Log Management Additional VIP FQDN', type:'text', sample:'sfo-m01-vrli01.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster',
+            notes:'Optional additional Virtual IP, created post-deployment on the Integrated Load Balancer tab of the Log Collection configuration. Its IP is also allocated from the VCF Services Runtime IP block, not a separate Management VM Network / Fleet VLAN address.' },
+          { key:'vcfLogsLbIp',        label:'Log Management Additional VIP IP',   type:'ip',   sample:'10.11.99.45', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
           { key:'vcfLogsSize',     label:'Log Management Size',     type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfLogsInclude==='Include' },
           { key:'vcfLogsAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfLogsInclude==='Include' },
         ]
@@ -3962,29 +3979,31 @@ const ALL_PAGES = [
         title:'Identity Broker (Workspace ONE / vIDM)',
         fields:[
           { key:'idBrokerInclude', label:'Include Identity Broker', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
-          { key:'idBrokerFqdn',    label:'Identity Broker FQDN',    type:'text', sample:'sfo-m01-idm01.sfo.rainpole.io', showWhen:f=>f.idBrokerInclude==='Include' },
+          { key:'idBrokerFqdn',    label:'Identity Broker FQDN',    type:'text', sample:'sfo-m01-idm01.sfo.rainpole.io', showWhen:f=>f.idBrokerInclude==='Include',
+            notes:'1 FQDN. In the First VCF Instance this is one of the required Day-0 FQDNs alongside the Fleet Components, Instance Components, and VCF Services Runtime FQDNs (VCF Management Services section below). Do not use capital letters in the FQDN (lowercase only).' },
           { key:'idBrokerIp',      label:'Identity Broker IP',      type:'ip',     sample:'10.11.99.23', showWhen:f=>f.idBrokerInclude==='Include' },
           { key:'idBrokerSize',    label:'Identity Broker Size',    type:'select', options:['Small','Medium','Large','Extra-Large'], sample:'Medium', showWhen:f=>f.idBrokerInclude==='Include' },
         ]
       },
       {
         title:'VCF Management Services',
-        description:'Fleet- and instance-level lifecycle components hosted on the VCF services runtime.',
+        description:'Fleet- and instance-level lifecycle components hosted on the VCF Services Runtime: Fleet Components, Instance Components and VCF Services Runtime each need 1 FQDN/IP, allocated from the VCF Services Runtime IP block. That block must sit on the VCF Management Network and provide a minimum of 12 IPs (/28) for the initial deployment, up to a recommended maximum of 30 IPs (/27) to leave room for Day-N scale-out — Log Management and Real-time Metrics IPs are also drawn from this same block (see the Log Management section above). License Server has its own FQDN/IP on the VCF Management Network and is tracked separately — it is not part of the VCF Management Services FQDN set (Fleet Components, Instance Components, VCF Services Runtime, Identity Broker).',
         fields:[
           { key:'fleetComponentsFqdn',    label:'Fleet Components FQDN',     type:'text', sample:'flt-fc01.rainpole.io',
-            notes:'FQDN to access the hosted fleet-level components which do not require a separate FQDN, for example, the fleet lifecycle component.' },
+            notes:'1 FQDN to access the hosted fleet-level components which do not require a separate FQDN, for example, the fleet lifecycle component. Do not use capital letters in the FQDN (lowercase only).' },
           { key:'fleetComponentsIp',      label:'Fleet Components IP',       type:'ip',   sample:'10.11.99.20' },
           { key:'instanceComponentsFqdn', label:'Instance Components FQDN',  type:'text', sample:'sfo-ic01.sfo.rainpole.io',
-            notes:'FQDN to access the hosted instance-level components which do not require a separate FQDN, for example, the SDDC lifecycle and real-time metrics components.' },
+            notes:'1 FQDN to access the hosted instance-level components which do not require a separate FQDN, for example, the SDDC lifecycle and real-time metrics components. Do not use capital letters in the FQDN (lowercase only).' },
           { key:'instanceComponentsIp',   label:'Instance Components IP',    type:'ip',   sample:'10.11.99.11' },
           { key:'vcfSvcRuntimeFqdn',      label:'VCF Services Runtime FQDN', type:'text', sample:'sfo-sr01.sfo.rainpole.io',
-            notes:'FQDN to access the VCF services runtime component to troubleshoot issues, restart components, etc. The hostname from this FQDN is prefixed to the names of its node VMs and related objects.' },
-          { key:'vcfSvcRuntimeIp',        label:'VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.10' },
+            notes:'1 FQDN to access the VCF services runtime component to troubleshoot issues, restart components, etc. The hostname from this FQDN is prefixed to the names of its node VMs and related objects. Do not use capital letters in the FQDN (lowercase only).' },
+          { key:'vcfSvcRuntimeIp',        label:'VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.10',
+            notes:'First address of the VCF Services Runtime IP block. The block must be on the VCF Management Network with a minimum of 12 IPs (/28) for the initial deployment; reserve up to 30 IPs (/27) if Day-N components and scale-out (additional Log Management replicas, Real-time Metrics, etc.) are planned.' },
           { key:'licenseServerFqdn',      label:'License Server FQDN',       type:'text', sample:'flt-lc01.rainpole.io',
-            notes:'Fleet-level, portable License Server FQDN.' },
+            notes:'1 FQDN, fleet-level and portable, on the VCF Management Network. Separate from the VCF Management Services FQDN set above (Fleet Components, Instance Components, VCF Services Runtime, Identity Broker) — not allocated from the VCF Services Runtime IP block.' },
           { key:'licenseServerIp',        label:'License Server IP',         type:'ip',   sample:'10.11.99.22' },
           { key:'mgmtSvcAdditionalIp1', label:'Additional IP #1', type:'ip', sample:'10.11.99.30',
-            notes:'Spare IP addresses reserved on the VCF Management Services / fleet runtime subnet for future component scale-out (e.g. additional fleet-level services added post-deployment). The VCF 9.1 Planning & Preparation workbook recommends reserving a small pool (2-3 addresses) in addition to the Fleet Components, Instance Components, VCF Services Runtime, and License Server IPs above.' },
+            notes:'Spare IP addresses reserved within the VCF Services Runtime IP block (/28 minimum, /27 recommended) for future component scale-out — e.g. additional Log Management replicas, Real-time Metrics, or other fleet-/instance-level services added post-deployment.' },
           { key:'mgmtSvcAdditionalIp2', label:'Additional IP #2', type:'ip', sample:'10.11.99.31' },
           { key:'mgmtSvcAdditionalIp3', label:'Additional IP #3', type:'ip', sample:'10.11.99.32' },
           { key:'vcfMgmtSvcSshPw',        label:'SSH Password (vmware-system-user)', type:'password', sample:'AUTO-GENERATED',
