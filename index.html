@@ -142,7 +142,7 @@
         VCF 9.1 Planning & Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.1.0</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.1.1</div>
     </div>
   </div>
   <div class="flex items-center gap-2 no-print">
@@ -226,7 +226,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.0 · Updated June 11, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.1 · Updated June 12, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -362,6 +362,16 @@
                 <div class="flex items-center justify-between">
                   <label class="text-sm font-medium text-gray-700">Workload Domains</label>
                   <input type="number" x-model.number="sizing.wldCount" min="0" max="35" class="w-28 text-right" placeholder="0">
+                </div>
+                <div class="flex items-center justify-between" x-show="sizing.components.vcf_svc_runtime">
+                  <label class="text-sm font-medium text-gray-700">
+                    VCF Services Instance Model
+                    <span class="block text-xs text-gray-400">Affects VCF Services Runtime worker disk sizing</span>
+                  </label>
+                  <select x-model="sizing.vcfInstanceModel" class="w-48">
+                    <option>First Instance</option>
+                    <option>Additional Instance</option>
+                  </select>
                 </div>
               </div>
               <div class="sub-header px-4 py-2 text-sm font-semibold">Component Inclusions</div>
@@ -1164,9 +1174,9 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.1.0</span>
+              <span>v1.1.1</span>
               <span>·</span>
-              <span>Updated June 11, 2026</span>
+              <span>Updated June 12, 2026</span>
               <span>·</span>
               <span>Single-file · No server · No build step</span>
             </div>
@@ -1324,6 +1334,13 @@
       <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📅</span> Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.1<br><span class="text-gray-300">2026-06-12</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Sizing calculator aligned with the Excel workbook</p>
+            <p>The Management Domain Sizing calculator's lookup tables and formulas have been re-verified line-by-line against <code>vcf-9.1-planning-and-preparation-workbook-updated.xlsx</code> ("Static Reference Tables" and "Management Domain Sizing" sheets) and corrected where they had drifted: SDDC Manager RAM (8 → 16 GB), NSX Manager (added Extra-Small tier, corrected XLarge), NSX Edge/VNA disk sizes (→ 200 GB) and VNA CPU/RAM, VCF Operations CPU/RAM/disk, AVI Load Balancer Large/Extra-Large, Cloud Proxy tiers (Small/Medium/Large), and a full rework of vDefend SSP into cluster-aggregate values plus a separate "vDefend/AVI Licensing Hub" add-on. The VCF Services Runtime (VCFMS) control/worker node sizing is now computed from node-count tables driven by Instance Profile Size, Cluster Model, and a new <strong>VCF Services Instance Model</strong> selector (First Instance / Additional Instance), matching the Excel's per-node × node-count + extra-disk formula. The disk-sizing chain (Required Hosts, Total Storage Required, Disk per Host) now follows the Excel's exact order of operations (interim total → FTT1 redundancy → ops reserve → growth), and Subnet Mask options now cover the full /32–/0 range (33 entries, was 24). New sizing components: <strong>VRMS</strong>, <strong>SRM</strong>, <strong>Health Reporting and Monitoring (HVM)</strong>, <strong>Cloud-Based Ransomware Recovery</strong>, and <strong>HCX Connector</strong>, plus Identity Broker / VCF Operations for Networks / VCF Operations for Networks Collector upgraded from single-size placeholders to full size-tier tables. Minor validation fixes: added the "Route Based on Physical NIC Load" Teaming Policy option and corrected "NSX Connectivity Type" casing. A new <code>tools/check_lt_constants.py</code> script and <code>tools/sizing_scenarios.md</code> let these lookup tables and formulas be re-verified against the Excel workbook in the future.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.0<br><span class="text-gray-300">2026-06-11</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">DEMO data, AD toggle, Log Management replicas &amp; navigation improvements</p>
@@ -1443,31 +1460,31 @@ const LT = {
     'Large':  { vcpu:16, ram:39,  disk:1158 },
     'XLarge': { vcpu:24, ram:58,  disk:1783 },
   },
-  sddc_manager: { vcpu:4, ram:8, disk:914 },
+  sddc_manager: { vcpu:4, ram:16, disk:914 },
   nsx_manager: {
+    'Extra_Small': { vcpu:2,  ram:8,  disk:300 },
     'Small':  { vcpu:4,  ram:16, disk:300 },
     'Medium': { vcpu:6,  ram:24, disk:300 },
     'Large':  { vcpu:12, ram:48, disk:300 },
-    'XLarge': { vcpu:16, ram:64, disk:300 },
+    'XLarge': { vcpu:24, ram:96, disk:400 },
   },
-  // VNA (vDefend Network Appliance) specs mirror the equivalent NSX Edge size — verify against Broadcom sizing guidance
   nsx_edge: {
     'Excluded':        { vcpu:0,  ram:0,   disk:0   },
-    'NSX Edge Small':  { vcpu:2,  ram:4,   disk:120 },
-    'NSX Edge Medium': { vcpu:4,  ram:8,   disk:120 },
-    'NSX Edge Large':  { vcpu:8,  ram:32,  disk:120 },
-    'NSX Edge XLarge': { vcpu:16, ram:64,  disk:120 },
-    'VNA Small':       { vcpu:4,  ram:8,   disk:120 },
-    'VNA Medium':      { vcpu:8,  ram:32,  disk:120 },
-    'VNA Large':       { vcpu:16, ram:64,  disk:120 },
-    'VNA XLarge':      { vcpu:32, ram:128, disk:120 },
+    'NSX Edge Small':  { vcpu:2,  ram:4,   disk:200 },
+    'NSX Edge Medium': { vcpu:4,  ram:8,   disk:200 },
+    'NSX Edge Large':  { vcpu:8,  ram:32,  disk:200 },
+    'NSX Edge XLarge': { vcpu:16, ram:64,  disk:200 },
+    'VNA Small':       { vcpu:2,  ram:4,   disk:200 },
+    'VNA Medium':      { vcpu:4,  ram:8,   disk:200 },
+    'VNA Large':       { vcpu:8,  ram:32,  disk:200 },
+    'VNA XLarge':      { vcpu:16, ram:64,  disk:200 },
   },
   vcf_operations: {
-    'Extra-Small': { vcpu:2,  ram:16, disk:500  },
-    'Small':       { vcpu:8,  ram:32, disk:1000 },
-    'Medium':      { vcpu:8,  ram:48, disk:2000 },
-    'Large':       { vcpu:16, ram:96, disk:2000 },
-    'Extra-Large': { vcpu:24, ram:192,disk:3000 },
+    'Extra-Small': { vcpu:2,  ram:8,  disk:274 },
+    'Small':       { vcpu:4,  ram:16, disk:274 },
+    'Medium':      { vcpu:8,  ram:32, disk:274 },
+    'Large':       { vcpu:16, ram:48, disk:274 },
+    'Extra-Large': { vcpu:24, ram:128,disk:274 },
   },
   vcf_automation: { vcpu:8, ram:32, disk:500 },
   vcf_logs: {
@@ -1475,9 +1492,9 @@ const LT = {
     'Medium': { vcpu:8,  ram:32, disk:1000 },
   },
   avi_lb: {
-    'Small':      { vcpu:6,  ram:32, disk:512 },
-    'Large':      { vcpu:10, ram:64, disk:512 },
-    'Extra-Large':{ vcpu:16, ram:128,disk:512 },
+    'Small':      { vcpu:6,  ram:32, disk:512  },
+    'Large':      { vcpu:16, ram:48, disk:1400 },
+    'Extra-Large':{ vcpu:16, ram:64, disk:1750 },
   },
   vcfa: {
     'Small':  { vcpu:24, ram:96,  disk:717 },
@@ -1485,34 +1502,87 @@ const LT = {
     'Large':  { vcpu:32, ram:128, disk:430 },
   },
   ssp: {
-    'Excluded': { vcpu:0,  ram:0,   disk:0   },
-    'Medium':   { vcpu:8,  ram:32,  disk:260 },
-    'Large':    { vcpu:16, ram:64,  disk:260 },
-    'X-Large':  { vcpu:24, ram:96,  disk:260 },
+    'Excluded': { vcpu:0,   ram:0,   disk:0    },
+    'Medium':   { vcpu:112, ram:414, disk:4096 },
+    'Large':    { vcpu:160, ram:606, disk:5120 },
+    'X-Large':  { vcpu:192, ram:734, disk:6656 },
   },
+  // "vDefend and AVI Licensing Hub" — added once whenever any SSP (mgmt or WLD) is not Excluded
+  ssp_license: { vcpu:10, ram:30, disk:710 },
 
   // ── VCF Management Services / VCF Fleet Components (fixed-size — no Small/Medium/Large tiers in the Excel) ──
   // Stored as flat {vcpu,ram,disk} objects (same shape as sddc_manager / vcf_automation) so calc functions
   // can read LT.key.vcpu directly without special-casing a tier lookup.
-  vcf_svc_runtime_control:    { vcpu:4,  ram:10, disk:100  }, // 1 node
-  vcf_svc_runtime_worker:     { vcpu:36, ram:72, disk:2900 }, // 3-node worker set (cluster aggregate)
+  // VCFMS Control/Worker node specs and node counts — aggregated by instanceProfileSize + clusterModel
+  vcfms_control_node: {
+    'Small':    { vcpu:4, ram:10, disk:100 },
+    'Small HA': { vcpu:4, ram:10, disk:100 },
+    'Medium':   { vcpu:4, ram:10, disk:100 },
+    'Large':    { vcpu:8, ram:14, disk:100 },
+  },
+  vcfms_worker_node: {
+    'Small':  { vcpu:12, ram:24, disk:100 },
+    'Medium': { vcpu:24, ram:48, disk:100 },
+    'Large':  { vcpu:24, ram:48, disk:100 },
+  },
+  vcfms_control_nodes: { 'Simple':1, 'High Availability':3 },
+  vcfms_worker_nodes:  { 'Small':3, 'Medium':3, 'Large':4 },
+  // Additional VCF Services Runtime worker disk on top of (worker node count × per-node disk),
+  // based on "Instance Model" (First/Additional Instance) × Deployment Size
+  vcfms_extra_disk: {
+    'First Instance':      { 'Small':2600, 'Medium':3000, 'Large':3702 },
+    'Additional Instance': { 'Small':800,  'Medium':1002, 'Large':1200 },
+  },
   cloud_proxy:                { vcpu:4,  ram:16, disk:264  }, // 1 node, default/fallback (= 'Small' tier)
   // VCF Operations Proxy (Cloud Proxy) sizing tiers — Advanced Sizer "Cloud Proxy" selector
   vcfops_proxy: {
-    'Small':    { vcpu:4, ram:16, disk:264 },
-    'Standard': { vcpu:8, ram:48, disk:264 },
+    'Small':  { vcpu:4, ram:16, disk:264 },
+    'Medium': { vcpu:8, ram:48, disk:264 },
+    'Large':  { vcpu:8, ram:48, disk:264 },
   },
   license_server:             { vcpu:2,  ram:4,  disk:12   }, // 1 node
-  vcf_ops_networks:           { vcpu:4,  ram:16, disk:1024 }, // 1 node
-  vcf_ops_networks_collector: { vcpu:2,  ram:4,  disk:250  }, // 1 node
+  // VCF Operations for Networks — Small/Medium/Large
+  vcf_ops_networks: {
+    'Small':  { vcpu:4,  ram:16, disk:1024 },
+    'Medium': { vcpu:8,  ram:32, disk:1024 },
+    'Large':  { vcpu:12, ram:48, disk:1024 },
+  },
+  // VCF Operations for Networks — Collector
+  vcf_ops_networks_collector: {
+    'Small':             { vcpu:2,  ram:4,  disk:250 },
+    'Medium':            { vcpu:4,  ram:12, disk:250 },
+    'Large':             { vcpu:8,  ram:16, disk:250 },
+    'Extra-Large':       { vcpu:8,  ram:24, disk:250 },
+    'Extra-Extra-Large': { vcpu:16, ram:48, disk:300 },
+  },
   realtime_metrics:           { vcpu:24, ram:48, disk:205  }, // 2-node cluster aggregate
-  // Bundled by default in the VCFMS cluster — listed as optional/additional instances with zero base cost.
-  // NOTE: distinct from the existing `idBrokerSize` form field — left untouched/independent per prior decision.
-  identity_broker:            { vcpu:0,  ram:0,  disk:0    }, // optional additional instance
+  // Identity Broker (Additional Instance) — Small/Medium/Large/XLarge
+  identity_broker: {
+    'Small':  { vcpu:2, ram:4, disk:10 },
+    'Medium': { vcpu:2, ram:4, disk:10 },
+    'Large':  { vcpu:4, ram:8, disk:20 },
+    'XLarge': { vcpu:4, ram:8, disk:20 },
+  },
   software_depot:             { vcpu:0,  ram:0,  disk:0    }, // optional additional instance
   // "Large" Log Management replica set (3 nodes / 2 workers). Medium/Small Log Management uses 1 worker/replica
   // instead of 2, so the real total would be lower — this flat estimate represents the Large/worst-case set.
   log_mgmt_replicas:          { vcpu:36, ram:72, disk:1725 }, // 3 nodes
+  // VRMS (vSphere Replication Management Server)
+  vrms: {
+    'Light':    { vcpu:2, ram:8, disk:33 },
+    'Standard': { vcpu:4, ram:8, disk:33 },
+  },
+  // SRM (Site Recovery Manager)
+  srm: {
+    'Light':    { vcpu:2, ram:8,  disk:20  },
+    'Standard': { vcpu:8, ram:24, disk:800 },
+  },
+  // Health Reporting and Monitoring (HVM)
+  hvm: { vcpu:2, ram:8, disk:20 },
+  // Cloud-Based Ransomware Recovery
+  cloud_ransomware: { vcpu:8, ram:12, disk:100 },
+  // HCX Connector (Cross-Cloud Mobility)
+  hcx_connector: { vcpu:4, ram:12, disk:65 },
 }
 
 // Canonical subnet mask list (from Static Reference Tables 'table_masks' named range)
@@ -1523,6 +1593,8 @@ const SUBNET_MASKS = [
   '255.255.240.0','255.255.224.0','255.255.192.0','255.255.128.0',
   '255.255.0.0','255.254.0.0','255.252.0.0','255.248.0.0',
   '255.240.0.0','255.224.0.0','255.192.0.0','255.128.0.0',
+  '255.0.0.0','254.0.0.0','252.0.0.0','248.0.0.0',
+  '240.0.0.0','224.0.0.0','192.0.0.0','128.0.0.0','0.0.0.0',
 ]
 
 // ============================================================
@@ -3628,7 +3700,7 @@ const ALL_PAGES = [
           { key:'dvsName',        label:'Primary VDS Name',         type:'text',   sample:'sfo-m01-cl01-dvs01', required:true },
           { key:'dvsVersion',     label:'VDS Version',              type:'select', options:['9.0.0','8.0.0','7.0.3'], sample:'9.0.0' },
           { key:'dvsUplinkPolicy',label:'Teaming Policy',           type:'select',
-            options:['Route based on IP hash','Route based on source MAC hash','Route based on source port ID','Use explicit failover order'],
+            options:['Route based on IP hash','Route based on source MAC hash','Route based on source port ID','Use explicit failover order','Route Based on Physical NIC Load'],
             sample:'Route based on IP hash' },
           { key:'dvsLacpEnabled', label:'LACP Enabled',             type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'dvsLacpMode',    label:'LACP Mode',                type:'select', options:['Active','Passive'], sample:'Active', showWhen:f=>f.dvsLacpEnabled==='Include' },
@@ -3719,7 +3791,7 @@ const ALL_PAGES = [
         title:'NSX Network Connectivity',
         showWhen: f => f.deploymentType==='VMware Cloud Foundation',
         fields:[
-          { key:'nsxConnectivity', label:'NSX Connectivity Type',   type:'select', options:['Exclude','Centralized Connectivity','Distributed Connectivity'], sample:'Centralized Connectivity' },
+          { key:'nsxConnectivity', label:'NSX Connectivity Type',   type:'select', options:['Exclude','Centralized connectivity','Distributed connectivity'], sample:'Centralized connectivity' },
           { key:'nsxRoutingProtocol', label:'Routing Protocol',     type:'select', options:['BGP','STATIC'], sample:'BGP', showWhen:f=>f.nsxConnectivity&&f.nsxConnectivity!=='Exclude' },
           { key:'nsxT0Name',      label:'Tier-0 Gateway Name',      type:'text',   sample:'sfo-m01-ec01-t0-gw01', showWhen:f=>f.nsxConnectivity&&f.nsxConnectivity!=='Exclude' },
           { key:'nsxT0Asn',       label:'Tier-0 BGP ASN',           type:'number', sample:'65001', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
@@ -4427,6 +4499,7 @@ function vcfPlanner() {
       opsReservePct: 30,
       clusterModel: 'High Availability (Three-Node)',
       instanceProfileSize: 'Medium',
+      vcfInstanceModel: 'First Instance',
       wldCount: 0,
       components: {
         sddc_manager: true,
@@ -4448,6 +4521,11 @@ function vcfPlanner() {
         identity_broker: false,
         software_depot: false,
         log_mgmt_replicas: false,
+        vrms: false,
+        srm: false,
+        hvm: false,
+        cloud_ransomware: false,
+        hcx_connector: false,
       },
       compSizes: {
         vcenter: 'Medium',
@@ -4460,8 +4538,13 @@ function vcfPlanner() {
         vcf_logs: 'Small',
         avi_lb: 'Small',
         vcfa: 'Small',
-        cloud_proxy: 'Standard',
+        cloud_proxy: 'Medium',
         ssp: 'Medium',
+        identity_broker: 'Small',
+        vcf_ops_networks: 'Small',
+        vcf_ops_networks_collector: 'Small',
+        vrms: 'Light',
+        srm: 'Light',
       },
     },
 
@@ -4482,15 +4565,21 @@ function vcfPlanner() {
       { key:'ssp',           label:'vDefend SSP (Shared NSX only)', sizes:['Excluded','Medium','Large','X-Large'] },
       // ── VCF Management Services ──
       { key:'vcf_svc_runtime',            label:'VCF Services Runtime — Control + Worker Nodes', group:'VCF Management Services' },
-      { key:'cloud_proxy',                label:'Cloud Proxy', group:'VCF Management Services', sizes:['Small','Standard'] },
+      { key:'cloud_proxy',                label:'Cloud Proxy', group:'VCF Management Services', sizes:['Small','Medium','Large'] },
       { key:'license_server',             label:'License Server', group:'VCF Management Services' },
-      { key:'identity_broker',            label:'Identity Broker (Additional Instance)', group:'VCF Management Services' },
+      { key:'identity_broker',            label:'Identity Broker (Additional Instance)', group:'VCF Management Services', sizes:['Small','Medium','Large','XLarge'] },
       { key:'software_depot',             label:'Software Depot (Additional Instance)', group:'VCF Management Services' },
       { key:'log_mgmt_replicas',          label:'Log Management Replicas (Large, ×3)', group:'VCF Management Services' },
       // ── VCF Fleet Components ──
-      { key:'vcf_ops_networks',           label:'VCF Operations for Networks', group:'VCF Fleet Components' },
-      { key:'vcf_ops_networks_collector', label:'VCF Operations for Networks — Collector', group:'VCF Fleet Components' },
+      { key:'vcf_ops_networks',           label:'VCF Operations for Networks', group:'VCF Fleet Components', sizes:['Small','Medium','Large'] },
+      { key:'vcf_ops_networks_collector', label:'VCF Operations for Networks — Collector', group:'VCF Fleet Components', sizes:['Small','Medium','Large','Extra-Large','Extra-Extra-Large'] },
       { key:'realtime_metrics',           label:'Real-time Metrics (×2)', group:'VCF Fleet Components' },
+      // ── Site Protection & DR ──
+      { key:'vrms',              label:'VRMS (vSphere Replication)', group:'Site Protection & DR', sizes:['Light','Standard'] },
+      { key:'srm',               label:'SRM (Site Recovery Manager)', group:'Site Protection & DR', sizes:['Light','Standard'] },
+      { key:'hvm',               label:'Health Reporting and Monitoring (HVM)', group:'Site Protection & DR' },
+      { key:'cloud_ransomware',  label:'Cloud-Based Ransomware Recovery', group:'Site Protection & DR' },
+      { key:'hcx_connector',     label:'HCX Connector (Cross-Cloud Mobility)', group:'Site Protection & DR' },
     ],
 
     // ─── NAVIGATION ───
@@ -4638,6 +4727,34 @@ function vcfPlanner() {
       this.form.principalStorage = this.sizing.storageType
       this.save()
     },
+    // Aggregate VCFMS Control + Worker node specs based on instanceProfileSize
+    // (Small/Medium/Large), clusterModel (Simple -> 1 control node, High
+    // Availability -> 3 control nodes) and vcfInstanceModel (First/Additional
+    // Instance, which affects worker node count and adds an extra worker
+    // disk allotment per the Excel J21/M21 formulas).
+    vcfmsAggregate() {
+      const s = this.sizing
+      const size = s.instanceProfileSize
+      const im = s.vcfInstanceModel || 'First Instance'
+      const ctrlNodes = s.clusterModel === 'Simple' ? LT.vcfms_control_nodes['Simple'] : LT.vcfms_control_nodes['High Availability']
+      const ctrlTier = LT.vcfms_control_node[size] || LT.vcfms_control_node['Medium']
+      let workerNodes
+      if (im === 'Additional Instance') {
+        workerNodes = size === 'Large' ? 3 : 2
+      } else if (s.clusterModel === 'Simple') {
+        workerNodes = 3
+      } else {
+        workerNodes = LT.vcfms_worker_nodes[size] || LT.vcfms_worker_nodes['Medium']
+      }
+      const workerTier = LT.vcfms_worker_node[size] || LT.vcfms_worker_node['Medium']
+      const extraDisk = LT.vcfms_extra_disk[im]?.[size] || 0
+      return {
+        vcpu: ctrlTier.vcpu*ctrlNodes + workerTier.vcpu*workerNodes,
+        ram:  ctrlTier.ram*ctrlNodes  + workerTier.ram*workerNodes,
+        disk: ctrlTier.disk*ctrlNodes + workerTier.disk*workerNodes + extraDisk,
+        ctrlNodes, workerNodes,
+      }
+    },
     calcRawCPU() {
       const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
       if (c.sddc_manager) t += LT.sddc_manager.vcpu
@@ -4650,23 +4767,35 @@ function vcfPlanner() {
       if (c.avi_lb)       t += (LT.avi_lb[cs.avi_lb]?.vcpu || 0) * 3
       if (c.vcfa)         t += LT.vcfa[cs.vcfa]?.vcpu || 0
       if (c.ssp)          t += LT.ssp[cs.ssp]?.vcpu || 0
-      if (c.vcf_svc_runtime)            t += LT.vcf_svc_runtime_control.vcpu + LT.vcf_svc_runtime_worker.vcpu
+      if (c.ssp && cs.ssp !== 'Excluded') t += LT.ssp_license.vcpu
+      if (c.vcf_svc_runtime)            t += this.vcfmsAggregate().vcpu
       if (c.cloud_proxy)                t += LT.vcfops_proxy[cs.cloud_proxy]?.vcpu || LT.cloud_proxy.vcpu
       if (c.license_server)             t += LT.license_server.vcpu
-      if (c.vcf_ops_networks)           t += LT.vcf_ops_networks.vcpu
-      if (c.vcf_ops_networks_collector) t += LT.vcf_ops_networks_collector.vcpu
+      if (c.vcf_ops_networks)           t += LT.vcf_ops_networks[cs.vcf_ops_networks]?.vcpu || 0
+      if (c.vcf_ops_networks_collector) t += LT.vcf_ops_networks_collector[cs.vcf_ops_networks_collector]?.vcpu || 0
       if (c.realtime_metrics)           t += LT.realtime_metrics.vcpu
-      if (c.identity_broker)            t += LT.identity_broker.vcpu
+      if (c.identity_broker)            t += LT.identity_broker[cs.identity_broker]?.vcpu || 0
       if (c.software_depot)             t += LT.software_depot.vcpu
       if (c.log_mgmt_replicas)          t += LT.log_mgmt_replicas.vcpu
+      if (c.vrms)                       t += LT.vrms[cs.vrms]?.vcpu || 0
+      if (c.srm)                        t += LT.srm[cs.srm]?.vcpu || 0
+      if (c.hvm)                        t += LT.hvm.vcpu
+      if (c.cloud_ransomware)           t += LT.cloud_ransomware.vcpu
+      if (c.hcx_connector)              t += LT.hcx_connector.vcpu
       // Per WLD: add 1 vCenter Small + 3 NSX Manager Small (if NSX enabled)
       const wldVcpuPerDomain = (LT.wld_vcenter[cs.wldVcSize || 'Small'].vcpu) + (c.nsx_manager ? LT.nsx_manager['Small'].vcpu * 3 : 0)
       t += wldVcpuPerDomain * (s.wldCount || 0)
       return t
     },
+    // Excel ROUNDUP() equivalent — subtracts a tiny epsilon before Math.ceil()
+    // so floating-point artifacts (e.g. 14360*1.1 === 15796.000000000002)
+    // don't push an exact integer result up to the next integer.
+    roundUp(x) {
+      return Math.ceil(x - 1e-9)
+    },
     calcTotalCPU() {
       const raw = this.calcRawCPU()
-      return Math.ceil(raw * (1 + (this.sizing.opsReservePct||30)/100))
+      return this.roundUp(raw * (1 + (this.sizing.opsReservePct||30)/100))
     },
     calcRawRAM() {
       const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
@@ -4680,22 +4809,28 @@ function vcfPlanner() {
       if (c.avi_lb)       t += (LT.avi_lb[cs.avi_lb]?.ram || 0) * 3
       if (c.vcfa)         t += LT.vcfa[cs.vcfa]?.ram || 0
       if (c.ssp)          t += LT.ssp[cs.ssp]?.ram || 0
-      if (c.vcf_svc_runtime)            t += LT.vcf_svc_runtime_control.ram + LT.vcf_svc_runtime_worker.ram
+      if (c.ssp && cs.ssp !== 'Excluded') t += LT.ssp_license.ram
+      if (c.vcf_svc_runtime)            t += this.vcfmsAggregate().ram
       if (c.cloud_proxy)                t += LT.vcfops_proxy[cs.cloud_proxy]?.ram || LT.cloud_proxy.ram
       if (c.license_server)             t += LT.license_server.ram
-      if (c.vcf_ops_networks)           t += LT.vcf_ops_networks.ram
-      if (c.vcf_ops_networks_collector) t += LT.vcf_ops_networks_collector.ram
+      if (c.vcf_ops_networks)           t += LT.vcf_ops_networks[cs.vcf_ops_networks]?.ram || 0
+      if (c.vcf_ops_networks_collector) t += LT.vcf_ops_networks_collector[cs.vcf_ops_networks_collector]?.ram || 0
       if (c.realtime_metrics)           t += LT.realtime_metrics.ram
-      if (c.identity_broker)            t += LT.identity_broker.ram
+      if (c.identity_broker)            t += LT.identity_broker[cs.identity_broker]?.ram || 0
       if (c.software_depot)             t += LT.software_depot.ram
       if (c.log_mgmt_replicas)          t += LT.log_mgmt_replicas.ram
+      if (c.vrms)                       t += LT.vrms[cs.vrms]?.ram || 0
+      if (c.srm)                        t += LT.srm[cs.srm]?.ram || 0
+      if (c.hvm)                        t += LT.hvm.ram
+      if (c.cloud_ransomware)           t += LT.cloud_ransomware.ram
+      if (c.hcx_connector)              t += LT.hcx_connector.ram
       // Per WLD: add 1 vCenter Small + 3 NSX Manager Small (if NSX enabled)
       const wldRamPerDomain = (LT.wld_vcenter[cs.wldVcSize || 'Small'].ram) + (c.nsx_manager ? LT.nsx_manager['Small'].ram * 3 : 0)
       t += wldRamPerDomain * (s.wldCount || 0)
       return t
     },
     calcTotalRAM() {
-      return Math.ceil(this.calcRawRAM() * (1 + (this.sizing.opsReservePct||30)/100))
+      return this.roundUp(this.calcRawRAM() * (1 + (this.sizing.opsReservePct||30)/100))
     },
     calcRawDisk() {
       const s = this.sizing; const c = s.components; const cs = s.compSizes; let t = 0
@@ -4709,29 +4844,54 @@ function vcfPlanner() {
       if (c.avi_lb)       t += (LT.avi_lb[cs.avi_lb]?.disk || 0) * 3
       if (c.vcfa)         t += LT.vcfa[cs.vcfa]?.disk || 0
       if (c.ssp)          t += LT.ssp[cs.ssp]?.disk || 0
-      if (c.vcf_svc_runtime)            t += LT.vcf_svc_runtime_control.disk + LT.vcf_svc_runtime_worker.disk
+      if (c.ssp && cs.ssp !== 'Excluded') t += LT.ssp_license.disk
+      if (c.vcf_svc_runtime)            t += this.vcfmsAggregate().disk
       if (c.cloud_proxy)                t += LT.vcfops_proxy[cs.cloud_proxy]?.disk || LT.cloud_proxy.disk
       if (c.license_server)             t += LT.license_server.disk
-      if (c.vcf_ops_networks)           t += LT.vcf_ops_networks.disk
-      if (c.vcf_ops_networks_collector) t += LT.vcf_ops_networks_collector.disk
+      if (c.vcf_ops_networks)           t += LT.vcf_ops_networks[cs.vcf_ops_networks]?.disk || 0
+      if (c.vcf_ops_networks_collector) t += LT.vcf_ops_networks_collector[cs.vcf_ops_networks_collector]?.disk || 0
       if (c.realtime_metrics)           t += LT.realtime_metrics.disk
-      if (c.identity_broker)            t += LT.identity_broker.disk
+      if (c.identity_broker)            t += LT.identity_broker[cs.identity_broker]?.disk || 0
       if (c.software_depot)             t += LT.software_depot.disk
       if (c.log_mgmt_replicas)          t += LT.log_mgmt_replicas.disk
+      if (c.vrms)                       t += LT.vrms[cs.vrms]?.disk || 0
+      if (c.srm)                        t += LT.srm[cs.srm]?.disk || 0
+      if (c.hvm)                        t += LT.hvm.disk
+      if (c.cloud_ransomware)           t += LT.cloud_ransomware.disk
+      if (c.hcx_connector)              t += LT.hcx_connector.disk
       return t
     },
+    // Disk sizing chain, following the Excel "Management Domain Sizing" rows R15-R20:
+    //  R15 Virtual Machine Capacity      = calcRawDisk()
+    //  R16 Swap File Requirements        = calcRawRAM()
+    //  R17 Interim Total                 = R15 + R16
+    //  R18 Redundancy (FTT1)             = ROUNDUP(R17 * (vSAN-ESA ? 1.5 : 2.0))   [all storage types]
+    //  R19 Host Rebuild + Ops Reserve    = ROUNDUP(R18 * (1 + opsReservePct/100))
+    //  R20 Estimated Growth (=calcTotalDisk):
+    //      FC/NFS  -> ROUNDUP(R17 * (1 + growthPct/100))
+    //      other   -> ROUNDUP(R19 * (1 + growthPct/100))
     calcTotalDisk() {
-      const t = this.calcRawDisk()
-      return Math.ceil(t * (1 + (this.sizing.growthPct||10)/100))
+      const s = this.sizing
+      const r15 = this.calcRawDisk()
+      const r16 = this.calcRawRAM()
+      const r17 = r15 + r16
+      const isFcOrNfs = s.storageType === 'VMFS on Fibre Channel (FC)' || s.storageType === 'NFSv3'
+      if (isFcOrNfs) {
+        return this.roundUp(r17 * (1 + (s.growthPct||10)/100))
+      }
+      const overhead = s.storageType === 'vSAN-ESA' ? 1.5 : 2.0
+      const r18 = this.roundUp(r17 * overhead)
+      const r19 = this.roundUp(r18 * (1 + (s.opsReservePct||30)/100))
+      return this.roundUp(r19 * (1 + (s.growthPct||10)/100))
     },
     calcHosts() {
       const s = this.sizing
       if (!s.hostCores || !s.hostRAM) return '—'
       const overSub = parseFloat(s.cpuOverSub) || 1
-      const totalCPU = this.calcTotalCPU()
-      const totalRAM = this.calcTotalRAM()
-      const byCpu = Math.ceil(totalCPU / overSub / s.hostCores)
-      const byRam = Math.ceil(totalRAM / s.hostRAM) + 1
+      const rawCPU = this.calcRawCPU()
+      const rawRAM = this.calcRawRAM()
+      const byCpu = this.roundUp(rawCPU / overSub / s.hostCores)
+      const byRam = this.roundUp(rawRAM / s.hostRAM) + 1
       const isVsan = s.storageType && s.storageType.startsWith('vSAN')
       const min = s.clusterModel === 'Simple' ? 1
                 : s.clusterModel === 'High Availability (Three-Node)' ? 4
@@ -4746,11 +4906,10 @@ function vcfPlanner() {
     calcDiskPerHost() {
       const hosts = this.calcHosts()
       if (hosts === '—' || typeof hosts !== 'number') return '—'
-      const overhead = this.sizing.storageType === 'vSAN-ESA' ? 1.5 : 2.0
-      const total    = this.calcTotalDisk()
-      // For 1-host Simple cluster there is no fault domain — divide by 1
-      const divisor  = hosts <= 1 ? 1 : (hosts - 1)
-      return Math.ceil(total * overhead / divisor)
+      const total = this.calcTotalDisk()
+      // For 1-host Simple cluster there is no fault domain — divide by 1 (web-only addition, see README)
+      const divisor = hosts <= 1 ? 1 : (hosts - 1)
+      return this.roundUp(total / divisor)
     },
     sizingBreakdown() {
       const s = this.sizing; const c = s.components; const cs = s.compSizes
@@ -4772,18 +4931,22 @@ function vcfPlanner() {
           vcpu:(LT.avi_lb[cs.avi_lb]?.vcpu||0)*3, ram:(LT.avi_lb[cs.avi_lb]?.ram||0)*3, disk:(LT.avi_lb[cs.avi_lb]?.disk||0)*3 },
         { name:`VCFA (${cs.vcfa})`, excluded:!c.vcfa, ...(LT.vcfa[cs.vcfa]||{vcpu:0,ram:0,disk:0}) },
         { name:`vDefend SSP (${cs.ssp})`, excluded:!c.ssp, ...(LT.ssp[cs.ssp]||{vcpu:0,ram:0,disk:0}) },
-        { name:'VCF Services Runtime (Control + Worker)', excluded:!c.vcf_svc_runtime,
-          vcpu:LT.vcf_svc_runtime_control.vcpu+LT.vcf_svc_runtime_worker.vcpu,
-          ram:LT.vcf_svc_runtime_control.ram+LT.vcf_svc_runtime_worker.ram,
-          disk:LT.vcf_svc_runtime_control.disk+LT.vcf_svc_runtime_worker.disk },
+        { name:'vDefend/AVI Licensing Hub', excluded:!(c.ssp && cs.ssp !== 'Excluded'), ...LT.ssp_license },
+        { name:`VCF Services Runtime (Control ×${this.vcfmsAggregate().ctrlNodes} + Worker ×${this.vcfmsAggregate().workerNodes})`, excluded:!c.vcf_svc_runtime,
+          ...(({vcpu,ram,disk})=>({vcpu,ram,disk}))(this.vcfmsAggregate()) },
         { name:`Cloud Proxy (${cs.cloud_proxy})`, excluded:!c.cloud_proxy, ...(LT.vcfops_proxy[cs.cloud_proxy] || LT.cloud_proxy) },
         { name:'License Server', excluded:!c.license_server, ...LT.license_server },
-        { name:'VCF Operations for Networks', excluded:!c.vcf_ops_networks, ...LT.vcf_ops_networks },
-        { name:'VCF Operations for Networks — Collector', excluded:!c.vcf_ops_networks_collector, ...LT.vcf_ops_networks_collector },
+        { name:`VCF Operations for Networks (${cs.vcf_ops_networks})`, excluded:!c.vcf_ops_networks, ...(LT.vcf_ops_networks[cs.vcf_ops_networks]||{vcpu:0,ram:0,disk:0}) },
+        { name:`VCF Operations for Networks — Collector (${cs.vcf_ops_networks_collector})`, excluded:!c.vcf_ops_networks_collector, ...(LT.vcf_ops_networks_collector[cs.vcf_ops_networks_collector]||{vcpu:0,ram:0,disk:0}) },
         { name:'Real-time Metrics ×2', excluded:!c.realtime_metrics, ...LT.realtime_metrics },
-        { name:'Identity Broker (Additional Instance)', excluded:!c.identity_broker, ...LT.identity_broker },
+        { name:`Identity Broker (Additional Instance) (${cs.identity_broker})`, excluded:!c.identity_broker, ...(LT.identity_broker[cs.identity_broker]||{vcpu:0,ram:0,disk:0}) },
         { name:'Software Depot (Additional Instance)', excluded:!c.software_depot, ...LT.software_depot },
         { name:'Log Management Replicas (Large ×3)', excluded:!c.log_mgmt_replicas, ...LT.log_mgmt_replicas },
+        { name:`VRMS (vSphere Replication) (${cs.vrms})`, excluded:!c.vrms, ...(LT.vrms[cs.vrms]||{vcpu:0,ram:0,disk:0}) },
+        { name:`SRM (Site Recovery Manager) (${cs.srm})`, excluded:!c.srm, ...(LT.srm[cs.srm]||{vcpu:0,ram:0,disk:0}) },
+        { name:'Health Reporting and Monitoring (HVM)', excluded:!c.hvm, ...LT.hvm },
+        { name:'Cloud-Based Ransomware Recovery', excluded:!c.cloud_ransomware, ...LT.cloud_ransomware },
+        { name:'HCX Connector (Cross-Cloud Mobility)', excluded:!c.hcx_connector, ...LT.hcx_connector },
       ]
       return rows
     },
@@ -4820,7 +4983,7 @@ function vcfPlanner() {
         localStorage.removeItem('vcf-planner-v1')
         this.form = {}
         this.applyToggleDefaults()
-        this.sizing.components = { sddc_manager:true, vcenter:true, nsx_manager:true, nsx_edge:false, vcf_operations:false, vcf_automation:false, vcf_logs:false, avi_lb:false, vcfa:false, ssp:false, vcf_svc_runtime:false, cloud_proxy:false, license_server:false, vcf_ops_networks:false, vcf_ops_networks_collector:false, realtime_metrics:false, identity_broker:false, software_depot:false, log_mgmt_replicas:false }
+        this.sizing.components = { sddc_manager:true, vcenter:true, nsx_manager:true, nsx_edge:false, vcf_operations:false, vcf_automation:false, vcf_logs:false, avi_lb:false, vcfa:false, ssp:false, vcf_svc_runtime:false, cloud_proxy:false, license_server:false, vcf_ops_networks:false, vcf_ops_networks_collector:false, realtime_metrics:false, identity_broker:false, software_depot:false, log_mgmt_replicas:false, vrms:false, srm:false, hvm:false, cloud_ransomware:false, hcx_connector:false }
         this.currentPage = 'welcome'
       }
     },
