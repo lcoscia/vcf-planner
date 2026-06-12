@@ -23,7 +23,7 @@ Or double-click `index.html` in Finder / Explorer.
 | **Deployment modes** | VCF and VVF · New Fleet, Additional Instance, Workload Domain, Additional Cluster |
 | **Sizing calculator** | Live host count + disk-per-host formulas aligned with the Excel workbook (lookup tables and formula chain re-verified 2026-06-12, see `tools/check_lt_constants.py` / `tools/sizing_scenarios.md`) · Advanced Sizer (vCenter Storage Size tier, NSX Manager Model ×1/×3, Cloud Proxy Small/Medium/Large) · WLD vCenter sizing (Shared/Dedicated with size & storage tier) · Instance Profile Size coupled to Cluster Model (Simple → forced Small) and a VCF Services Instance Model (First/Additional Instance) · VCF Management Services & Fleet Components included in component inclusions |
 | **Persistence** | Auto-save to `localStorage` · Export/Import JSON |
-| **Export** | JSON · Markdown As-Built · CSV IPAM table |
+| **Export** | JSON · Markdown As-Built · CSV IPAM table · VCF Installer `SddcSpec` JSON |
 | **Validation** | VLAN conflict detection · IP conflict detection · CIDR overlap detection · FQDN format check · Constrained dropdowns derived from the official Excel data-validation lists (appliance sizes, vSAN FTT, storage types, subnet masks /32–/0, …) |
 | **Help bubbles** | Inline "ⓘ" tooltips on key sizing fields linking out to the official Broadcom VCF 9 design documentation |
 | **As-Built** | VLAN topology table · DNS pre-flight checklist · Completion dashboard |
@@ -60,7 +60,7 @@ Or double-click `index.html` in Finder / Explorer.
 ## Architecture
 
 ```
-index.html                  ← single file, ~5000 lines
+index.html                  ← single file, ~5700 lines
 ├── <head>
 │   ├── Alpine.js 3.14.1    (CDN, defer)
 │   ├── @alpinejs/collapse  (CDN, loaded before Alpine core)
@@ -77,7 +77,7 @@ index.html                  ← single file, ~5000 lines
     ├── makeNetFields()     Helper — network segment field group
     ├── makeHostFields()    Helper — N×(FQDN+IP) host fields
     ├── makeRackFields()    Helper — multi-rack section
-    ├── ALL_PAGES[]         Form schema — all 19 pages
+    ├── ALL_PAGES[]         Form schema — 18 form pages (Welcome & As-Built are rendered separately)
     ├── NAV_GROUPS[]        Sidebar navigation structure
     └── vcfPlanner()        Alpine.js component (state + methods)
 ```
@@ -88,8 +88,8 @@ index.html                  ← single file, ~5000 lines
 - **`showWhen: f => ...`** — Conditional visibility at page / section / field level, driven by `form.*` values.
 - **`optionsFn: f => [...]`** — Dynamic dropdown options based on current form state (e.g., DVS profile options differ for VCF vs VVF; EDR installer package name depends on the chosen EDR product).
 - **`docLink` / `docLabel`** — Optional on any field; renders an "ⓘ" help bubble next to the label that links to the official Broadcom VCF design documentation for that choice (see e.g. `vcMgmtSize`, `nsxEdgeSize`, `vsanFtt`).
-- **`calcHosts()`** — `MAX(min, ROUNDUP(rawCPU/overSub/hostCores), ROUNDUP(rawRAM/hostRAM)+1)` with storage-aware minimums (vSAN=3, non-vSAN=2, Simple=1, HA=4), using the un-reserved raw CPU/RAM totals (matching the Excel `Management Domain Sizing` R8 formula).
-- **Disk-sizing chain** (`calcTotalDisk()` / `calcDiskPerHost()`) — follows the Excel `Management Domain Sizing` R15-R21 order of operations: Virtual Machine Capacity (`calcRawDisk()`) + Swap File Requirements (`calcRawRAM()`) → FTT1 redundancy (×1.5 for vSAN-ESA, ×2.0 otherwise) → host-rebuild/ops-reserve (× `1 + opsReservePct`) → estimated growth (× `1 + growthPct`), then divided across `hosts - 1` for the per-host figure.
+- **`calcHosts()`** — `MAX(min, ROUNDUP(rawCPU/overSub/hostCores), ROUNDUP(rawRAM/hostRAM)+1)` with storage-aware minimums (HA=4, vSAN=3 — the vSAN quorum floor applies even under the Simple deployment model, non-vSAN=2), using the un-reserved raw CPU/RAM totals (aligned with the Excel `Management Domain Sizing` R8 formula).
+- **Disk-sizing chain** (`calcTotalDisk()` / `calcDiskPerHost()`) — follows the Excel `Management Domain Sizing` R15-R21 order of operations: Virtual Machine Capacity (`calcRawDisk()`) + Swap File Requirements (`calcRawRAM()`) → FTT1 redundancy (×1.5 for vSAN-ESA, ×2.0 for vSAN-OSA) → host-rebuild/ops-reserve (× `1 + opsReservePct`) → estimated growth (× `1 + growthPct`), then divided across `hosts - 1` for the per-host figure. FC and NFSv3 skip both the redundancy multiplier and the ops reserve — growth is applied directly to the interim total, as in the Excel R20 branch.
 - **`roundUp()`** — a small `Math.ceil(x - 1e-9)` helper used everywhere the Excel uses `ROUNDUP()`, to avoid floating-point artifacts (e.g. `14360 * 1.1 === 15796.000000000002` in JS) pushing an exact integer result up by one.
 - **Persistence key** — `localStorage` key `vcf-planner-v1` stores `{ form, sizing, currentPage, openGroups, openSections }`.
 
@@ -97,9 +97,9 @@ index.html                  ← single file, ~5000 lines
 
 A few details in the sizing calculator are intentional web-side additions or simplifications with no direct 1:1 equivalent in the Excel workbook:
 
-- **`calcDiskPerHost()` divisor for a 1-host result** — the Excel always divides by `hosts - 1` (assuming an HA fault domain of at least 2 hosts). For the web calculator's "Simple / 1 host" case, dividing by `hosts - 1 = 0` would be undefined, so when `hosts <= 1` the divisor is `1` instead.
 - **`calcTotalCPU()` / `calcTotalRAM()`** ("Total vCPU/RAM (with reserve)") apply the operations-reserve percentage to CPU and RAM for display purposes. The Excel workbook only applies the operations-reserve percentage to the disk-sizing chain (R19) — it has no equivalent "+reserve" CPU/RAM total. Treat these two figures as supplementary web-only metrics.
-- **`vcfInstanceModel`** ("VCF Services Instance Model" — First Instance / Additional Instance) is a new selector added to drive the VCFMS worker-node-count and extra-disk formulas (Excel `Static Reference Tables` J21/M21), matching the Excel's "Deployment Size" × "Instance Model" lookup.
+- **`vcfInstanceModel`** ("VCF Services Instance Model" — First Instance / Additional Instance) is a new selector added to drive the VCFMS worker-node-count and extra-disk formulas (Excel `Static Reference Tables` J21/M21), aligned with the Excel's "Deployment Size" × "Instance Model" lookup.
+- **Component toggles are not gated on `vcfInstanceModel`** — in the Excel, License Server only counts for a First Instance, while Identity Broker and Software Depot only count for an Additional Instance. The web calculator leaves all three freely toggleable (their labels carry the "(Additional Instance)" hint); the toggle expresses the user's intent directly.
 
 ---
 
@@ -121,8 +121,8 @@ A few details in the sizing calculator are intentional web-side additions or sim
 | ⬇ JSON | Export current form state as JSON |
 | 📄 MD | Export As-Built report as Markdown |
 | 📊 CSV | Export all IP/text fields as CSV (IPAM) |
-| 🚀 Installer | Export a VCF Installer `SddcSpec` JSON (`POST /v1/sddcs` payload) |
-| ⬆ Installer | Best-effort import of a VCF Installer `SddcSpec` JSON back into the form |
+| 🚀 JSON VCF Installer ready | Export a VCF Installer `SddcSpec` JSON (`POST /v1/sddcs` payload) |
+| ⬆ JSON VCF Installer ready | Best-effort import of a VCF Installer `SddcSpec` JSON back into the form |
 | 🌙 / ☀️ | Toggle dark / light mode |
 | 🔌 Ports | Jump to the Ports & Protocols reference page |
 | 🧪 DEMO | Fill all Management Domain fields with example data (4-node vSAN-ESA cluster + NSX Edge) — confirmation required |
@@ -194,6 +194,7 @@ to the sizing calculator.
 
 ## Changelog
 
+- **v1.1.2** (2026-06-12) — Audit fixes (sizing formulas & validation lists): a multi-pass audit against the Excel workbook fixed the residual divergences. Sizing: Log Management now follows the workbook's row-26 formula (new "Log Management Replicas" input — min 1 Small / 3 Medium-Large, Large deploys 2 nodes per replica, CPU/RAM per node from the VCFMS worker tier, disk = replicas × 575 GB) and gains the missing Large size, replacing the previous flat estimates and the separate "Log Management Replicas" toggle; VCF Automation consolidated into a single component computed from the per-node VCFA table × node count (×1 Small / ×3 Medium-Large); Real-time Metrics scales with the Instance Profile Size (×2 nodes, ×3 for Large); Identity Broker counts only its disk (the workbook excludes its CPU/RAM from every total); Software Depot disk corrected from 0 to 1500 GB; the minimum host count now applies the workbook's 3-host vSAN quorum floor even for Simple deployments. Validation lists: Deploy Cluster Teaming Policy gains "Route Based on Physical NIC Load", certificate Key Size fields gain 3072, Supervisor Control Plane Size gains XLarge, Log Management Size gains Large, management-domain vSAN FTT restricted to 1-2, and the "NSX Connectivity Type" / "Transit Gateway Type" casing corrected to match each field's actual workbook validation list (the v1.1.1 change had matched the wrong cells). `tools/sizing_scenarios.md` scenarios 2-3 updated to the corrected expected values; `tools/check_lt_constants.py` still passes.
 - **v1.1.1** (2026-06-12) — Sizing calculator aligned with the Excel workbook: the Management Domain Sizing lookup tables and formulas were re-verified line-by-line against `vcf-9.1-planning-and-preparation-workbook-updated.xlsx` ("Static Reference Tables" and "Management Domain Sizing" sheets) and corrected where they had drifted — SDDC Manager RAM (8 → 16 GB), NSX Manager (added Extra-Small tier, corrected XLarge), NSX Edge/VNA disk sizes (→ 200 GB) and VNA CPU/RAM, VCF Operations CPU/RAM/disk, AVI Load Balancer Large/Extra-Large, Cloud Proxy tiers (renamed "Standard" → "Medium", added "Large"), and a full rework of vDefend SSP into cluster-aggregate values plus a separate "vDefend/AVI Licensing Hub" add-on. VCF Services Runtime (VCFMS) control/worker node sizing is now computed from node-count tables driven by Instance Profile Size, Cluster Model, and a new "VCF Services Instance Model" selector (First Instance / Additional Instance), matching the Excel's per-node × node-count + extra-disk formula. The disk-sizing chain (Required Hosts, Total Storage Required, Disk per Host) now follows the Excel's exact order of operations (interim total → FTT1 redundancy → ops reserve → growth, with a floating-point-safe `ROUNDUP`), and Subnet Mask options now cover the full /32-/0 range (33 entries, was 24). New sizing components: VRMS, SRM, Health Reporting and Monitoring (HVM), Cloud-Based Ransomware Recovery, and HCX Connector, plus Identity Broker / VCF Operations for Networks / VCF Operations for Networks Collector upgraded from single-size placeholders to full size-tier tables. Minor validation fixes: added the "Route Based on Physical NIC Load" Teaming Policy option and corrected "NSX Connectivity Type" casing. New `tools/check_lt_constants.py` script and `tools/sizing_scenarios.md` allow re-verifying these lookup tables and formulas against the Excel workbook in the future.
 - **v1.1.0** (2026-06-11) — DEMO data, AD toggle, Log Management replicas & navigation improvements: a new "🧪 DEMO" topbar button instantly fills every Management Domain field (Planning, Deploy Management Domain, vCenter, SDDC Manager, a 3-node NSX Manager cluster, and a 2-node NSX Edge cluster) with a consistent example based on a 4-node vSAN-ESA cluster, with a confirmation prompt before overwriting existing values. The Active Directory / LDAP page gains an "Include/Exclude" toggle (default Exclude, consistent with the AVI/NSX Edge/VCF Operations toggles) that hides the detailed AD inputs until needed. Log Management (VCF Management Services / Fleet Management Day-N) gains an HA Mode selector with dedicated replica node and load balancer/cluster VIP FQDN/IP fields for "HA Cluster" mode. VCF Management Services adds 3 spare "Additional IP" fields for fleet-level scale-out. Fleet MTU now defaults to 1500 (was 9000). All password fields default to "AUTO-GENERATED" as a uniform placeholder convention. Navigation: a persistent "🔌 Ports" topbar button and an As-Built page callout banner link directly to the Ports & Protocols reference, which also gains a "Group by: By Component / By Category" toggle organizing the 19 components into 5 functional categories (Core Infrastructure, Fleet Management & Operations, Automation & Security, Recovery & Disaster Recovery, Private AI); within "By Category", each category is further sub-divided into collapsible per-component groups.
 - **v1.0.9** (2026-06-11) — Live ports matrix & security hardening: the Ports & Protocols page gains a "Show my configured values" toggle that resolves each row's generic Source/Destination role (vCenter, ESXi hosts, NSX Manager/Edges, SDDC Manager, VCF Operations, AD, DNS/NTP, AVI, HCX, VCF Automation, VCF Operations for Networks, Log Management, vSAN Witness, Identity Broker) to the FQDN/IP you actually configured, with matching "Resolved Source/Destination" columns in the CSV export — turning the reference matrix into an as-built firewall rule list. Security: Alpine.js and @alpinejs/collapse CDN scripts are pinned to v3.14.1 with Subresource Integrity (SRI) hashes; added a "Privacy & Data Handling" section to the About page and README.
@@ -214,4 +215,4 @@ This is a community tool and is not affiliated with or endorsed by Broadcom. Alw
 
 ---
 
-*VCF 9.1 Web Planner · v1.0 · 2026*
+*VCF 9.1 Web Planner · 2026*

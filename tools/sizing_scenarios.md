@@ -83,21 +83,21 @@ the Excel M21 formula (3×100 control + 3×100 worker + 3000 = 3600).
 
 All other components excluded.
 
-**Expected results:**
+**Expected results (= Excel R8/R21 for these inputs):**
 | Metric | Value |
 |---|---|
 | `calcRawCPU()` | 52 |
 | `calcRawRAM()` | 135 |
 | `calcRawDisk()` | 4908 |
-| `calcHosts()` | 2 |
+| `calcHosts()` | 3 |
 | `calcTotalDisk()` | 14424 |
-| `calcDiskPerHost()` | 14424 |
+| `calcDiskPerHost()` | 7212 |
 
 **Notes:**
 - `calcHosts()`: `byCpu = ceil(52/36) = 2`, `byRam = ceil(135/512)+1 = 2`,
-  `min = 1` (Simple) → `hosts = max(1,2,2) = 2`. Since `hosts > 1`, the
-  divisor is `hosts-1 = 1` (the `hosts<=1 → divisor=1` special case only
-  applies to a true 1-host result).
+  `min = 3` (the Excel R8 vSAN quorum floor applies even under the Simple
+  deployment model — there is no min-1 path in the workbook) →
+  `hosts = max(3,2,2) = 3`, and `diskPerHost = ROUNDUP(14424/(3-1)) = 7212`.
 - `vcfmsAggregate()` for Simple/Small/First Instance: `ctrlNodes=1`
   (`vcfms_control_nodes.Simple`), `workerNodes=3` (Simple deployment model
   forces 3 worker nodes per the Excel J21 formula, regardless of size),
@@ -117,6 +117,7 @@ All other components excluded.
 - `clusterModel`: `High Availability (Three-Node)`
 - `instanceProfileSize`: `Large`
 - `vcfInstanceModel`: `First Instance`
+- `logReplicaCount`: 3
 - `wldCount`: 0
 
 **Components enabled:**
@@ -124,7 +125,7 @@ All other components excluded.
 - vCenter Server — Medium, storage tier Large (1658)
 - NSX Manager — Medium, "Mandatory - HA Cluster" (×3)
 - VCF Operations — Medium
-- Log Management (vcf_logs) — Medium
+- Log Management (vcf_logs) — Medium, 3 replicas
 - vDefend SSP — Medium (+ "vDefend/AVI Licensing Hub" `ssp_license` auto-added
   since `ssp !== 'Excluded'`)
 - Cloud Proxy — Medium
@@ -135,21 +136,24 @@ All other components excluded.
 **Expected results:**
 | Metric | Value |
 |---|---|
-| `calcRawCPU()` | 296 |
-| `calcRawRAM()` | 908 |
-| `calcRawDisk()` | 14218 |
+| `calcRawCPU()` | 360 |
+| `calcRawRAM()` | 1020 |
+| `calcRawDisk()` | 14943 |
 | `calcHosts()` | 4 |
-| `calcTotalDisk()` | 32446 |
-| `calcDiskPerHost()` | 10816 |
+| `calcTotalDisk()` | 34242 |
+| `calcDiskPerHost()` | 11414 |
 
 **Notes:**
 - `vcfmsAggregate()` for HA/Large/First Instance: `ctrlNodes=3`,
   `workerNodes=4` (`vcfms_worker_nodes.Large`), `{vcpu:120, ram:234,
   disk:4402}` (disk = 3×100 + 4×100 +
   `vcfms_extra_disk['First Instance']['Large']` 3702 = 4402).
+- `logMgmtAggregate()` for Medium × 3 replicas (Excel row 26): nodes = 3
+  (no ×2 — that only applies to the Large size), CPU/RAM per node = VCFMS
+  worker Medium tier (24/48), disk = 3 × 575 → `{vcpu:72, ram:144, disk:1725}`.
 - `calcRawDisk()` breakdown: SDDC Manager 914 + vCenter 1658 + NSX Manager
-  ×3 900 + VCF Operations 274 + Log Management 1000 + SSP 4096 +
-  SSP License 710 + Cloud Proxy 264 + VCF Services Runtime 4402 = 14218.
-- Disk chain: R17 = 14218+908 = 15126, R18 = ROUNDUP(15126×1.5) = 22689,
-  R19 = ROUNDUP(22689×1.3) = 29496, R20 = ROUNDUP(29496×1.1) = 32446,
-  R21 = ROUNDUP(32446/(4-1)) = 10816.
+  ×3 900 + VCF Operations 274 + Log Management 1725 + SSP 4096 +
+  SSP License 710 + Cloud Proxy 264 + VCF Services Runtime 4402 = 14943.
+- Disk chain: R17 = 14943+1020 = 15963, R18 = ROUNDUP(15963×1.5) = 23945,
+  R19 = ROUNDUP(23945×1.3) = 31129, R20 = ROUNDUP(31129×1.1) = 34242,
+  R21 = ROUNDUP(34242/(4-1)) = 11414.
