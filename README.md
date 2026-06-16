@@ -1,17 +1,22 @@
 # VCF 9.1 Planning & Preparation Workbook — Web Edition
 
-A browser-only, single-file interactive replacement for Broadcom's official **VMware Cloud Foundation 9.1 Planning & Preparation Workbook** (27-sheet Excel). Open `index.html` directly — no server, no build step, no dependencies to install.
+A browser-only interactive replacement for Broadcom's official **VMware Cloud Foundation 9.1 Planning & Preparation Workbook** (27-sheet Excel). No build step and no application backend — `index.html` plus a small set of static ES modules under `core/`.
+
+The shared sizing logic and reference tables now live in `core/` so they can be reused by both the website and an optional **MCP server** (`mcp/`) that exposes the same calculator and reference data to AI assistants (Claude, ChatGPT). See [`mcp/README.md`](mcp/README.md).
 
 ---
 
 ## Quick Start
 
+`index.html` loads its logic from `./core/*.js` as native ES modules. Browsers block ES-module imports over the `file://` protocol, so serve the folder over HTTP instead of double-clicking the file:
+
 ```bash
-# Just open the file in any modern browser
-open index.html
+# From the project root, serve over a local HTTP server, then open the printed URL
+python3 -m http.server 8000
+# → http://localhost:8000/index.html
 ```
 
-Or double-click `index.html` in Finder / Explorer.
+The published site (GitHub Pages, served over HTTPS at `vcfplanning.lcoscia.fr`) works the same way — nothing to install. Any static web server works; only the `file://` double-click shortcut is no longer supported.
 
 ---
 
@@ -60,27 +65,29 @@ Or double-click `index.html` in Finder / Explorer.
 ## Architecture
 
 ```
-index.html                  ← single file, ~5700 lines
+core/                       ← shared source of truth (native ES modules, no build) — also consumed by mcp/
+├── data.js                 LT lookup tables + SUBNET_MASKS (verified by tools/check_lt_constants.py)
+├── ports.js                PORTS_DATA — Ports & Protocols matrix (1083 rows — source: ports.broadcom.com)
+├── reference.js            PREREQ_DATA + ALL_PAGES form schema + field-factory helpers (makeNetFields/makeHostFields/makeRackFields/…)
+├── sizing.js               Pure sizing calculator (calcHosts/calcTotalDisk/… + computeSizing) — mirrors the Excel formulas
+├── validation.js           isValidIp/isValidCidr/isFqdn + VLAN/IP/CIDR conflict detection
+└── index.js                Barrel re-export
+
+index.html                  ← the website (imports from ./core/)
 ├── <head>
-│   ├── Alpine.js 3.14.1    (CDN, defer)
-│   ├── @alpinejs/collapse  (CDN, loaded before Alpine core)
 │   └── Tailwind CSS CDN    (play CDN, darkMode: 'class')
 ├── <body>
 │   ├── Topbar              fixed header — nav + toolbar buttons
 │   ├── Sidebar             nav groups + per-page progress bars
-│   └── Main content        page router (x-show per page)
-└── <script>
-    ├── LT                  Lookup tables (vCenter/NSX/AVI/VCFMS/etc sizes — derived from the 'Static Reference Tables' sheet, verified by tools/check_lt_constants.py)
-    ├── SUBNET_MASKS        Canonical 33-entry subnet mask list, /32-/0 (from 'Static Reference Tables')
-    ├── PREREQ_DATA         Prerequisite checklist rows
-    ├── PORTS_DATA          Ports & Protocols matrix (1083 rows — source: ports.broadcom.com)
-    ├── makeNetFields()     Helper — network segment field group
-    ├── makeHostFields()    Helper — N×(FQDN+IP) host fields
-    ├── makeRackFields()    Helper — multi-rack section
-    ├── ALL_PAGES[]         Form schema — 18 form pages (Welcome & As-Built are rendered separately)
-    ├── NAV_GROUPS[]        Sidebar navigation structure
-    └── vcfPlanner()        Alpine.js component (state + methods)
+│   ├── Main content        page router (x-show per page)
+│   ├── <script type=module> import * as Core from './core/index.js'  → window.vcfPlanner (Alpine methods delegate to Core.*)
+│   └── Alpine.js 3.14.1 + @alpinejs/collapse  (CDN, defer — loaded AFTER the module so window.vcfPlanner exists first)
+└── (NAV_GROUPS, the VCF-Installer import/export helpers, and vcfPlanner() stay inline in index.html)
+
+mcp/                        ← optional remote MCP server (Node + @modelcontextprotocol/sdk) — imports ../core/
 ```
+
+> **Single source of truth:** the sizing math and reference tables exist once, in `core/`. `index.html`'s Alpine methods are thin wrappers (`calcHosts() { return Core.calcHosts(this.sizing) }`) and the MCP server calls the same functions, so the website and the AI tools can never drift apart.
 
 ### Key patterns
 
@@ -130,6 +137,60 @@ A few details in the sizing calculator are intentional web-side additions or sim
 
 ---
 
+## MCP Server (use the planner from Claude / ChatGPT)
+
+The `mcp/` folder contains an optional [Model Context Protocol](https://modelcontextprotocol.io) server that exposes the same sizing calculator and reference data (it imports `../core/`, so it can never drift from the website). It lets an AI assistant answer questions like *"how many hosts for this management domain?"* or *"which ports does NSX Manager need?"* without the web UI.
+
+It is a **remote (HTTP) server, read-only, no authentication** — the one transport that works for both Claude and ChatGPT. Full tool list and setup details are in [`mcp/README.md`](mcp/README.md).
+
+### Fastest way to use it (2 commands, local)
+
+No checkout, no build — run the **pre-built image** from GitHub Container Registry, then add it to Claude Code:
+
+```bash
+docker run -d -p 3000:3000 ghcr.io/lcoscia/vcf-planner-mcp:latest   # 1. start the server
+claude mcp add --transport http vcf-planner http://localhost:3000/  # 2. register it in Claude Code
+```
+
+Now ask Claude things like *"use vcf-planner to size an HA vSAN-ESA management domain"*. From the **Docker Desktop GUI** you can instead search `ghcr.io/lcoscia/vcf-planner-mcp`, hit **Run**, and map port `3000`.
+
+### Run from source instead
+
+```bash
+cd mcp
+npm install && npm start            # → http://localhost:3000/   (or: docker compose up -d --build)
+```
+
+### Point a client at it — local vs. cloud
+
+Whether plain `http://localhost:3000/` works depends on **who opens the connection**. Local clients run on your machine and can reach localhost directly; the web/cloud clients connect from the provider's servers and cannot.
+
+| Client | Connects from | `http://localhost:3000` works? |
+|---|---|---|
+| **Claude Code** (CLI) | your machine | ✅ yes, directly |
+| **Claude Desktop** (app) | your machine | ✅ yes (local HTTP allowed) |
+| **claude.ai** (web) | Anthropic's servers | ❌ needs a public HTTPS URL |
+| **ChatGPT** | OpenAI's servers | ❌ needs a public HTTPS URL |
+
+**Local Claude (no domain, no TLS):**
+
+```bash
+claude mcp add --transport http vcf-planner http://localhost:3000/      # Claude Code
+```
+
+For Claude Desktop, add the same URL under Settings → Connectors (or via `claude_desktop_config.json`).
+
+**claude.ai web or ChatGPT, without hosting a server** — keep the container local and expose it through a temporary HTTPS tunnel, then paste the `https://…` URL it prints into the connector settings (claude.ai → Settings → Connectors; ChatGPT → Developer Mode → Connectors, auth *None*):
+
+```bash
+cloudflared tunnel --url http://localhost:3000      # → https://<random>.trycloudflare.com
+# or: ngrok http 3000
+```
+
+The tunnel URL lives only while the command runs and changes on each restart (unless you use a named cloudflare/ngrok tunnel). For a **stable, permanent** URL, deploy the container behind a domain with automatic TLS — see `mcp/Caddyfile.example` and [`mcp/README.md`](mcp/README.md).
+
+---
+
 ## Privacy & Data Handling
 
 This tool makes **zero network requests containing your data**. All processing happens client-side; the only network traffic is the one-time load of the Alpine.js / Tailwind CDN scripts on page load (none of which receive form data). Your configuration is saved only to your browser's `localStorage` (key `vcf-planner-v1`), which other websites cannot read due to the browser's same-origin policy.
@@ -142,9 +203,9 @@ The Alpine.js and `@alpinejs/collapse` scripts are loaded with **Subresource Int
 
 ## Development
 
-The file is self-contained — edit it directly in any text editor. No npm, no build step.
+No npm, no build step for the website. Edit `index.html` for the UI, or the `core/*.js` modules for the sizing logic and reference data (shared with the MCP server). Serve over HTTP while developing (see Quick Start) — `file://` will not load the ES modules.
 
-To add a new field, add an entry to the relevant `sections[].fields[]` array in `ALL_PAGES`:
+To add a new field, add an entry to the relevant `sections[].fields[]` array in `ALL_PAGES` (now in `core/reference.js`):
 
 ```javascript
 {
@@ -161,12 +222,13 @@ To add a new field, add an entry to the relevant `sections[].fields[]` array in 
 }
 ```
 
-To add a new page, add an entry to `ALL_PAGES` and a corresponding item to `NAV_GROUPS`.
+To add a new page, add an entry to `ALL_PAGES` (`core/reference.js`) and a corresponding item to `NAV_GROUPS` (still in `index.html`).
 
 ### Verification
 
-The sizing calculator's lookup tables (`const LT`) and `SUBNET_MASKS` are checked against the official
-`vcf-9.1-planning-and-preparation-workbook-updated.xlsx` workbook ("Static Reference Tables" sheet) by:
+The sizing calculator's lookup tables (`const LT`) and `SUBNET_MASKS` (now in `core/data.js`) are checked
+against the official `vcf-9.1-planning-and-preparation-workbook-updated.xlsx` workbook ("Static Reference
+Tables" sheet) by:
 
 ```bash
 python3 tools/check_lt_constants.py
@@ -177,8 +239,12 @@ to run the check. It prints a ✓/✗ report per component/tier and exits non-ze
 
 `tools/sizing_scenarios.md` documents 3 end-to-end Management Domain Sizing scenarios (inputs +
 expected "Required Hosts" / "Total Storage Required" / "Disk per Host" results, cross-checked against
-the Excel's `Management Domain Sizing` sheet) for manually replaying in the browser after future changes
-to the sizing calculator.
+the Excel's `Management Domain Sizing` sheet). These same three scenarios are now also locked in as an
+automated regression test against `core/sizing.js`:
+
+```bash
+node --test mcp/test/scenarios.test.js
+```
 
 ---
 

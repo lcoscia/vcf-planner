@@ -1,0 +1,62 @@
+# Caddyfile.example — reverse-proxy a public domain to the VCF Planner MCP
+# container with automatic HTTPS. Both Claude and ChatGPT REQUIRE an https:// URL.
+#
+# Usage:
+#   1. Replace mcp.example.com with your real domain (A/AAAA record -> this host).
+#   2. Copy this to /etc/caddy/Caddyfile (or your Caddy config path).
+#   3. Run Caddy:  caddy run --config /etc/caddy/Caddyfile
+#      (or as a service: systemctl reload caddy)
+#   Caddy obtains and renews a Let's Encrypt certificate automatically.
+
+mcp.example.com {
+    # The MCP endpoint is served at the container's root path.
+    reverse_proxy localhost:3000 {
+        # Streamable HTTP uses long-lived responses; disable buffering.
+        flush_interval -1
+    }
+
+    encode gzip
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Alternative: nginx + certbot
+# ---------------------------------------------------------------------------
+# 1) Obtain a cert:
+#      sudo certbot certonly --nginx -d mcp.example.com
+# 2) /etc/nginx/sites-available/mcp.conf:
+#
+#   server {
+#       listen 80;
+#       server_name mcp.example.com;
+#       return 301 https://$host$request_uri;
+#   }
+#
+#   server {
+#       listen 443 ssl http2;
+#       server_name mcp.example.com;
+#
+#       ssl_certificate     /etc/letsencrypt/live/mcp.example.com/fullchain.pem;
+#       ssl_certificate_key /etc/letsencrypt/live/mcp.example.com/privkey.pem;
+#
+#       location / {
+#           proxy_pass http://127.0.0.1:3000;
+#           proxy_http_version 1.1;
+#           proxy_set_header Host $host;
+#           proxy_set_header X-Real-IP $remote_addr;
+#           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#           proxy_set_header X-Forwarded-Proto $scheme;
+#
+#           # Streamable HTTP / SSE: disable buffering and allow long-lived streams.
+#           proxy_buffering off;
+#           proxy_cache off;
+#           proxy_read_timeout 3600s;
+#           chunked_transfer_encoding on;
+#       }
+#   }
+#
+# 3) sudo ln -s /etc/nginx/sites-available/mcp.conf /etc/nginx/sites-enabled/
+#    sudo nginx -t && sudo systemctl reload nginx

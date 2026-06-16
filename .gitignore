@@ -9,3 +9,7 @@
 # Editor
 .vscode/
 *.swp
+.gstack/
+
+# Node (MCP server deps)
+node_modules/

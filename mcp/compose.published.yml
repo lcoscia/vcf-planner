@@ -1,0 +1,20 @@
+# Run the PRE-BUILT image from GHCR — no repo checkout, no local build.
+# This is the easiest path for Docker Desktop users.
+#
+#   PORT=3000 docker compose -f compose.published.yml up -d
+#
+# (The default docker-compose.yml builds the image locally from source instead.)
+services:
+  vcf-planner-mcp:
+    image: ghcr.io/lcoscia/vcf-planner-mcp:latest
+    pull_policy: always
+    environment:
+      - PORT=${PORT:-3000}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${PORT:-3000}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
