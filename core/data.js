@@ -2,28 +2,28 @@
 // Verified against the official Excel "Static Reference Tables" sheet by tools/check_lt_constants.py.
 export const LT = {
   vcenter: {
-    'Tiny':   { vcpu:2,  ram:14,  disk:604  },
-    'Small':  { vcpu:4,  ram:21,  disk:694  },
-    'Medium': { vcpu:8,  ram:30,  disk:858  },
-    'Large':  { vcpu:16, ram:39,  disk:1158 },
-    'XLarge': { vcpu:24, ram:58,  disk:1783 },
+    'Tiny':   { vcpu:2,  ram:14,  disk:619  },
+    'Small':  { vcpu:4,  ram:21,  disk:734  },
+    'Medium': { vcpu:8,  ram:30,  disk:933  },
+    'Large':  { vcpu:16, ram:39,  disk:1383 },
+    'XLarge': { vcpu:24, ram:58,  disk:2308 },
   },
   // vCenter disk size by Appliance Size + Storage Size tier (Default/Large/XLarge) — used by the
   // Advanced Management Domain Sizer's "vCenter Storage Size" selector
   vcenter_disk_tiers: {
-    'Tiny':   { Default:604,  Large:1494, XLarge:2874 },
-    'Small':  { Default:694,  Large:1519, XLarge:2899 },
-    'Medium': { Default:858,  Large:1658, XLarge:3038 },
-    'Large':  { Default:1158, Large:1708, XLarge:3088 },
-    'XLarge': { Default:1783, Large:1833, XLarge:3213 },
+    'Tiny':   { Default:619,  Large:2059, XLarge:4319 },
+    'Small':  { Default:734,  Large:2084, XLarge:4344 },
+    'Medium': { Default:933,  Large:2233, XLarge:4493 },
+    'Large':  { Default:1383, Large:2283, XLarge:4543 },
+    'XLarge': { Default:2308, Large:2408, XLarge:4668 },
   },
   // Workload Domain dedicated vCenter Server Appliance — same VCSA specs as the management vCenter
   wld_vcenter: {
-    'Tiny':   { vcpu:2,  ram:14,  disk:604  },
-    'Small':  { vcpu:4,  ram:21,  disk:694  },
-    'Medium': { vcpu:8,  ram:30,  disk:858  },
-    'Large':  { vcpu:16, ram:39,  disk:1158 },
-    'XLarge': { vcpu:24, ram:58,  disk:1783 },
+    'Tiny':   { vcpu:2,  ram:14,  disk:619  },
+    'Small':  { vcpu:4,  ram:21,  disk:734  },
+    'Medium': { vcpu:8,  ram:30,  disk:933  },
+    'Large':  { vcpu:16, ram:39,  disk:1383 },
+    'XLarge': { vcpu:24, ram:58,  disk:2308 },
   },
   sddc_manager: { vcpu:4, ram:16, disk:914 },
   nsx_manager: {
@@ -65,13 +65,11 @@ export const LT = {
     'Large':  { vcpu:32, ram:128, disk:430 },
   },
   ssp: {
-    'Excluded': { vcpu:0,   ram:0,   disk:0    },
-    'Medium':   { vcpu:112, ram:414, disk:4096 },
-    'Large':    { vcpu:160, ram:606, disk:5120 },
-    'X-Large':  { vcpu:192, ram:734, disk:6656 },
+    'Excluded': { vcpu:0,  ram:0,   disk:0    },
+    'Include':  { vcpu:96, ram:350, disk:3867, nodes:8 },
   },
   // "vDefend and AVI Licensing Hub" — added once whenever any SSP (mgmt or WLD) is not Excluded
-  ssp_license: { vcpu:10, ram:30, disk:710 },
+  ssp_license: { vcpu:10, ram:30, disk:725 },
 
   // ── VCF Management Services / VCF Fleet Components (fixed-size — no Small/Medium/Large tiers in the Excel) ──
   // Stored as flat {vcpu,ram,disk} objects (same shape as sddc_manager) so calc functions

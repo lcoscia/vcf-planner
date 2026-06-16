@@ -144,7 +144,7 @@
         VCF 9.1 Planning & Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.1.3</div>
+      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.1.4</div>
     </div>
   </div>
   <div class="flex items-center gap-2 no-print">
@@ -228,7 +228,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.3 · Updated June 12, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.4 · Updated June 17, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -1180,12 +1180,12 @@
           <div>
             <div class="text-4xl font-bold mb-1">VCF 9.1 Planner</div>
             <div class="text-lg opacity-80 mb-2">Planning & Preparation Workbook — Web Edition</div>
-            <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
+            <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server &amp; core refactor by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.1.3</span>
+              <span>v1.1.4</span>
               <span>·</span>
-              <span>Updated June 12, 2026</span>
+              <span>Updated June 17, 2026</span>
               <span>·</span>
               <span>Static site · No backend · No build step · MCP-ready</span>
             </div>
@@ -1368,6 +1368,13 @@
       <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📅</span> Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.4<br><span class="text-gray-300">2026-06-17</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Aligned with workbook v1.9.1.004</p>
+            <p>Updated against Broadcom's <strong>v1.9.1.004</strong> revision (June 15, 2026) of the VCF 9.1 Planning &amp; Preparation Workbook. Changes: the <strong>vCenter Storage Size</strong> (Default/Large/XLarge) disk values were recalibrated to match the workbook's updated figures; the Management Domain's <strong>vDefend SSP</strong> component changed from a size selector (Medium/Large/X-Large) to a simple <strong>Excluded/Include</strong> toggle with a single fixed footprint (8 nodes, 96 vCPU, 350 GB RAM, 3867 GB disk), and now defaults to Excluded as in the workbook; and the disk size for the <strong>License Hub for vDefend and AVI</strong> component was corrected to <strong>725 GB</strong>. VCF Planner now also references the official <a href="https://github.com/vmware/powershell-module-for-vmware-cloud-foundation-jsongenerator" target="_blank" rel="noopener" class="text-blue-600 hover:underline">VCF.JSONGenerator</a> PowerShell module on the Fleet Management Day-N page's "Customize appliance sizing during install" field — it is not reproduced by this app, but is the recommended tool for generating the Day-0/Day-N deployment JSON files from the filled-in workbook.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.3<br><span class="text-gray-300">2026-06-12</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">FQDN/IP prerequisites aligned with VCF 9.1 Components FQDNs and IP Addresses &amp; Management Services design docs</p>
@@ -1589,17 +1596,17 @@ const PORTS_ENDPOINT_MAP = {
     { fqdnKey:'vcfSddcFqdn', ipKey:'vcfSddcIp', label:'SDDC Manager' },
   ],
   'VCF Operations Management IP address': [
-    { fqdnKey:'vcfOpsLbFqdn', ipKey:'vcfOpsLbIp', label:'VCF Operations LB', showWhen:f=>f.vcfOpsInclude==='Include' },
+    { fqdnKey:'vcfOpsLbFqdn', ipKey:'vcfOpsLbIp', label:'VCF Operations LB', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
   ],
   'VCF Operations Cluster Nodes': [
-    { fqdnKey:'vcfOpsPrimaryFqdn', ipKey:'vcfOpsPrimaryIp', label:'VCF Operations Primary', showWhen:f=>f.vcfOpsInclude==='Include' },
-    { fqdnKey:'vcfOpsReplicaFqdn', ipKey:'vcfOpsReplicaIp', label:'VCF Operations Replica', showWhen:f=>f.vcfOpsInclude==='Include' },
-    { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsInclude==='Include' },
+    { fqdnKey:'vcfOpsPrimaryFqdn', ipKey:'vcfOpsPrimaryIp', label:'VCF Operations Primary', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
+    { fqdnKey:'vcfOpsReplicaFqdn', ipKey:'vcfOpsReplicaIp', label:'VCF Operations Replica', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
+    { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
   ],
   'VCF Operations Cluster (internal)': [
-    { fqdnKey:'vcfOpsPrimaryFqdn', ipKey:'vcfOpsPrimaryIp', label:'VCF Operations Primary', showWhen:f=>f.vcfOpsInclude==='Include' },
-    { fqdnKey:'vcfOpsReplicaFqdn', ipKey:'vcfOpsReplicaIp', label:'VCF Operations Replica', showWhen:f=>f.vcfOpsInclude==='Include' },
-    { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsInclude==='Include' },
+    { fqdnKey:'vcfOpsPrimaryFqdn', ipKey:'vcfOpsPrimaryIp', label:'VCF Operations Primary', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
+    { fqdnKey:'vcfOpsReplicaFqdn', ipKey:'vcfOpsReplicaIp', label:'VCF Operations Replica', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
+    { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
   ],
   'VCF Operations Cloud Proxy': [
     { fqdnKey:'cloudProxyFqdn', ipKey:'cloudProxyIp', label:'Cloud Proxy', showWhen:f=>f.cloudProxyInclude==='Include' },
@@ -1635,7 +1642,7 @@ const PORTS_ENDPOINT_MAP = {
     { fqdnKey:'vcfLogsReplicaFqdn', ipKey:'vcfLogsReplicaIp', label:'Log Management Replica', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
   ],
   'VCF Automation Management IP address': [
-    { fqdnKey:'vcfAutoFqdn', ipKey:'vcfAutoIp', label:'VCF Automation', showWhen:f=>f.vcfAutoInclude==='Include' },
+    { fqdnKey:'vcfAutoFqdn', ipKey:'vcfAutoIp', label:'VCF Automation', showWhen:f=>(f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation') },
   ],
   'VCF Identity Broker': [
     { fqdnKey:'idBrokerFqdn', ipKey:'idBrokerIp', label:'Identity Broker', showWhen:f=>f.idBrokerInclude==='Include' },
@@ -1912,7 +1919,7 @@ function buildNsxtSpec(f) {
 }
 
 function buildVcfOperationsSpec(f) {
-  if (f.vcfOpsInclude !== 'Include') return null
+  if (f.vcfOpsAutoMode !== 'Deploy VCF Operations and Automation') return null
   const sizeMap = { Small:'small', Medium:'medium', Large:'large' }
   const nodes = []
   if (f.vcfOpsPrimaryFqdn) nodes.push({ hostname:f.vcfOpsPrimaryFqdn, type:'master' })
@@ -2112,7 +2119,7 @@ function applyNsxtSpec(spec, form, warnings) {
 function applyVcfOperationsSpec(spec, form, warnings) {
   const ops = spec.vcfOperationsSpec
   if (!ops) return
-  form.vcfOpsInclude = 'Include'
+  form.vcfOpsAutoMode = 'Deploy VCF Operations and Automation'
   const size = capitalizeSize(ops.applianceSize, ['Small','Medium','Large'])
   if (size) form.vcfOpsSize = size
   if (Array.isArray(ops.nodes)) {
@@ -2245,7 +2252,7 @@ function vcfPlanner() {
         avi_lb: 'Small',
         vcfa: 'Small',
         cloud_proxy: 'Medium',
-        ssp: 'Medium',
+        ssp: 'Excluded',
         identity_broker: 'Small',
         vcf_ops_networks: 'Small',
         vcf_ops_networks_collector: 'Small',
@@ -2267,7 +2274,7 @@ function vcfPlanner() {
       { key:'vcf_logs',      label:'Log Management', sizes:['Small','Medium','Large'] },
       { key:'avi_lb',        label:'AVI Load Balancer (×3)', sizes:['Small','Large','Extra-Large'] },
       { key:'vcfa',          label:'VCF Automation (VCFA — ×1 Small / ×3 Medium-Large)', sizes:['Small','Medium','Large'] },
-      { key:'ssp',           label:'vDefend SSP (Shared NSX only)', sizes:['Excluded','Medium','Large','X-Large'] },
+      { key:'ssp',           label:'vDefend SSP (Shared NSX only)', sizes:['Excluded','Include'] },
       // ── VCF Management Services ──
       { key:'vcf_svc_runtime',            label:'VCF Services Runtime — Control + Worker Nodes', group:'VCF Management Services' },
       { key:'cloud_proxy',                label:'Cloud Proxy', group:'VCF Management Services', sizes:['Small','Medium','Large'] },

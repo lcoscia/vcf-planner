@@ -26,7 +26,7 @@ import warnings
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE_FILE = os.path.join(ROOT, 'core', 'data.js')
-EXCEL_FILE = os.path.join(ROOT, 'vcf-9.1-planning-and-preparation-workbook-updated.xlsx')
+EXCEL_FILE = os.path.join(ROOT, 'vcf-9.1-planning-and-preparation-workbook-15june2026.xlsx')
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ def extract_blocks(ws):
 
 def extract_subnet_masks(ws):
     masks = []
-    for row in range(318, 351):
+    for row in range(320, 353):
         c = ws.cell(row=row, column=3).value
         if c is not None:
             masks.append(str(c))
@@ -66,6 +66,27 @@ def tri(blocks, cpu_block, ram_block, disk_block, tier_map=None):
     for t in tiers:
         lt_tier = (tier_map or {}).get(t, t)
         out[lt_tier] = {'vcpu': cpu[t], 'ram': ram[t], 'disk': disk[t]}
+    return out
+
+
+def parse_vcenter_disk(blocks):
+    """Parse the single 'vCenter Disk' block, whose keys concatenate a vCenter
+    appliance size (Tiny/Small/Medium/Large/XLarge) with a disk tier
+    (Default/Large/XLarge) with no separator, e.g. 'TinyDefault',
+    'XLargeLarge'. Note 'Large' is ambiguous (appears as both a size and a
+    tier name), so suffixes are tested longest/most-specific first
+    (XLarge before Large) and stripped from the key to recover the size."""
+    raw = blocks['vCenter Disk']
+    tiers = ('Default', 'XLarge', 'Large')
+    out = {}
+    for key, value in raw.items():
+        for tier in tiers:
+            if key.endswith(tier):
+                size = key[: -len(tier)]
+                break
+        else:
+            raise ValueError(f"vCenter Disk: unrecognized tier suffix in key {key!r}")
+        out.setdefault(size, {})[tier] = value
     return out
 
 
@@ -122,6 +143,7 @@ def build_expected(blocks):
         'ram': blocks['Cross-Cloud Mobility - HCX Conn']['RAM'],
         'disk': blocks['Cross-Cloud Mobility - HCX Conn']['Disk'],
     }
+    e['vcenter_disk_tiers'] = parse_vcenter_disk(blocks)
     return e
 
 
@@ -213,6 +235,30 @@ def compare(expected, actual, label, ok, problems):
     return all_ok
 
 
+def compare_vcenter_disk_tiers(expected, actual, problems):
+    label = 'vcenter_disk_tiers'
+    if actual is None:
+        problems.append(f"{label}: MISSING from core/data.js LT")
+        print(f"  ✗ {label}: missing")
+        return False
+    all_ok = True
+    for size, tiers in expected.items():
+        a = actual.get(size)
+        if a is None:
+            problems.append(f"{label}[{size}]: missing size in core/data.js")
+            print(f"  ✗ {label}[{size}]: missing size")
+            all_ok = False
+            continue
+        for tier, v in tiers.items():
+            if a.get(tier) != v:
+                problems.append(f"{label}[{size}].{tier}: expected {v}, got {a.get(tier)}")
+                print(f"  ✗ {label}[{size}].{tier}: expected {v}, got {a.get(tier)}")
+                all_ok = False
+    if all_ok:
+        print(f"  ✓ {label}")
+    return all_ok
+
+
 def main():
     if not os.path.exists(EXCEL_FILE):
         print(f"Workbook not found: {EXCEL_FILE}")
@@ -235,7 +281,11 @@ def main():
     problems = []
     print('Comparing core/data.js `const LT` against Static Reference Tables...')
     for key in expected:
+        if key == 'vcenter_disk_tiers':
+            continue
         compare(expected[key], lt.get(key), key, True, problems)
+
+    compare_vcenter_disk_tiers(expected['vcenter_disk_tiers'], lt.get('vcenter_disk_tiers'), problems)
 
     print('\nComparing SUBNET_MASKS...')
     if masks == expected_masks:
