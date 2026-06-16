@@ -1,0 +1,20 @@
+# Run the VCF Planner MCP server.
+#   cd mcp && docker compose up -d --build
+# The build context is the repo root (..) so the image can include ../core.
+services:
+  vcf-planner-mcp:
+    build:
+      context: ..
+      dockerfile: mcp/Dockerfile
+    image: vcf-planner-mcp
+    container_name: vcf-planner-mcp
+    environment:
+      - PORT=${PORT:-3000}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${PORT:-3000}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

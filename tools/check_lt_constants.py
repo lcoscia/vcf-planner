@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
-Verify that index.html's `const LT` lookup tables and `const SUBNET_MASKS`
+Verify that core/data.js's `const LT` lookup tables and `const SUBNET_MASKS`
 list match the "Static Reference Tables" sheet of
 vcf-9.1-planning-and-preparation-workbook-updated.xlsx.
+
+(These tables used to live inline in index.html; they were extracted into the
+shared ES module core/data.js — the single source of truth consumed by both
+index.html and the MCP server in mcp/. The `export const LT = ` / `export const
+SUBNET_MASKS = ` declarations there still match the regexes below.)
 
 Usage:
     python3 tools/check_lt_constants.py
@@ -20,7 +25,7 @@ import sys
 import warnings
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HTML_FILE = os.path.join(ROOT, 'index.html')
+SOURCE_FILE = os.path.join(ROOT, 'core', 'data.js')
 EXCEL_FILE = os.path.join(ROOT, 'vcf-9.1-planning-and-preparation-workbook-updated.xlsx')
 
 
@@ -121,7 +126,7 @@ def build_expected(blocks):
 
 
 # ---------------------------------------------------------------------------
-# index.html extraction (minimal JS-object-literal -> JSON converter)
+# core/data.js extraction (minimal JS-object-literal -> JSON converter)
 # ---------------------------------------------------------------------------
 
 def _extract_balanced(text, start):
@@ -179,7 +184,7 @@ def extract_lt_and_masks(html_text):
 
 def compare(expected, actual, label, ok, problems):
     if actual is None:
-        problems.append(f"{label}: MISSING from index.html LT")
+        problems.append(f"{label}: MISSING from core/data.js LT")
         print(f"  ✗ {label}: missing")
         return False
     all_ok = True
@@ -188,7 +193,7 @@ def compare(expected, actual, label, ok, problems):
         for tier, vals in expected.items():
             a = actual.get(tier)
             if a is None:
-                problems.append(f"{label}[{tier}]: missing tier in index.html")
+                problems.append(f"{label}[{tier}]: missing tier in core/data.js")
                 print(f"  ✗ {label}[{tier}]: missing tier")
                 all_ok = False
                 continue
@@ -223,12 +228,12 @@ def main():
     expected = build_expected(blocks)
     expected_masks = extract_subnet_masks(ws)
 
-    with open(HTML_FILE, encoding='utf-8') as f:
-        html_text = f.read()
-    lt, masks = extract_lt_and_masks(html_text)
+    with open(SOURCE_FILE, encoding='utf-8') as f:
+        source_text = f.read()
+    lt, masks = extract_lt_and_masks(source_text)
 
     problems = []
-    print('Comparing index.html `const LT` against Static Reference Tables...')
+    print('Comparing core/data.js `const LT` against Static Reference Tables...')
     for key in expected:
         compare(expected[key], lt.get(key), key, True, problems)
 
@@ -249,7 +254,7 @@ def main():
     if problems:
         print(f"FAILED — {len(problems)} divergence(s) found.")
         return 1
-    print("OK — index.html LT/SUBNET_MASKS match the workbook.")
+    print("OK — core/data.js LT/SUBNET_MASKS match the workbook.")
     return 0
 
 
