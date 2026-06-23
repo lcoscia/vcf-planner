@@ -1,0 +1,17 @@
+#:schema https://conductor.build/schemas/settings.repo.schema.json
+
+[scripts]
+# Install the MCP server's Node deps — the only install step in the repo.
+# The static site (index.html + core/) needs no build/install.
+setup = "npm --prefix mcp install"
+
+# Preview the planner website. index.html loads core/*.js as ES modules, which
+# browsers block over file://, so it must be served over HTTP (per the README).
+# Each workspace gets its own CONDUCTOR_PORT.
+run = "python3 -m http.server $CONDUCTOR_PORT"
+
+# Reclaim per-workspace disk on archive. Touches no tracked source files.
+archive = "rm -rf mcp/node_modules"
+
+# Static server on a per-workspace port + no shared local resource → parallel-safe.
+run_mode = "concurrent"

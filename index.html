@@ -4,10 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VCF 9.1 Planning & Preparation Workbook</title>
-  <!-- Alpine.js is loaded at the end of <body>, AFTER the ES module that defines
-       window.vcfPlanner — Alpine's CDN build starts as soon as its deferred script
-       runs (the DOM is already parsed), so it must come after the module or it would
-       evaluate x-data="vcfPlanner()" before the global exists. -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -15,47 +11,122 @@
       theme: {
         extend: {
           colors: {
-            'vcf-navy':   '#0E223A',
-            'vcf-navy2':  '#002439',
-            'vcf-input':  '#E5F7FF',
-            'vcf-sample': '#F2F8F9',
-            'vcf-output': '#EFFDE3',
-            'vcf-missing':'#F9CBAD',
-            'vcf-amber':  '#FFBD29',
-            'vcf-gray':   '#4F5F69',
-            'vcf-steel':  '#9BC2E6',
+            'vcf-navy':   '#040559',
+            'vcf-navy2':  '#0a0c7a',
+            'vcf-input':  '#E5F1F6',
+            'vcf-sample': '#F7F8F9',
+            'vcf-output': '#EEF6E1',
+            'vcf-missing':'#F6D6C4',
+            'vcf-amber':  '#F3BA16',
+            'vcf-gray':   '#53565A',
+            'vcf-steel':  '#FF4F41',
+          },
+          fontFamily: {
+            sans: ['Metropolis','Arial','-apple-system','BlinkMacSystemFont','Segoe UI','sans-serif'],
           }
         }
       }
     }
   </script>
   <style>
+    @font-face { font-family:'Metropolis'; src:url('assets/fonts/Metropolis-ExtraLight.ttf') format('truetype'); font-weight:200; font-display:swap; }
+    @font-face { font-family:'Metropolis'; src:url('assets/fonts/Metropolis-Light.ttf') format('truetype'); font-weight:300; font-display:swap; }
+    @font-face { font-family:'Metropolis'; src:url('assets/fonts/Metropolis-Regular.ttf') format('truetype'); font-weight:400; font-display:swap; }
+    @font-face { font-family:'Metropolis'; src:url('assets/fonts/Metropolis-Medium.ttf') format('truetype'); font-weight:500; font-display:swap; }
+    @font-face { font-family:'Metropolis'; src:url('assets/fonts/Metropolis-SemiBold.ttf') format('truetype'); font-weight:600; font-display:swap; }
+    @font-face { font-family:'Titillium'; src:url('assets/fonts/Titillium-Regular.otf') format('opentype'); font-weight:400; font-display:swap; }
+    @font-face { font-family:'Titillium'; src:url('assets/fonts/Titillium-Semibold.otf') format('opentype'); font-weight:600; font-display:swap; }
+    @font-face { font-family:'Titillium'; src:url('assets/fonts/Titillium-Bold.otf') format('opentype'); font-weight:700; font-display:swap; }
+    :root {
+      --vmw-blue:#005C8A; --vmw-blue-hover:#00496E; --vmw-light-blue:#0098C7;
+      --vmw-indigo:#1B1D36; --vmw-gold:#F3BA16; --vmw-gray:#53565A;
+      --skew-brand:-18.43deg;
+      --itq-royal:#040559; --itq-royal-2:#0a0c7a; --itq-orange:#FF4F41; --itq-orange-hover:#e8392b; --itq-light-blue:#CDE3F7;
+      /* ===== SWITCHABLE BRAND TOKENS (ITQ default) ===== */
+      --brand-shell:#040559;        /* top bar */
+      --brand-shell-dark:#02033a;   /* top bar, dark mode */
+      --brand-primary:#040559;      /* section headers, heroes, toggles */
+      --brand-primary-2:#0a0c7a;
+      --brand-section:#040559;       /* section-header bg (solid for ITQ) */
+      --brand-section-dark:#0a0c7a;
+      --brand-accent:#FF4F41;        /* CTA, active marker, progress, focus */
+      --brand-accent-hover:#e8392b;
+      --brand-accent-text:#FF7A6F;
+      --brand-accent-soft:rgba(255,79,65,.16);
+      --brand-focus:rgba(255,79,65,.28);
+      --brand-active-text:#040559;
+      --brand-active-bg:#ECEEF9;
+      --brand-hover-bg:#F1F3FB;
+      --brand-beta-bg:#FF4F41; --brand-beta-fg:#ffffff;
+      --brand-chrome:'Titillium','Calibri',Arial,sans-serif;
+      --brand-font:'Titillium','Calibri',Arial,sans-serif;
+      --font-chrome:var(--brand-chrome);
+    }
+    html[data-brand="vmware"] {
+      --brand-shell:#1B1D36;
+      --brand-shell-dark:#13142A;
+      --brand-primary:#005C8A;
+      --brand-primary-2:#00496E;
+      --brand-section:linear-gradient(135deg,#005C8A 0%,#0098C7 100%);
+      --brand-section-dark:linear-gradient(135deg,#13142A 0%,#005C8A 100%);
+      --brand-accent:#0098C7;
+      --brand-accent-hover:#007BA6;
+      --brand-accent-text:#7FD4EC;
+      --brand-accent-soft:rgba(0,152,199,.16);
+      --brand-focus:rgba(0,152,199,.25);
+      --brand-active-text:#005C8A;
+      --brand-active-bg:#E9F1F5;
+      --brand-hover-bg:#F2F6F8;
+      --brand-beta-bg:#F3BA16; --brand-beta-fg:#1B1D36;
+      --brand-chrome:'Metropolis',Arial,-apple-system,sans-serif;
+      --brand-font:'Metropolis',Arial,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    }
+    .gradient-brand-bg { background:var(--brand-section); }
     [x-cloak] { display: none !important; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    .sidebar-item { transition: background .15s; }
-    .sidebar-item:hover { background: rgba(255,255,255,.08); }
-    .sidebar-item.active { background: rgba(255,255,255,.15); border-left: 3px solid #9BC2E6; }
+    body { font-family: var(--brand-font); letter-spacing:-0.005em; }
+    h1,h2,.font-bold,.font-semibold { letter-spacing:-0.02em; }
+    #topbar, #sidebar { font-family: var(--font-chrome); }
+    #sidebar .si-label, #sidebar .si-group-title { font-family: var(--font-chrome); }
+    .sidebar-item { transition: background .12s, color .12s; }
+    .sidebar-group-hd:hover { background:var(--brand-hover-bg); }
+    .sidebar-item:hover { background: var(--brand-hover-bg); }
+    .sidebar-item.active { background: var(--brand-active-bg); border-left: 3px solid var(--brand-accent) !important; }
+    .si-icon { color:#74777A; display:flex; align-items:center; }
+    .si-label { color:#3C3E42; }
+    /* ITQ header actions */
+    #topbar { height:60px; }
+    .tb-action { display:inline-flex; align-items:center; gap:7px; height:100%; padding:0 13px; font-size:13px; font-weight:600; color:rgba(255,255,255,.82); background:transparent; border:none; cursor:pointer; position:relative; transition:background .12s,color .12s; white-space:nowrap; font-family:var(--font-chrome); }
+    .tb-action svg { opacity:.92; }
+    .tb-action:hover { background:rgba(255,255,255,.12); color:#fff; }
+    .tb-action.active { color:#fff; background:rgba(255,255,255,.08); }
+    .tb-action.active::after { content:""; position:absolute; left:0; right:0; bottom:0; height:3px; background:var(--brand-accent); }
+    .tb-action.cta { color:#fff; background:var(--brand-accent); }
+    .tb-action.cta:hover { background:var(--brand-accent-hover); color:#fff; }
+    .tb-action.danger:hover { background:rgba(220,53,69,.32); color:#fff; }
+    .tb-sep { width:1px; align-self:center; height:26px; background:rgba(255,255,255,.16); flex:none; }
+    .sidebar-item.active .si-label { color:var(--brand-active-text); font-weight:700; }
+    .sidebar-item.active .si-icon { color:var(--brand-accent); }
     .field-row { border-bottom: 1px solid #e5e7eb; }
     .field-row:hover { background: #fafafa; }
     .field-row.excluded { opacity: .45; pointer-events: none; }
     input[type=text], input[type=number], input[type=email], input[type=password], select, textarea {
-      background: #E5F7FF; border: 1px solid #b3d9f0; border-radius: 4px;
-      padding: 3px 6px; width: 100%; font-size: 13px; outline: none;
+      background: #FFFFFF; border: 1px solid #CDCFD1; border-radius: 4px;
+      padding: 3px 6px; width: 100%; font-size: 13px; outline: none; font-family:inherit;
     }
-    input:focus, select:focus, textarea:focus { border-color: #0E223A; box-shadow: 0 0 0 2px rgba(14,34,58,.15); }
-    input.missing, select.missing { background: #F9CBAD !important; border-color: #e07d4a; }
-    .sample-cell { background: #F2F8F9; color: #556; font-style: italic; font-size: 12px; }
-    .output-cell { background: #EFFDE3; color: #2a4a1a; font-size: 13px; font-weight: 500; }
-    .section-header { background: #0E223A; color: white; }
-    .sub-header { background: #4F5F69; color: white; }
-    .amber-header { background: #FFBD29; color: #3a2200; }
+    input:focus, select:focus, textarea:focus { border-color: var(--brand-primary); box-shadow: 0 0 0 3px var(--brand-focus); }
+    input.missing, select.missing { background: #F6D6C4 !important; border-color: #C25400; }
+    .sample-cell { background: #F7F8F9; color: #74777A; font-style: italic; font-size: 12px; }
+    .output-cell { background: #EEF6E1; color: #23800A; font-size: 13px; font-weight: 500; }
+    .section-header { background: var(--brand-section); color: white; }
+    .sub-header { background: #53565A; color: white; }
+    .amber-header { background: #F3BA16; color: #1B1D36; }
     .toggle-btn { border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
-    .toggle-include { background: #22c55e; color: white; }
-    .toggle-exclude { background: #9ca3af; color: white; }
-    .toggle-selected { background: #3b82f6; color: white; }
-    .toggle-unselected { background: #9ca3af; color: white; }
-    .calc-result { background: #EFFDE3; border: 1px solid #86c44a; border-radius: 6px; padding: 12px 16px; }
-    .missing-badge { background: #F9CBAD; color: #9a3412; border-radius: 3px; padding: 1px 6px; font-size: 11px; font-weight: 600; }
+    .toggle-include { background: #23800A; color: white; }
+    .toggle-exclude { background: #97999B; color: white; }
+    .toggle-selected { background: var(--brand-primary); color: white; }
+    .toggle-unselected { background: #97999B; color: white; }
+    .calc-result { background: #FFFFFF; border: 1px solid #E2E3E4; border-left:4px solid var(--brand-accent); border-radius: 10px; padding: 16px; box-shadow:0 1px 3px rgba(27,29,54,.06); }
+    .missing-badge { background: #F6D6C4; color: #C25400; border-radius: 3px; padding: 1px 6px; font-size: 11px; font-weight: 600; }
     @media print {
       #sidebar, #topbar { display: none !important; }
       #main-content { margin-left: 0 !important; padding-top: 0 !important; }
@@ -68,67 +139,117 @@
       table { page-break-inside: auto; }
     }
     input.ip-error, input.cidr-error { border-color: #ef4444 !important; background: #fef2f2 !important; }
-    .asbuilt-card { border-left: 4px solid #0E223A; }
-    .asbuilt-card.warning { border-left-color: #f97316; }
-    .asbuilt-card.ok { border-left-color: #22c55e; }
-    .progress-bar { height: 6px; border-radius: 3px; background: #e5e7eb; }
-    .progress-fill { height: 100%; border-radius: 3px; background: #22c55e; transition: width .3s; }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+    .asbuilt-card { border-left: 4px solid var(--brand-primary); }
+    .asbuilt-card.warning { border-left-color: #C25400; }
+    .asbuilt-card.ok { border-left-color: #23800A; }
+    .progress-bar { height: 6px; border-radius: 3px; background: #E2E3E4; }
+    .progress-fill { height: 100%; border-radius: 3px; background: var(--brand-accent); transition: width .3s; }
+    ::-webkit-scrollbar { width: 8px; height:8px; }
+    ::-webkit-scrollbar-track { background: #EEEEEE; }
+    ::-webkit-scrollbar-thumb { background: #CDCFD1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #97999B; }
+    /* Brand accent utility overrides (Tailwind indigo → VMware blue) */
+    .bg-indigo-600 { background:var(--brand-primary) !important; }
+    .hover\:bg-indigo-700:hover { background:var(--brand-primary-2) !important; }
+    .border-indigo-600 { border-color:var(--brand-primary) !important; }
+    .text-indigo-600 { color:var(--brand-accent) !important; }
+    .bg-indigo-50 { background:#EDF3FC !important; }
+    .border-indigo-200 { border-color:#CDE3F7 !important; }
+    .text-indigo-800 { color:var(--brand-primary) !important; }
     /* Skip nav */
-    .skip-nav { position:absolute; top:-99px; left:4px; z-index:9999; background:#0E223A; color:white; padding:8px 16px; text-decoration:none; border-radius:0 0 4px 4px; transition:top .15s; font-size:13px; }
-    .skip-nav:focus { top:52px; }
+    .skip-nav { position:absolute; top:-99px; left:4px; z-index:9999; background:var(--brand-primary); color:white; padding:8px 16px; text-decoration:none; border-radius:0 0 4px 4px; transition:top .15s; font-size:13px; }
+    .skip-nav:focus { top:60px; }
     /* FQDN validation warning */
     input.fqdn-error { border-color: #f59e0b !important; background: #fffbeb !important; }
     /* Inline validation banners */
     .warn-banner { background:#fef3c7; border:1px solid #fbbf24; border-radius:6px; padding:8px 12px; font-size:12px; color:#92400e; }
     .err-banner  { background:#fef2f2; border:1px solid #f87171; border-radius:6px; padding:8px 12px; font-size:12px; color:#991b1b; }
     /* Copy feedback toast */
-    .copy-toast { position:fixed; bottom:24px; right:24px; background:#0E223A; color:white; padding:10px 18px; border-radius:8px; font-size:13px; z-index:9999; box-shadow:0 4px 12px rgba(0,0,0,.3); pointer-events:none; }
+    .copy-toast { position:fixed; bottom:24px; right:24px; background:#040559; color:white; padding:10px 18px; border-radius:8px; font-size:13px; z-index:9999; box-shadow:0 4px 12px rgba(4,5,89,.35); pointer-events:none; }
     /* Sidebar mini progress */
-    .sidebar-progress { height:3px; border-radius:2px; background:rgba(255,255,255,.15); overflow:hidden; }
-    .sidebar-progress-fill { height:100%; border-radius:2px; background:#9BC2E6; transition:width .4s; }
+    .sidebar-progress { height:3px; border-radius:2px; background:#E2E3E4; overflow:hidden; }
+    .sidebar-progress-fill { height:100%; border-radius:2px; background:var(--brand-accent); transition:width .4s; }
     /* Sizing bar chart */
     .size-bar { height:14px; border-radius:3px; min-width:2px; transition:width .4s; }
     /* Page toolbar */
-    .page-toolbar { display:flex; align-items:center; gap:8px; padding:8px 16px; background:#f8fafc; border-bottom:1px solid #e5e7eb; }
-    .page-toolbar button { font-size:11px; padding:3px 10px; border-radius:4px; border:1px solid #d1d5db; background:white; color:#374151; cursor:pointer; transition:all .15s; }
-    .page-toolbar button:hover { background:#f3f4f6; }
-    /* Dark mode overrides */
-    .dark body { background:#0f172a !important; color:#e2e8f0; }
-    .dark #sidebar { background:#071120 !important; }
-    .dark #topbar { background:#071120 !important; }
-    .dark #main-content { background:#0f172a !important; }
-    .dark .bg-white { background:#1e293b !important; }
-    .dark .bg-gray-50 { background:#0f172a !important; }
-    .dark .bg-amber-50 { background:#2d2000 !important; }
-    .dark .border-gray-100, .dark .border-gray-200 { border-color:#334155 !important; }
-    .dark .text-gray-800 { color:#e2e8f0 !important; }
-    .dark .text-gray-700 { color:#cbd5e1 !important; }
-    .dark .text-gray-600 { color:#94a3b8 !important; }
-    .dark .text-gray-500 { color:#64748b !important; }
-    .dark .text-gray-400 { color:#475569 !important; }
-    .dark .text-indigo-600 { color:#a5b4fc !important; }
-    .dark .divide-gray-100 { --tw-divide-opacity:1; border-color:rgb(51 65 85/var(--tw-divide-opacity)) !important; }
+    .page-toolbar { display:flex; align-items:center; gap:8px; padding:8px 16px; background:#F7F8F9; border-bottom:1px solid #E2E3E4; }
+    .page-toolbar button { font-size:11px; padding:3px 10px; border-radius:4px; border:1px solid #CDCFD1; background:white; color:#3C3E42; cursor:pointer; transition:all .15s; }
+    .page-toolbar button:hover { background:var(--brand-hover-bg); border-color:var(--brand-primary); }
+    /* Dark mode overrides — VMware Darkmode indigo */
+    .dark body { background:#1B1D36 !important; color:#F2F3F7; }
+    .dark #sidebar { background:#13142A !important; border-right-color:#2A2C48 !important; }
+    .dark #sidebar .border-t { border-color:#2A2C48 !important; }
+    .dark #topbar { background:var(--brand-shell-dark) !important; }
+    .dark .sidebar-group-hd:hover { background:rgba(255,255,255,.05); }
+    .dark .sidebar-item:hover { background:rgba(255,255,255,.06); }
+    .dark .sidebar-item.active { background:var(--brand-accent-soft); border-left-color:var(--brand-accent) !important; }
+    .dark .sidebar-item.active .si-label { color:#fff; }
+    .dark .sidebar-item.active .si-icon { color:var(--brand-accent-text); }
+    .dark .si-label { color:#C6C8D6; }
+    .dark .si-group-title { color:#8A8CA0; }
+    .dark .sidebar-progress { background:rgba(255,255,255,.12); }
+    .dark #topbar { background:var(--brand-shell-dark) !important; }
+    .dark #main-content { background:#1B1D36 !important; }
+    .dark .bg-white { background:#24263F !important; }
+    .dark .bg-gray-50 { background:#1B1D36 !important; }
+    .dark .bg-amber-50 { background:#2E2710 !important; }
+    .dark .border-gray-100, .dark .border-gray-200 { border-color:#33354F !important; }
+    .dark .text-gray-800 { color:#F2F3F7 !important; }
+    .dark .text-gray-700 { color:#D5D6E0 !important; }
+    .dark .text-gray-600 { color:#B6B8C8 !important; }
+    .dark .text-gray-500 { color:#8A8CA0 !important; }
+    .dark .text-gray-400 { color:#6A6C84 !important; }
+    .dark .text-indigo-600 { color:#01B9C6 !important; }
+    .dark .bg-indigo-50 { background:#232544 !important; }
+    .dark .bg-indigo-600 { background:#0088EF !important; }
+    .dark .border-indigo-200 { border-color:#33354F !important; }
+    .dark .text-indigo-800 { color:#7FB8FF !important; }
+    .dark .divide-gray-100 { --tw-divide-opacity:1; border-color:rgb(51 53 79/var(--tw-divide-opacity)) !important; }
     .dark input[type=text], .dark input[type=number], .dark input[type=email], .dark input[type=password], .dark select, .dark textarea {
-      background:#1e3a5f; border-color:#2d5a8e; color:#e2e8f0;
+      background:#2A2C48; border-color:#3E4059; color:#F2F3F7;
     }
-    .dark .sample-cell { background:#1a2740 !important; color:#64748b; }
-    .dark .output-cell { background:#1a3320 !important; color:#86efac; }
-    .dark .field-row:hover { background:#1e293b !important; }
-    .dark .section-header { background:#071120 !important; }
-    .dark .sub-header { background:#1e293b !important; }
-    .dark .page-toolbar { background:#1e293b !important; border-color:#334155 !important; }
-    .dark .page-toolbar button { background:#334155 !important; border-color:#475569 !important; color:#cbd5e1 !important; }
-    .dark .calc-result { background:#1a3320 !important; border-color:#2d5a3e !important; }
-    .dark .asbuilt-card { background:#1e293b !important; }
-    .dark .bg-orange-50 { background:#2d1600 !important; }
-    .dark .warn-banner { background:#2d2000 !important; border-color:#78350f !important; color:#fcd34d !important; }
-    .dark .err-banner { background:#2d0000 !important; border-color:#7f1d1d !important; color:#fca5a5 !important; }
-    .dark ::-webkit-scrollbar-track { background:#0f172a; }
-    .dark ::-webkit-scrollbar-thumb { background:#334155; }
+    .dark .sample-cell { background:#232544 !important; color:#8A8CA0; }
+    .dark .output-cell { background:#1E2E1A !important; color:#9BD66E; }
+    .dark .field-row:hover { background:#24263F !important; }
+    .dark .section-header { background:var(--brand-section-dark) !important; }
+    .dark .sub-header { background:#2A2C48 !important; }
+    .dark .page-toolbar { background:#24263F !important; border-color:#33354F !important; }
+    .dark .page-toolbar button { background:#33354F !important; border-color:#3E4059 !important; color:#D5D6E0 !important; }
+    .dark .calc-result { background:#24263F !important; border-color:#33354F !important; border-left-color:#0088EF !important; }
+    .dark .asbuilt-card { background:#24263F !important; }
+    .dark .bg-orange-50 { background:#2E1C10 !important; }
+    .dark .warn-banner { background:#2E2710 !important; border-color:#7A5C0F !important; color:#F3CF6B !important; }
+    .dark .err-banner { background:#2E1418 !important; border-color:#7A2230 !important; color:#F2A0A8 !important; }
+    .dark ::-webkit-scrollbar-track { background:#1B1D36; }
+    .dark ::-webkit-scrollbar-thumb { background:#3E4059; }
   </style>
+  <script>
+    // Brand theme (ITQ default; VMware is the easter-egg alt). Set pre-paint to avoid flash.
+    (function(){
+      try {
+        var b = localStorage.getItem('vcf-brand');
+        if (b !== 'vmware' && b !== 'itq') b = 'itq';
+        document.documentElement.setAttribute('data-brand', b);
+      } catch(e){ document.documentElement.setAttribute('data-brand','itq'); }
+      window.__toggleBrand = function(){
+        var cur = document.documentElement.getAttribute('data-brand') === 'vmware' ? 'vmware' : 'itq';
+        var next = cur === 'itq' ? 'vmware' : 'itq';
+        document.documentElement.setAttribute('data-brand', next);
+        try { localStorage.setItem('vcf-brand', next); } catch(e){}
+        var t = document.createElement('div');
+        t.className = 'copy-toast';
+        t.textContent = next === 'vmware' ? 'VMware by Broadcom theme' : 'ITQ theme';
+        document.body.appendChild(t);
+        setTimeout(function(){ t.style.transition='opacity .4s'; t.style.opacity='0'; }, 1400);
+        setTimeout(function(){ t.remove(); }, 1850);
+      };
+      document.addEventListener('keydown', function(e){
+        if (e.shiftKey && (e.key === 'B' || e.key === 'b') && !/input|textarea|select/i.test((e.target.tagName||''))) {
+          e.preventDefault(); window.__toggleBrand();
+        }
+      });
+    })();
+  </script>
 </head>
 <body class="h-full bg-gray-50" x-cloak :class="darkMode?'dark':''">
 
@@ -136,57 +257,55 @@
 <div x-show="copyFeedback" x-transition class="copy-toast" x-text="copyFeedback"></div>
 
 <!-- TOP BAR -->
-<header id="topbar" class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 text-white shadow-lg" style="background:#0E223A; height:52px;">
-  <div class="flex items-center gap-3">
-    <div class="text-xs font-bold px-2 py-1 rounded" style="background:#9BC2E6; color:#0E223A;">VMware</div>
-    <div>
-      <div class="font-bold text-sm leading-tight flex items-center gap-2">
-        VCF 9.1 Planning & Preparation
-        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;" title="This tool is in active development — verify all values before production use">BETA</span>
+<header id="topbar" class="fixed top-0 left-0 right-0 z-50 flex items-stretch justify-between text-white shadow-md" style="background:var(--brand-shell);">
+  <!-- Branding -->
+  <div class="flex items-center gap-3 pl-5 pr-1">
+    <div class="leading-tight">
+      <div class="font-semibold text-[15px] flex items-center gap-2">
+        VCF 9.1 Planning &amp; Preparation
+        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-xs opacity-60">Broadcom VMware Cloud Foundation · v1.1.4</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.3</div>
     </div>
   </div>
-  <div class="flex items-center gap-2 no-print">
-    <!-- Completion -->
-    <div class="hidden sm:flex items-center gap-2 text-xs mr-2">
-      <span class="opacity-70" x-text="completionText()"></span>
-      <div class="progress-bar w-24"><div class="progress-fill" :style="'width:'+completionPct()+'%'"></div></div>
+  <!-- Actions -->
+  <div class="flex items-stretch no-print">
+    <div class="hidden lg:flex items-center gap-2 text-[11px] px-3" style="color:rgba(255,255,255,.7);">
+      <span x-text="completionText()"></span>
+      <div class="progress-bar w-20"><div class="progress-fill" :style="'width:'+completionPct()+'%'"></div></div>
     </div>
-    <button @click="importTrigger()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Import JSON">⬆ Import</button>
-    <button @click="exportJSON()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export JSON">⬇ JSON</button>
-    <button @click="exportMarkdown()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export Markdown As-Built">📄 MD</button>
-    <button @click="exportCsv()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export CSV IPAM table">📊 CSV</button>
-    <button @click="exportVcfInstallerJson()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Export VCF Installer JSON (POST /v1/sddcs payload)">🚀 JSON VCF Installer ready</button>
-    <button @click="importVcfInstallerTrigger()" class="hidden sm:block px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" title="Import VCF Installer Ready JSON (POST /v1/sddcs payload)">⬆ JSON VCF Installer ready</button>
-    <button @click="toggleDark()" class="px-2 py-1.5 text-xs rounded font-medium" style="background:rgba(255,255,255,.12);" :title="darkMode?'Switch to light mode':'Switch to dark mode'" x-text="darkMode?'☀️':'🌙'"></button>
-    <button @click="navigate('ports')" class="px-3 py-1.5 text-xs rounded font-medium"
-      :style="currentPage==='ports' ? 'background:rgba(255,255,255,.28);' : 'background:rgba(255,255,255,.12);'"
-      title="Ports & Protocols reference">🔌 Ports</button>
-    <button @click="navigate('about')" class="px-3 py-1.5 text-xs rounded font-medium"
-      :style="currentPage==='about' ? 'background:rgba(255,255,255,.28);' : 'background:rgba(255,255,255,.12);'"
-      title="About this tool">ℹ️ About</button>
-    <button @click="fillDemoManagementDomain()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(99,102,241,.4);" title="Fill Management Domain with demo data (4-node vSAN-ESA cluster + NSX Edge)">🧪 DEMO</button>
-    <button @click="confirmReset()" class="px-3 py-1.5 text-xs rounded font-medium" style="background:rgba(220,38,38,.4);" title="Reset all data">↺ Reset</button>
+    <div class="tb-sep"></div>
+    <button @click="importTrigger()" class="tb-action" title="Import JSON"><span x-html="iconSvg('import',14)"></span>Import</button>
+    <button @click="exportJSON()" class="tb-action" title="Export JSON"><span x-html="iconSvg('export',14)"></span>JSON</button>
+    <button @click="exportMarkdown()" class="tb-action hidden sm:inline-flex" title="Export Markdown As-Built"><span x-html="iconSvg('md',14)"></span>MD</button>
+    <button @click="exportCsv()" class="tb-action hidden sm:inline-flex" title="Export CSV IPAM table"><span x-html="iconSvg('csv',14)"></span>CSV</button>
+    <button @click="exportVcfInstallerJson()" class="tb-action hidden xl:inline-flex" title="Export VCF Installer JSON (POST /v1/sddcs payload)"><span x-html="iconSvg('rocket',14)"></span>Installer JSON</button>
+    <button @click="importVcfInstallerTrigger()" class="tb-action hidden xl:inline-flex" title="Import VCF Installer Ready JSON (POST /v1/sddcs payload)"><span x-html="iconSvg('install',14)"></span>Import Installer</button>
+    <div class="tb-sep"></div>
+    <button @click="navigate('ports')" class="tb-action" :class="currentPage==='ports'?'active':''" title="Ports &amp; Protocols reference"><span x-html="iconSvg('plug',14)"></span>Ports</button>
+    <button @click="navigate('about')" class="tb-action" :class="currentPage==='about'?'active':''" title="About this tool"><span x-html="iconSvg('info',14)"></span>About</button>
+    <div class="tb-sep"></div>
+    <button @click="toggleDark()" class="tb-action" :title="darkMode?'Switch to light mode':'Switch to dark mode'"><span x-html="iconSvg(darkMode?'sun':'moon',15)"></span></button>
+    <button @click="fillDemoManagementDomain()" class="tb-action cta" title="Fill Management Domain with demo data (4-node vSAN-ESA cluster + NSX Edge)"><span x-html="iconSvg('beaker',14)"></span>Demo</button>
+    <button @click="confirmReset()" class="tb-action danger" title="Reset all data"><span x-html="iconSvg('reset',14)"></span>Reset</button>
     <input type="file" id="import-file" accept=".json" class="hidden" @change="importJSON($event)">
     <input type="file" id="import-vcf-installer-file" accept=".json" class="hidden" @change="importVcfInstallerJson($event)">
-    <!-- Save indicator -->
-    <div x-show="saveIndicator" x-transition class="text-xs opacity-70 ml-1">✓ Saved</div>
+    <div x-show="saveIndicator" x-transition class="inline-flex items-center gap-1 text-xs px-3" style="color:rgba(255,255,255,.7);"><span x-html="iconSvg('check',13)"></span>Saved</div>
   </div>
 </header>
 
 <!-- SIDEBAR -->
-<nav id="sidebar" class="fixed left-0 text-white overflow-y-auto z-40 shadow-xl" style="background:#0E223A; top:52px; bottom:0; width:252px;">
+<nav id="sidebar" class="fixed left-0 overflow-y-auto z-40" style="background:#FFFFFF; border-right:1px solid #E2E3E4; top:60px; bottom:0; width:252px;">
   <div class="py-2">
     <template x-for="group in navGroups" :key="group.id">
       <div>
         <!-- Group header -->
-        <button @click="toggleGroup(group.id)" class="w-full flex items-center justify-between px-4 py-2.5 text-left sidebar-item" :class="openGroups.includes(group.id)?'':'opacity-80'">
-          <span class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider opacity-70">
-            <span x-text="group.icon"></span>
+        <button @click="toggleGroup(group.id)" class="w-full flex items-center justify-between px-4 py-2.5 text-left sidebar-group-hd" :class="openGroups.includes(group.id)?'':'opacity-90'">
+          <span class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider si-group-title" style="color:#74777A;">
+            <span x-html="iconSvg(group.icon,15)" style="opacity:.85;"></span>
             <span x-text="group.title"></span>
           </span>
-          <span class="text-xs opacity-50" x-text="openGroups.includes(group.id)?'▼':'▶'"></span>
+          <span class="text-[10px]" style="color:#97999B;" x-text="openGroups.includes(group.id)?'▾':'▸'"></span>
         </button>
         <!-- Group items -->
         <div x-show="openGroups.includes(group.id)" x-collapse>
@@ -194,21 +313,22 @@
             <button
               @click="navigate(item.id)"
               class="w-full text-left px-6 py-2 text-sm sidebar-item"
+              style="border-left:3px solid transparent;"
               :class="currentPage===item.id?'active':''"
               x-show="isPageVisible(item.id)"
             >
-              <div class="flex items-center gap-2">
-                <span x-text="item.icon" class="text-base"></span>
-                <span x-text="item.title" class="leading-tight"></span>
+              <div class="flex items-center gap-2.5">
+                <span class="si-icon" x-html="iconSvg(item.icon,16)"></span>
+                <span x-text="item.title" class="leading-tight si-label"></span>
               </div>
               <!-- Per-page progress bar + missing count -->
               <div class="ml-7 mt-1" x-show="isPageVisible(item.id)">
                 <div x-show="getMissingCount(item.id) > 0" class="flex items-center gap-1.5">
                   <div class="sidebar-progress flex-1"><div class="sidebar-progress-fill" :style="'width:'+getPagePct(item.id)+'%'"></div></div>
-                  <span class="text-xs shrink-0" style="color:#F9CBAD;" x-text="getMissingCount(item.id)+'★'"></span>
+                  <span class="text-xs shrink-0" style="color:#C25400;" x-text="getMissingCount(item.id)+'★'"></span>
                 </div>
                 <div x-show="getMissingCount(item.id) === 0">
-                  <span class="text-xs" style="color:#86efac;">✓</span>
+                  <span class="text-xs" style="color:#23800A;">✓</span>
                 </div>
               </div>
             </button>
@@ -217,22 +337,29 @@
       </div>
     </template>
   </div>
+  <div class="px-5 py-3 mt-2 border-t flex items-center gap-1.5 text-[11px]" style="border-color:#E9EAF4; color:#7A7C95; font-family:var(--font-chrome);">
+    <span>Built with</span>
+    <button onclick="window.__toggleBrand()" title="" aria-label="Toggle theme" style="background:none;border:none;padding:0;margin:0;cursor:pointer;line-height:0;display:inline-flex;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--brand-accent)" style="display:block;flex:none;transition:transform .15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"><path d="M12 21s-7.5-4.7-10-9.3C.6 9 .9 5.8 3.3 4.2c2-1.3 4.5-.7 5.9 1l.8 1 .8-1c1.4-1.7 3.9-2.3 5.9-1 2.4 1.6 2.7 4.8 1.3 7.5C19.5 16.3 12 21 12 21z"></path></svg>
+    </button>
+    <span>by ITQers</span>
+  </div>
 </nav>
 
 <!-- MAIN CONTENT -->
-<main id="main-content" class="overflow-y-auto" style="margin-left:252px; margin-top:52px; min-height:calc(100vh - 52px);">
+<main id="main-content" class="overflow-y-auto" style="margin-left:252px; margin-top:60px; min-height:calc(100vh - 60px);">
 
   <!-- WELCOME PAGE -->
   <div x-show="currentPage==='welcome'" class="p-8 max-w-4xl">
-    <div class="rounded-xl overflow-hidden shadow-lg mb-6" style="background:#0E223A;">
+    <div class="rounded-xl overflow-hidden shadow-lg mb-6 gradient-brand-bg">
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.4 · Updated June 17, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.3 · Updated June 12, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
-      <span class="text-base leading-none">⚠️</span>
+      <span class="leading-none" style="color:#C99700;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg></span>
       <div><span class="font-semibold">Beta tool</span> — this planner is under active development. Double-check all generated values against the official VMware Cloud Foundation 9.1 documentation before using them in a production deployment.</div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -249,12 +376,12 @@
       <div class="bg-white rounded-lg p-5 shadow border border-gray-100">
         <div class="text-lg font-bold text-gray-800 mb-3">About this Tool</div>
         <ul class="text-sm text-gray-600 space-y-2">
-          <li>✓ Faithfully reproduces the official Broadcom VCF 9.1 workbook</li>
-          <li>✓ Auto-saves to browser localStorage</li>
-          <li>✓ Cascading conditional logic (VCF vs VVF, deployment modes)</li>
-          <li>✓ Live sizing calculator with host count formulas</li>
-          <li>✓ "Value Missing" validation on required fields</li>
-          <li>✓ Export to JSON · Markdown / CSV As-Built reports</li>
+          <li><span style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Faithfully reproduces the official Broadcom VCF 9.1 workbook</li>
+          <li><span style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Auto-saves to browser localStorage</li>
+          <li><span style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Cascading conditional logic (VCF vs VVF, deployment modes)</li>
+          <li><span style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Live sizing calculator with host count formulas</li>
+          <li><span style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> "Value Missing" validation on required fields</li>
+          <li><span style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Export to JSON · Markdown / CSV As-Built reports</li>
         </ul>
       </div>
     </div>
@@ -269,8 +396,8 @@
       </table>
     </div>
     <div class="mt-6 text-center">
-      <button @click="navigate('planning')" class="px-8 py-3 rounded-lg text-white font-semibold text-sm shadow-md hover:opacity-90" style="background:#0E223A;">
-        Start Planning →
+      <button @click="navigate('planning')" class="px-8 py-3 rounded-lg text-white font-semibold text-sm shadow-md hover:opacity-90" style="background:#FF4F41; font-family:var(--font-chrome);">
+        Start planning →
       </button>
     </div>
   </div>
@@ -281,9 +408,12 @@
 
       <!-- Page header -->
       <div class="section-header px-6 py-4 flex items-center justify-between">
-        <div>
-          <div class="text-lg font-bold text-white" x-text="page.icon+' '+page.title"></div>
-          <div class="text-xs opacity-60 text-white mt-0.5" x-text="page.subtitle||''"></div>
+        <div class="flex items-center gap-3">
+          <span class="text-white" x-html="iconSvg(page.icon,22)"></span>
+          <div>
+            <div class="text-lg font-bold text-white" x-text="page.title"></div>
+            <div class="text-xs opacity-60 text-white mt-0.5" x-text="page.subtitle||''"></div>
+          </div>
         </div>
         <div class="text-xs opacity-50 text-white no-print" x-show="page.id!=='sizing' && page.id!=='prerequisites' && page.id!=='ports'">
           <span x-text="getPageMissingCount(page.id)+' required fields missing'"></span>
@@ -294,7 +424,7 @@
       <template x-if="page.id==='sizing'">
         <div class="p-6 max-w-5xl">
           <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-800">
-            ⚠️ This sizing calculator is standalone. Results inform hardware selection but do not feed other form sections automatically.
+            <span style="color:#C99700;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg></span> This sizing calculator is standalone. Results inform hardware selection but do not feed other form sections automatically.
           </div>
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Inputs left -->
@@ -477,7 +607,7 @@
                     <div class="flex items-center gap-2 text-xs">
                       <div class="w-32 text-gray-600 shrink-0 truncate" x-text="row.name"></div>
                       <div class="flex-1 bg-gray-100 rounded" style="height:14px;">
-                        <div class="size-bar rounded" style="background:#9BC2E6;" :style="'width:'+Math.min(100,Math.round(row.vcpu/calcRawCPU()*100))+'%'"></div>
+                        <div class="size-bar rounded" style="background:var(--brand-primary);" :style="'width:'+Math.min(100,Math.round(row.vcpu/calcRawCPU()*100))+'%'"></div>
                       </div>
                       <div class="w-10 text-right text-gray-500 shrink-0" x-text="row.vcpu+' vC'"></div>
                     </div>
@@ -521,7 +651,7 @@
             <div class="flex flex-wrap gap-3 items-center">
               <input type="text" x-model="portsFilter.search" placeholder="Search port, protocol, source, destination, purpose…"
                      class="flex-1 min-w-[240px] border rounded px-3 py-2 text-sm" />
-              <button @click="exportPortsCsv()" class="px-3 py-2 text-sm rounded border bg-gray-50 hover:bg-gray-100">⬇ CSV</button>
+              <button @click="exportPortsCsv()" class="px-3 py-2 text-sm rounded border bg-gray-50 hover:bg-gray-100 inline-flex items-center gap-1.5"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 4v12"></path><path d="M8 12l4 4 4-4"></path><path d="M4 18v1a2 2 0 002 2h12a2 2 0 002-2v-1"></path></svg>CSV</button>
             </div>
             <div class="flex flex-wrap gap-2 items-center">
               <span class="text-xs font-semibold text-gray-500 uppercase">Direction:</span>
@@ -866,7 +996,7 @@
   <!-- AS-BUILT / RECAP PAGE -->
   <div x-show="currentPage==='asbuilt'">
     <div class="section-header px-6 py-4 no-print">
-      <div class="text-lg font-bold text-white">📋 Configuration Summary — As-Built</div>
+      <div class="text-lg font-bold text-white flex items-center gap-2.5"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2"></path><path d="M9 4a2 2 0 002 2h2a2 2 0 002-2"></path><path d="M9 4a2 2 0 012-2h2a2 2 0 012 2"></path><path d="M8 12h8M8 16h5"></path></svg> Configuration Summary — As-Built</div>
       <div class="text-xs opacity-60 text-white mt-0.5">Complete recap of all entered values · Green = filled · Orange = missing required · Gray = using sample default</div>
     </div>
 
@@ -894,14 +1024,14 @@
 
       <!-- ── PORTS & PROTOCOLS CALLOUT ── -->
       <div x-show="completionPct() > 50" class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 text-sm text-indigo-800 flex items-center justify-between gap-4 no-print">
-        <div>🔌 Your configuration is taking shape — check the <strong>Ports &amp; Protocols</strong> reference to see firewall rules with your actual FQDNs/IPs filled in via "Show my configured values".</div>
-        <button @click="navigate('ports')" class="px-3 py-1.5 text-xs rounded font-medium bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap">🔌 Open Ports & Protocols</button>
+        <div class="inline-flex items-start gap-2"><span style="color:var(--brand-primary);" class="mt-0.5"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M9 3v5M15 3v5"></path><path d="M7 8h10v2a5 5 0 01-10 0z"></path><path d="M12 15v6"></path></svg></span><span>Your configuration is taking shape — check the <strong>Ports &amp; Protocols</strong> reference to see firewall rules with your actual FQDNs/IPs filled in via "Show my configured values".</span></div>
+        <button @click="navigate('ports')" class="px-3 py-1.5 text-xs rounded font-medium bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap inline-flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5"></path><path d="M7 8h10v2a5 5 0 01-10 0z"></path><path d="M12 15v6"></path></svg>Open Ports &amp; Protocols</button>
       </div>
 
       <!-- ── IDENTITY CARD ── -->
       <div class="bg-white rounded-xl shadow border border-gray-100 overflow-hidden mb-6">
         <div class="section-header px-5 py-3 flex items-center gap-3">
-          <span class="text-lg">🏷️</span>
+          <span class="text-white"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M3 12V5a2 2 0 012-2h7l9 9-9 9z"></path><path d="M7.5 7.5h.01"></path></svg></span>
           <div>
             <div class="font-bold text-white text-sm">Deployment Identity</div>
             <div class="text-xs opacity-60 text-white">Core selectors — drive all conditional sections</div>
@@ -925,7 +1055,7 @@
           <div class="section-header px-5 py-3 flex items-center justify-between cursor-pointer"
                @click="toggleSection('ab:'+page.id)">
             <div class="flex items-center gap-2">
-              <span x-text="page.icon" class="text-base"></span>
+              <span class="text-white" x-html="iconSvg(page.icon,16)"></span>
               <span class="font-semibold text-white text-sm" x-text="page.title"></span>
             </div>
             <div class="flex items-center gap-3">
@@ -935,7 +1065,7 @@
                     x-text="getMissingCount(page.id)+' missing'"></span>
               <span x-show="getMissingCount(page.id)===0"
                     class="text-xs px-2 py-0.5 rounded-full font-semibold no-print"
-                    style="background:rgba(34,197,94,.25);color:#86efac;">✓ complete</span>
+                    style="background:rgba(34,197,94,.25);color:#86efac;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg> complete</span>
               <span class="text-white opacity-50 text-xs no-print"
                     x-text="openSections.includes('ab:'+page.id)?'▼':'▶'"></span>
             </div>
@@ -999,7 +1129,7 @@
         <div class="section-header px-5 py-3 flex items-center justify-between cursor-pointer"
              @click="toggleSection('ab:sizing-summary')">
           <div class="flex items-center gap-2">
-            <span>📐</span>
+            <span class="text-white"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16.5L16.5 3 21 7.5 7.5 21 3 16.5z"></path><path d="M7 13l2 2M10 10l2 2M13 7l2 2"></path></svg></span>
             <span class="font-semibold text-white text-sm">Management Domain Sizing</span>
           </div>
           <span class="text-white opacity-50 text-xs no-print" x-text="openSections.includes('ab:sizing-summary')?'▼':'▶'"></span>
@@ -1039,7 +1169,7 @@
       <!-- VLAN conflicts -->
       <div x-show="vlanWarnings().length > 0" class="mb-4 no-print">
         <div class="err-banner">
-          <div class="font-semibold mb-1">⚠️ VLAN Conflicts (<span x-text="vlanWarnings().length"></span>)</div>
+          <div class="font-semibold mb-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg> VLAN Conflicts (<span x-text="vlanWarnings().length"></span>)</div>
           <ul class="list-disc list-inside space-y-0.5">
             <template x-for="w in vlanWarnings()" :key="w"><li x-text="w"></li></template>
           </ul>
@@ -1049,7 +1179,7 @@
       <!-- IP conflicts -->
       <div x-show="ipConflicts().length > 0" class="mb-4 no-print">
         <div class="err-banner">
-          <div class="font-semibold mb-1">⚠️ IP Address Conflicts (<span x-text="ipConflicts().length"></span>)</div>
+          <div class="font-semibold mb-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg> IP Address Conflicts (<span x-text="ipConflicts().length"></span>)</div>
           <ul class="list-disc list-inside space-y-0.5">
             <template x-for="c in ipConflicts()" :key="c"><li x-text="c"></li></template>
           </ul>
@@ -1059,7 +1189,7 @@
       <!-- CIDR overlaps -->
       <div x-show="cidrOverlaps().length > 0" class="mb-4 no-print">
         <div class="warn-banner">
-          <div class="font-semibold mb-1">⚠️ CIDR Overlaps (<span x-text="cidrOverlaps().length"></span>)</div>
+          <div class="font-semibold mb-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg> CIDR Overlaps (<span x-text="cidrOverlaps().length"></span>)</div>
           <ul class="list-disc list-inside space-y-0.5">
             <template x-for="o in cidrOverlaps()" :key="o"><li x-text="o"></li></template>
           </ul>
@@ -1071,7 +1201,7 @@
         <div class="section-header px-5 py-3 flex items-center justify-between cursor-pointer"
              @click="toggleSection('ab:vlan-topology')">
           <div class="flex items-center gap-2">
-            <span>🔌</span>
+            <span class="text-white"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M9 3v5M15 3v5"></path><path d="M7 8h10v2a5 5 0 01-10 0z"></path><path d="M12 15v6"></path></svg></span>
             <span class="font-semibold text-white text-sm">VLAN Topology</span>
           </div>
           <span class="text-white opacity-50 text-xs no-print" x-text="openSections.includes('ab:vlan-topology')?'▼':'▶'"></span>
@@ -1108,7 +1238,7 @@
         <div class="section-header px-5 py-3 flex items-center justify-between cursor-pointer"
              @click="toggleSection('ab:dns-checklist')">
           <div class="flex items-center gap-2">
-            <span>🌐</span>
+            <span class="text-white"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18z"></path><path d="M3.5 9h17M3.5 15h17"></path><path d="M12 3a14 14 0 000 18M12 3a14 14 0 010 18"></path></svg></span>
             <span class="font-semibold text-white text-sm">DNS Pre-flight Checklist</span>
             <span class="text-xs opacity-60 text-white ml-1">— all FQDNs must resolve before deployment</span>
           </div>
@@ -1150,20 +1280,15 @@
 
       <!-- Export buttons -->
       <div class="text-center mt-8 mb-4 no-print">
-        <button @click="exportJSON()" class="px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#4F5F69;">
-          ⬇ Export JSON
+        <button @click="exportJSON()" class="px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow inline-flex items-center gap-2" style="background:#53565A;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 4v12"></path><path d="M8 12l4 4 4-4"></path><path d="M4 18v1a2 2 0 002 2h12a2 2 0 002-2v-1"></path></svg> Export JSON
         </button>
-        <button @click="exportMarkdown()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#1d4ed8;">
-          📄 Export Markdown
+        <button @click="exportMarkdown()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow inline-flex items-center gap-2" style="background:var(--brand-primary);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"></path><path d="M14 3v5h5"></path></svg> Export Markdown
         </button>
-        <button @click="exportCsv()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#15803d;">
-          📊 Export CSV (IPAM)
+        <button @click="exportCsv()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#23800A;" class="inline-flex items-center gap-2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M5 5h14v14H5z"></path><path d="M5 10h14M5 15h14"></path><path d="M10 5v14"></path></svg> Export CSV (IPAM)
         </button>
-        <button @click="exportVcfInstallerJson()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#7c3aed;">
-          🚀 VCF Installer JSON
+        <button @click="exportVcfInstallerJson()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#6C4B94;" class="inline-flex items-center gap-2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M5 15c-1.5 1-2 5-2 5s4-.5 5-2"></path><path d="M9 13a13 13 0 018-9c2 0 3 1 3 3a13 13 0 01-9 8z"></path><path d="M9 13l-2-2M11 15l2 2"></path><path d="M14.5 9.5h.01"></path></svg> VCF Installer JSON
         </button>
-        <button @click="importVcfInstallerTrigger()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#6d28d9;">
-          ⬆ Import VCF Installer JSON
+        <button @click="importVcfInstallerTrigger()" class="ml-3 px-6 py-2.5 rounded-lg text-white font-medium text-sm shadow" style="background:#53565A;" class="inline-flex items-center gap-2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 16V4"></path><path d="M8 8l4-4 4 4"></path><path d="M4 18v1a2 2 0 002 2h12a2 2 0 002-2v-1"></path></svg> Import VCF Installer JSON
         </button>
       </div>
 
@@ -1174,30 +1299,30 @@
   <div x-show="currentPage==='about'" class="p-8 max-w-4xl">
 
     <!-- Header card -->
-    <div class="rounded-xl overflow-hidden shadow-lg mb-6" style="background:#0E223A;">
+    <div class="rounded-xl overflow-hidden shadow-lg mb-6 gradient-brand-bg">
       <div class="p-8 text-white">
         <div class="flex items-start justify-between">
           <div>
             <div class="text-4xl font-bold mb-1">VCF 9.1 Planner</div>
             <div class="text-lg opacity-80 mb-2">Planning & Preparation Workbook — Web Edition</div>
-            <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server &amp; core refactor by <span class="font-semibold">Florian Casse</span> — ITQ</div>
+            <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span></div>
             <div class="flex items-center gap-3 text-sm opacity-60">
-              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:#F59E0B; color:#0E223A;">BETA</span>
-              <span>v1.1.4</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
+              <span>v1.1.3</span>
               <span>·</span>
-              <span>Updated June 17, 2026</span>
+              <span>Updated June 12, 2026</span>
               <span>·</span>
-              <span>Static site · No backend · No build step · MCP-ready</span>
+              <span>Single-file · No server · No build step</span>
             </div>
           </div>
-          <div class="text-5xl opacity-30 ml-4">⚙️</div>
+          <div class="ml-4" style="color:var(--brand-primary);opacity:.24;"><svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z"></path><path d="M19.4 13a7.9 7.9 0 000-2l2-1.5-2-3.4-2.4 1a7.9 7.9 0 00-1.7-1l-.4-2.6H9.5l-.4 2.6a7.9 7.9 0 00-1.7 1l-2.4-1-2 3.4L3 11a7.9 7.9 0 000 2l-2 1.5 2 3.4 2.4-1a7.9 7.9 0 001.7 1l.4 2.6h5l.4-2.6a7.9 7.9 0 001.7-1l2.4 1 2-3.4z"></path></svg></div>
         </div>
       </div>
       <div class="px-8 py-3 text-xs flex gap-6" style="background:rgba(0,0,0,.25); color:rgba(255,255,255,.5);">
-        <span>🏗 Alpine.js 3.14.1</span>
-        <span>🎨 Tailwind CSS CDN</span>
-        <span>💾 localStorage persistence</span>
-        <span>📄 Zero dependencies</span>
+        <span>Alpine.js 3.14.1</span>
+        <span>Tailwind CSS CDN</span>
+        <span>localStorage persistence</span>
+        <span>Zero dependencies</span>
       </div>
     </div>
 
@@ -1205,7 +1330,7 @@
 
       <!-- What is this -->
       <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
-        <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📖</span> What is this?</div>
+        <div class="text-base font-bold text-gray-800 mb-3">What is this?</div>
         <p class="text-sm text-gray-600 leading-relaxed mb-3">
           A faithful browser-only conversion of Broadcom's official <strong>VMware Cloud Foundation 9.1 Planning &amp; Preparation Workbook</strong> (27-sheet Excel file). It replaces the spreadsheet with an interactive web form that runs entirely in your browser.
         </p>
@@ -1216,18 +1341,18 @@
 
       <!-- Features -->
       <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
-        <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>✨</span> Key Features</div>
+        <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">Key Features</div>
         <ul class="text-sm text-gray-600 space-y-2">
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> 27 sheets · 19 pages · 600+ configuration fields</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> VCF vs VVF cascading conditional logic</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Live sizing calculator with host count formulas</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Auto-save · Export JSON · Import JSON</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Export &amp; import VCF Installer Ready JSON (<code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> / <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code>)</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Export Markdown As-Built · CSV IPAM table</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Contextual help bubbles linking to official Broadcom VCF design docs</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> VLAN / IP / CIDR conflict detection</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> DNS pre-flight checklist · VLAN topology table</li>
-          <li class="flex gap-2"><span class="text-green-500 mt-0.5 shrink-0">✓</span> Dark mode · Keyboard navigation (Alt+→/←)</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> 27 sheets · 19 pages · 600+ configuration fields</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> VCF vs VVF cascading conditional logic</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Live sizing calculator with host count formulas</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Auto-save · Export JSON · Import JSON</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Export &amp; import VCF Installer Ready JSON (<code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> / <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code>)</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Export Markdown As-Built · CSV IPAM table</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Contextual help bubbles linking to official Broadcom VCF design docs</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> VLAN / IP / CIDR conflict detection</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> DNS pre-flight checklist · VLAN topology table</li>
+          <li class="flex gap-2"><span class="mt-0.5 shrink-0" style="color:#23800A;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5 13l4 4L19 7"></path></svg></span> Dark mode · Keyboard navigation (Alt+→/←)</li>
         </ul>
       </div>
     </div>
@@ -1236,7 +1361,7 @@
 
       <!-- Scope -->
       <div class="bg-white rounded-xl p-5 shadow border border-gray-100 md:col-span-2">
-        <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>🗂️</span> Coverage</div>
+        <div class="text-base font-bold text-gray-800 mb-3">Coverage</div>
         <div class="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-gray-600">
           <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">01</span> VCF &amp; VVF Planning</div>
           <div class="flex items-center gap-2"><span class="text-vcf-navy font-mono text-xs w-5">02</span> Prerequisite Checklist</div>
@@ -1263,7 +1388,7 @@
       <!-- Stack & Keyboard -->
       <div class="space-y-4">
         <div class="bg-white rounded-xl p-5 shadow border border-gray-100">
-          <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>⌨️</span> Keyboard Shortcuts</div>
+          <div class="text-base font-bold text-gray-800 mb-3">Keyboard Shortcuts</div>
           <div class="space-y-2 text-sm">
             <div class="flex items-center justify-between">
               <span class="text-gray-600">Next page</span>
@@ -1280,13 +1405,13 @@
           </div>
         </div>
         <div class="bg-white rounded-xl p-5 shadow border border-gray-100">
-          <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>🎨</span> Color Code</div>
+          <div class="text-base font-bold text-gray-800 mb-3">Color Code</div>
           <div class="space-y-2 text-xs text-gray-600">
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#E5F7FF; border:1px solid #b3d9f0;"></span> User input field</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#E5F1F6; border:1px solid #b3d9f0;"></span> User input field</div>
             <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#F2F8F9; border:1px solid #d1e8ec;"></span> Sample value (Rainpole)</div>
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#EFFDE3; border:1px solid #86c44a;"></span> Calculated / read-only</div>
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#F9CBAD; border:1px solid #e07d4a;"></span> Required — missing</div>
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#FFBD29; border:1px solid #d49a00;"></span> API-only / optional section</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#EEF6E1; border:1px solid #61A60E;"></span> Calculated / read-only</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#F6D6C4; border:1px solid #C25400;"></span> Required — missing</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded shrink-0" style="background:#F3BA16; border:1px solid #C99700;"></span> API-only / optional section</div>
           </div>
         </div>
       </div>
@@ -1295,7 +1420,7 @@
 
     <!-- Usage & disclaimer -->
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100 mb-4">
-      <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📌</span> Usage Notes</div>
+      <div class="text-base font-bold text-gray-800 mb-3">Usage Notes</div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
         <div>
           <p class="font-semibold text-gray-700 mb-1">Saving your work</p>
@@ -1303,11 +1428,11 @@
         </div>
         <div>
           <p class="font-semibold text-gray-700 mb-1">Sharing with colleagues</p>
-          <p class="leading-relaxed">Use <strong>⬇ JSON</strong> to export your current configuration to a file, then send it to a colleague — they can use <strong>⬆ Import</strong> to load it and restore all values.</p>
+          <p class="leading-relaxed">Use <strong>JSON</strong> to export your current configuration to a file, then send it to a colleague — they can use <strong>Import</strong> to load it and restore all values.</p>
         </div>
         <div>
           <p class="font-semibold text-gray-700 mb-1">As-Built export</p>
-          <p class="leading-relaxed">Use <strong>📄 MD</strong> for a Markdown document suitable for Confluence/Notion, and <strong>📊 CSV</strong> for IPAM spreadsheets.</p>
+          <p class="leading-relaxed">Use <strong>MD</strong> for a Markdown document suitable for Confluence/Notion, and <strong>CSV</strong> for IPAM spreadsheets.</p>
         </div>
         <div>
           <p class="font-semibold text-gray-700 mb-1">Disclaimer</p>
@@ -1316,33 +1441,9 @@
       </div>
     </div>
 
-    <!-- MCP server: use the planner from an AI assistant -->
-    <div class="rounded-xl p-6 shadow border mb-4" style="background:#EEF2FF; border-color:#C7D2FE;">
-      <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>🤖</span> Use it from Claude / ChatGPT (MCP server)</div>
-      <p class="text-sm text-gray-600 leading-relaxed mb-3">
-        This planner ships with an optional <strong>Model Context Protocol (MCP)</strong> server that exposes the same sizing calculator and reference data (ports &amp; protocols, prerequisites, component specs) to AI assistants like <strong>Claude</strong> and <strong>ChatGPT</strong> — so you can ask <em>"size a management domain for an HA vSAN-ESA cluster"</em> or <em>"which ports does NSX Manager need?"</em> directly in chat. It reads from the same shared logic as this page, so the answers can't drift from the calculator.
-      </p>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-        <div>
-          <p class="font-semibold text-gray-700 mb-1">1 · Run it (pre-built image — nothing to build)</p>
-          <pre class="bg-gray-900 text-gray-100 rounded-lg p-3 text-xs overflow-x-auto"><code>docker run -d -p 3000:3000 \
-  ghcr.io/lcoscia/vcf-planner-mcp:latest</code></pre>
-          <p class="leading-relaxed mt-1 text-xs">Or search <code class="bg-white px-1 rounded">ghcr.io/lcoscia/vcf-planner-mcp</code> in Docker Desktop and Run (port 3000).</p>
-        </div>
-        <div>
-          <p class="font-semibold text-gray-700 mb-1">2 · Point your assistant at it</p>
-          <p class="leading-relaxed"><strong>Claude Code / Desktop</strong> (local, no HTTPS needed):</p>
-          <pre class="bg-gray-900 text-gray-100 rounded-lg p-3 text-xs overflow-x-auto mt-1"><code>claude mcp add --transport http \
-  vcf-planner http://localhost:3000/</code></pre>
-          <p class="leading-relaxed mt-1 text-xs"><strong>claude.ai web / ChatGPT</strong>: expose it over HTTPS (a <code class="bg-white px-1 rounded">cloudflared</code> tunnel or your own domain) and add the <code class="bg-white px-1 rounded">https://…</code> URL as a custom connector.</p>
-        </div>
-      </div>
-      <p class="text-xs text-gray-500 mt-3">Full setup, all 8 tools, Docker/Caddy and connector steps: see the <a href="https://github.com/lcoscia/vcf-planner/tree/main/mcp" class="text-blue-600 underline" target="_blank"><code class="bg-white px-1 rounded">mcp/</code> folder</a> in the repository.</p>
-    </div>
-
     <!-- Privacy & data handling -->
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100 mb-4">
-      <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>🔒</span> Privacy &amp; Data Handling</div>
+      <div class="text-base font-bold text-gray-800 mb-3">Privacy &amp; Data Handling</div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
         <div>
           <p class="font-semibold text-gray-700 mb-1">Your data never leaves your browser</p>
@@ -1365,16 +1466,9 @@
 
     <!-- Version history -->
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
-      <div class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2"><span>📅</span> Version History</div>
+      <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
-          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.4<br><span class="text-gray-300">2026-06-17</span></span>
-          <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Aligned with workbook v1.9.1.004</p>
-            <p>Updated against Broadcom's <strong>v1.9.1.004</strong> revision (June 15, 2026) of the VCF 9.1 Planning &amp; Preparation Workbook. Changes: the <strong>vCenter Storage Size</strong> (Default/Large/XLarge) disk values were recalibrated to match the workbook's updated figures; the Management Domain's <strong>vDefend SSP</strong> component changed from a size selector (Medium/Large/X-Large) to a simple <strong>Excluded/Include</strong> toggle with a single fixed footprint (8 nodes, 96 vCPU, 350 GB RAM, 3867 GB disk), and now defaults to Excluded as in the workbook; and the disk size for the <strong>License Hub for vDefend and AVI</strong> component was corrected to <strong>725 GB</strong>. VCF Planner now also references the official <a href="https://github.com/vmware/powershell-module-for-vmware-cloud-foundation-jsongenerator" target="_blank" rel="noopener" class="text-blue-600 hover:underline">VCF.JSONGenerator</a> PowerShell module on the Fleet Management Day-N page's "Customize appliance sizing during install" field — it is not reproduced by this app, but is the recommended tool for generating the Day-0/Day-N deployment JSON files from the filled-in workbook.</p>
-          </div>
-        </div>
-        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.3<br><span class="text-gray-300">2026-06-12</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">FQDN/IP prerequisites aligned with VCF 9.1 Components FQDNs and IP Addresses &amp; Management Services design docs</p>
@@ -1399,7 +1493,7 @@
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.0<br><span class="text-gray-300">2026-06-11</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">DEMO data, AD toggle, Log Management replicas &amp; navigation improvements</p>
-            <p>New "🧪 DEMO" topbar button instantly fills every Management Domain field (Planning, Deploy Management Domain, vCenter, SDDC Manager, NSX Manager 3-node cluster, and a 2-node NSX Edge cluster) with a consistent, ready-to-review example based on a 4-node vSAN-ESA cluster — a confirmation prompt warns before overwriting existing values. The Active Directory / LDAP page now has an "Include/Exclude" toggle (defaults to Exclude, like the AVI/NSX Edge/VCF Operations toggles) so the detailed AD inputs are hidden until needed. Log Management (under VCF Management Services / Fleet Management Day-N) gains an HA Mode selector with dedicated <strong>replica node</strong> and <strong>load balancer / cluster VIP</strong> FQDN/IP fields when "HA Cluster" is selected. The VCF Management Services section adds 3 spare "Additional IP" fields for fleet-level scale-out. Fleet MTU now defaults to 1500 (was 9000). All password fields now show "AUTO-GENERATED" as their default sample/placeholder for a consistent convention. Discoverability: a persistent "🔌 Ports" topbar button and an As-Built page callout banner now link directly to the Ports &amp; Protocols reference. The Ports &amp; Protocols matrix also gains a "Group by: By Component / By Category" toggle that organizes the 19 components into 5 functional categories (Core Infrastructure, Fleet Management &amp; Operations, Automation &amp; Security, Recovery &amp; Disaster Recovery, Private AI); within "By Category", each category is further sub-divided into collapsible per-component groups for easier navigation.</p>
+            <p>New "Demo" topbar button instantly fills every Management Domain field (Planning, Deploy Management Domain, vCenter, SDDC Manager, NSX Manager 3-node cluster, and a 2-node NSX Edge cluster) with a consistent, ready-to-review example based on a 4-node vSAN-ESA cluster — a confirmation prompt warns before overwriting existing values. The Active Directory / LDAP page now has an "Include/Exclude" toggle (defaults to Exclude, like the AVI/NSX Edge/VCF Operations toggles) so the detailed AD inputs are hidden until needed. Log Management (under VCF Management Services / Fleet Management Day-N) gains an HA Mode selector with dedicated <strong>replica node</strong> and <strong>load balancer / cluster VIP</strong> FQDN/IP fields when "HA Cluster" is selected. The VCF Management Services section adds 3 spare "Additional IP" fields for fleet-level scale-out. Fleet MTU now defaults to 1500 (was 9000). All password fields now show "AUTO-GENERATED" as their default sample/placeholder for a consistent convention. Discoverability: a persistent "🔌 Ports" topbar button and an As-Built page callout banner now link directly to the Ports &amp; Protocols reference. The Ports &amp; Protocols matrix also gains a "Group by: By Component / By Category" toggle that organizes the 19 components into 5 functional categories (Core Infrastructure, Fleet Management &amp; Operations, Automation &amp; Security, Recovery &amp; Disaster Recovery, Private AI); within "By Category", each category is further sub-divided into collapsible per-component groups for easier navigation.</p>
           </div>
         </div>
         <div class="border-t border-gray-100 pt-3 flex gap-4">
@@ -1413,7 +1507,7 @@
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.8<br><span class="text-gray-300">2026-06-11</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Ports &amp; Protocols Reference</p>
-            <p>New "🔌 Ports &amp; Protocols" page (Reference section) provides a searchable, filterable matrix of <strong>1083 port/protocol entries</strong> across all 19 VCF 9.1 components, sourced from Broadcom's official <a href="https://ports.broadcom.com/" target="_blank" rel="noopener" class="text-blue-600 underline">Ports and Protocols Tool</a>. Browse grouped by component (collapsible), or filter by free-text search, traffic direction (Inbound/Outbound/Bidirectional/Unspecified), and component, with a "Show 100 more" pager for large result sets. A dedicated "⬇ CSV" button exports the currently filtered rows for firewall rule planning. Reference-only — not part of the VCF Installer JSON export or As-Built report.</p>
+            <p>New "Ports &amp; Protocols" page (Reference section) provides a searchable, filterable matrix of <strong>1083 port/protocol entries</strong> across all 19 VCF 9.1 components, sourced from Broadcom's official <a href="https://ports.broadcom.com/" target="_blank" rel="noopener" class="text-blue-600 underline">Ports and Protocols Tool</a>. Browse grouped by component (collapsible), or filter by free-text search, traffic direction (Inbound/Outbound/Bidirectional/Unspecified), and component, with a "Show 100 more" pager for large result sets. A dedicated "⬇ CSV" button exports the currently filtered rows for firewall rule planning. Reference-only — not part of the VCF Installer JSON export or As-Built report.</p>
           </div>
         </div>
         <div class="border-t border-gray-100 pt-3 flex gap-4">
@@ -1427,14 +1521,14 @@
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.6<br><span class="text-gray-300">2026-06-10</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Removed Share &amp; Print</p>
-            <p>The "🔗 Share" (URL-hash state encoding) and "🖨 Print" (browser print / PDF) toolbar buttons have been removed, along with the As-Built page's print button and the on-load URL-hash restore logic, to simplify the toolbar and avoid the size limits and staleness issues of hash-encoded state. <strong>Export JSON</strong> / <strong>Import JSON</strong> remain the supported way to back up, share, and restore your configuration, and <strong>📄 MD</strong> / <strong>📊 CSV</strong> remain available for As-Built reporting.</p>
+            <p>The "Share" (URL-hash state encoding) and "Print" (browser print / PDF) toolbar buttons have been removed, along with the As-Built page's print button and the on-load URL-hash restore logic, to simplify the toolbar and avoid the size limits and staleness issues of hash-encoded state. <strong>Export JSON</strong> / <strong>Import JSON</strong> remain the supported way to back up, share, and restore your configuration, and <strong>MD</strong> / <strong>CSV</strong> remain available for As-Built reporting.</p>
           </div>
         </div>
         <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.5<br><span class="text-gray-300">2026-06-10</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Import "VCF Installer Ready JSON"</p>
-            <p>New "⬆ JSON VCF Installer ready" / "⬆ Import VCF Installer JSON" buttons (topbar and As-Built page) let you load a previously exported <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON (the v1.0.3 export, or a real VCF Installer <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> payload) and restore it into the form — a best-effort companion to the v1.0.3 export. Restored: top-level options (VCF version, instance name, SDDC ID, CEIP, deployment type, ESXi thumbprint validation), DNS, NTP, ESXi host FQDNs, network specs (management/vMotion/vSAN/NFS CIDR, gateway, VLAN, MTU, IP range, uplink teaming policy), vCenter, cluster, datastore (vSAN/VMFS-FC/NFSv3), distributed switch names and per-network MTUs, NSX Manager FQDNs and overlay network, VCF Operations node FQDNs and appliance size, and SDDC Manager hostname. Not restored — and flagged in a post-import summary for manual review: ESXi host management IPs, vCenter IP, NSX Manager IPs, VCF Operations IPs/load balancer/HA mode, the distributed switch profile/uplink names/LACP configuration (<code class="bg-gray-100 px-1 rounded text-xs">dvsSpecs</code> reverse-mapping is deferred), and all passwords other than the ESXi root and vCenter root passwords — these are not present in the <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> JSON by design.</p>
+            <p>New "JSON VCF Installer ready" / "Import VCF Installer JSON" buttons (topbar and As-Built page) let you load a previously exported <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON (the v1.0.3 export, or a real VCF Installer <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> payload) and restore it into the form — a best-effort companion to the v1.0.3 export. Restored: top-level options (VCF version, instance name, SDDC ID, CEIP, deployment type, ESXi thumbprint validation), DNS, NTP, ESXi host FQDNs, network specs (management/vMotion/vSAN/NFS CIDR, gateway, VLAN, MTU, IP range, uplink teaming policy), vCenter, cluster, datastore (vSAN/VMFS-FC/NFSv3), distributed switch names and per-network MTUs, NSX Manager FQDNs and overlay network, VCF Operations node FQDNs and appliance size, and SDDC Manager hostname. Not restored — and flagged in a post-import summary for manual review: ESXi host management IPs, vCenter IP, NSX Manager IPs, VCF Operations IPs/load balancer/HA mode, the distributed switch profile/uplink names/LACP configuration (<code class="bg-gray-100 px-1 rounded text-xs">dvsSpecs</code> reverse-mapping is deferred), and all passwords other than the ESXi root and vCenter root passwords — these are not present in the <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code> JSON by design.</p>
           </div>
         </div>
         <div class="border-t border-gray-100 pt-3 flex gap-4">
@@ -1448,7 +1542,7 @@
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.0.3<br><span class="text-gray-300">2026-06-10</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">VCF Installer JSON export</p>
-            <p>New "🚀 Installer" / "🚀 VCF Installer JSON" buttons (topbar and As-Built page) export a <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON file matching the VCF 9.1 Installer's <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> request body, built from your current form data (DNS, NTP, hosts, management/vMotion/vSAN/NFS network specs, vCenter, cluster, datastore, distributed switches, NSX Manager, VCF Operations, and SDDC Manager). A new "VCF Installer Export Settings" section on the Deploy Management Domain page adds VCF Instance Name, SDDC ID, CEIP, and ESXi SSL thumbprint validation fields used by this export. Note: vSphere Supervisor (vSphere IaaS Control Plane), Fleet/SDDC LCM bootstrap options, and a few other optional installer spec blocks are not yet covered by this export — always review the generated JSON against the official VCF Installer documentation before use.</p>
+            <p>New "Installer" / "VCF Installer JSON" buttons (topbar and As-Built page) export a <code class="bg-gray-100 px-1 rounded text-xs">SddcSpec</code>-shaped JSON file matching the VCF 9.1 Installer's <code class="bg-gray-100 px-1 rounded text-xs">POST /v1/sddcs</code> request body, built from your current form data (DNS, NTP, hosts, management/vMotion/vSAN/NFS network specs, vCenter, cluster, datastore, distributed switches, NSX Manager, VCF Operations, and SDDC Manager). A new "VCF Installer Export Settings" section on the Deploy Management Domain page adds VCF Instance Name, SDDC ID, CEIP, and ESXi SSL thumbprint validation fields used by this export. Note: vSphere Supervisor (vSphere IaaS Control Plane), Fleet/SDDC LCM bootstrap options, and a few other optional installer spec blocks are not yet covered by this export — always review the generated JSON against the official VCF Installer documentation before use.</p>
           </div>
         </div>
         <div class="border-t border-gray-100 pt-3 flex gap-4">
@@ -2188,6 +2282,55 @@ const NAV_GROUPS = [
 ]
 
 // ============================================================
+// INLINE ICONS (Lucide-style 24×24 stroke icons)
+// iconSvg(icon, size) accepts either a literal name (top bar) or one of the
+// emoji values stored on NAV_GROUPS / ALL_PAGES, so neither the nav data nor
+// core/reference.js needs to change.
+// ============================================================
+const ICON_PATHS = {
+  // top-bar / action icons
+  import:  '<path d="M12 3v12"/><path d="m7 11 5 4 5-4"/><path d="M5 21h14"/>',
+  export:  '<path d="M12 15V3"/><path d="m7 7 5-4 5 4"/><path d="M5 21h14"/>',
+  md:      '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 17v-4l2 2 2-2v4"/>',
+  csv:     '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/>',
+  rocket:  '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
+  install: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  info:    '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  sun:     '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  moon:    '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  beaker:  '<path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/>',
+  reset:   '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  check:   '<path d="M20 6 9 17l-5-5"/>',
+  // nav / page icons (canonical names)
+  home:        '<path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9 21v-6h6v6"/>',
+  sparkles:    '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/>',
+  folder:      '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>',
+  'circle-check': '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  ruler:       '<path d="M21.3 8.7 8.7 21.3a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4L15.3 2.7a1 1 0 0 1 1.4 0l4.6 4.6a1 1 0 0 1 0 1.4Z"/><path d="m7.5 10.5 2 2"/><path d="m10.5 7.5 2 2"/><path d="m13.5 4.5 2 2"/><path d="m4.5 13.5 2 2"/>',
+  building:    '<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>',
+  settings:    '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>',
+  wrench:      '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  users:       '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  globe:       '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  sliders:     '<line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/>',
+  server:      '<rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>',
+  plug:        '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  shield:      '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  lock:        '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  bug:         '<path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>',
+  cloud:       '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  cpu:         '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>',
+  book:        '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  clipboard:   '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+}
+const EMOJI_ICON = {
+  '🏠':'home', '👋':'sparkles', '🗂️':'folder', '✅':'circle-check', '📐':'ruler',
+  '🏗️':'building', '⚙️':'settings', '🔧':'wrench', '👥':'users', '🌐':'globe',
+  '🔩':'sliders', '🖥️':'server', '🔌':'plug', '🛡️':'shield', '🔐':'lock',
+  '🦠':'bug', '☁️':'cloud', '🤖':'cpu', '📚':'book', '📋':'clipboard',
+}
+
+// ============================================================
 // ALPINE.JS APP
 // ============================================================
 function vcfPlanner() {
@@ -2265,6 +2408,15 @@ function vcfPlanner() {
     navGroups: NAV_GROUPS,
     allPages: ALL_PAGES,
     prerequisiteData: PREREQ_DATA,
+
+    // Inline icon renderer — accepts a literal name or an emoji (see ICON_PATHS/EMOJI_ICON)
+    iconSvg(icon, size) {
+      size = size || 16
+      const key = EMOJI_ICON[icon] || icon
+      const body = ICON_PATHS[key]
+      if (!body) return icon ? `<span>${icon}</span>` : ''
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;">${body}</svg>`
+    },
     sizingComponents: [
       { key:'sddc_manager',  label:'SDDC Manager' },
       { key:'vcenter',       label:'vCenter Server', sizes:['Tiny','Small','Medium','Large','XLarge'], storageSizes:['Default','Large','XLarge'] },
