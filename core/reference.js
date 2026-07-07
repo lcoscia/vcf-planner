@@ -436,7 +436,7 @@ export const ALL_PAGES = [
           { key:'vcfOpsDataFqdn',    label:'VCF Operations Data Node FQDN',    type:'text', sample:'flt-ops01c.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
           { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.10.54', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
           { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'flt-ops01.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster',
-            notes:'Optional — the default cluster address is a floating IP; a load-balancer VIP must come from an external load balancer (never provided by VCF).' },
+            notes:'Optional — VCF Operations has no built-in cluster/floating IP (without a load balancer you reach the cluster via the node FQDNs); a load-balancer VIP must come from an external load balancer (never provided by VCF).' },
           { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.21', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
           { key:'vcfOpsSize',        label:'VCF Operations Size',              type:'select', options:['Small','Medium','Large'], sample:'Small' },
           { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'AUTO-GENERATED' },
