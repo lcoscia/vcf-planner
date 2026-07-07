@@ -265,7 +265,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.5</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.6</div>
     </div>
   </div>
   <!-- Actions -->
@@ -355,7 +355,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.5 · Updated June 23, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.6 · Updated July 7, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -1308,9 +1308,9 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.5</span>
+              <span>v1.1.6</span>
               <span>·</span>
-              <span>Updated June 23, 2026</span>
+              <span>Updated July 7, 2026</span>
               <span>·</span>
               <span>Single-file · No server · No build step</span>
             </div>
@@ -1469,6 +1469,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.6<br><span class="text-gray-300">2026-07-07</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">VCF Operations fillable at bring-up</p>
+            <p>The <strong>Deploy Management Domain</strong> page gains a <strong>VCF Operations</strong> section (deployment model, primary/replica/data node FQDN + IP, optional external load balancer, size, admin password). In VCF 9.1 the VCF Installer deploys VCF Operations fleet management during bring-up — the fields previously existed only on the Fleet Management Day-N page behind the "Deploy VCF Operations / Automation" selector, which defaults to Exclude, so a standard bring-up had nowhere to enter them. The VCF Installer JSON export now includes <code class="bg-gray-100 px-1 rounded text-xs">vcfOperationsSpec</code> whenever the node fields are filled (Single Node mode exports the primary node only), the Day-N note no longer claims VCF Operations is Installer-unavailable, and the demo dataset covers the new section. Contributed by Paul van Dieen (ITQ).</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.5<br><span class="text-gray-300">2026-06-23</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">ITQ brand redesign</p>
@@ -2027,12 +2034,16 @@ function buildNsxtSpec(f) {
 }
 
 function buildVcfOperationsSpec(f) {
-  if (f.vcfOpsAutoMode !== 'Deploy VCF Operations and Automation') return null
+  // VCF Operations deploys at bring-up via the VCF Installer — build from the
+  // Deploy Management Domain fields whenever they are filled (the Day-N
+  // vcfOpsAutoMode selector only gates the deferred SDDC-Manager-API path).
   const sizeMap = { Small:'small', Medium:'medium', Large:'large' }
   const nodes = []
   if (f.vcfOpsPrimaryFqdn) nodes.push({ hostname:f.vcfOpsPrimaryFqdn, type:'master' })
-  if (f.vcfOpsReplicaFqdn) nodes.push({ hostname:f.vcfOpsReplicaFqdn, type:'replica' })
-  if (f.vcfOpsDataFqdn) nodes.push({ hostname:f.vcfOpsDataFqdn, type:'data' })
+  if (f.vcfOpsHaMode === 'HA Cluster') {
+    if (f.vcfOpsReplicaFqdn) nodes.push({ hostname:f.vcfOpsReplicaFqdn, type:'replica' })
+    if (f.vcfOpsDataFqdn) nodes.push({ hostname:f.vcfOpsDataFqdn, type:'data' })
+  }
   if (!nodes.length) return null
   return {
     applianceSize: sizeMap[f.vcfOpsSize] || 'small',
@@ -2912,6 +2923,13 @@ function vcfPlanner() {
         // SDDC Manager
         sddcHostname: 'sfo-m01-sddc01', sddcAdminPw: 'AUTO-GENERATED', sddcRootPw: 'AUTO-GENERATED',
         esxiRootPw: 'AUTO-GENERATED', sddcLocation: 'Deployed on one of the management domain hosts',
+
+        // VCF Operations (deployed at bring-up)
+        vcfOpsHaMode: 'HA Cluster',
+        vcfOpsPrimaryFqdn: 'flt-ops01a.rainpole.io', vcfOpsPrimaryIp: '10.11.10.52',
+        vcfOpsReplicaFqdn: 'flt-ops01b.rainpole.io', vcfOpsReplicaIp: '10.11.10.53',
+        vcfOpsDataFqdn: 'flt-ops01c.rainpole.io', vcfOpsDataIp: '10.11.10.54',
+        vcfOpsSize: 'Small', vcfOpsAdminPw: 'AUTO-GENERATED',
 
         // NSX Manager Cluster
         nsxMgr1Fqdn: 'sfo-m01-nsx01a.sfo.rainpole.io', nsxMgr1Ip: '10.11.10.71',
