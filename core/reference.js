@@ -281,6 +281,8 @@ export const ALL_PAGES = [
           { key:'ntpServer2',      label:'NTP Server 2 (optional)',  type:'text', sample:'' },
           { key:'dnsServer1',      label:'DNS Server 1',             type:'ip',   sample:'10.11.0.2', required:true },
           { key:'dnsServer2',      label:'DNS Server 2 (optional)',  type:'ip',   sample:'10.11.0.3' },
+          { key:'autoGenPw',       label:'Auto-generate passwords for newly installed appliances', type:'toggle', options:['Selected','Unselected'], sample:'Selected',
+            notes:'Workbook default — appliance passwords are system-generated at bring-up and managed via VCF Operations Password Management afterwards. Set to Unselected to specify your own; exceptions that always need a value: the ESXi root password (existing host credential) and the SDDC Manager passwords when it is deployed on the management hosts (they are the VCF Installer appliance credentials you set when deploying it).' },
         ]
       },
       {
@@ -316,8 +318,8 @@ export const ALL_PAGES = [
           { key:'vcMgmtIp',      label:'vCenter IP',                type:'ip',   sample:'10.11.10.3', required:true },
           { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium', required:true },
           { key:'vcSsoDomain',   label:'SSO Domain',                type:'text', sample:'vsphere.local', required:true },
-          { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'AUTO-GENERATED', required:true, notes:'min 8 chars, complexity required' },
-          { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'AUTO-GENERATED', required:true },
+          { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected', notes:'min 8 chars, complexity required' },
+          { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected' },
           { key:'vcDatacenter',  label:'Datacenter Name',           type:'text', sample:'sfo-m01-dc01', required:true },
           { key:'vcCluster',     label:'Cluster Name',              type:'text', sample:'sfo-m01-cl01', required:true },
           { key:'vcDatastore',   label:'vSAN Datastore Name',       type:'text', sample:'sfo-m01-cl01-ds-vsan01', required:true,
@@ -328,9 +330,10 @@ export const ALL_PAGES = [
         title:'SDDC Manager',
         fields:[
           { key:'sddcHostname',  label:'SDDC Manager Hostname',    type:'text', sample:'sfo-m01-sddc01', required:true },
-          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'AUTO-GENERATED', required:true },
-          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'AUTO-GENERATED', required:true },
-          { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'AUTO-GENERATED', required:true, notes:'All management cluster hosts must share the same root password' },
+          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected'||f.sddcLocation!=='External deployment',
+            notes:'Not auto-generated when SDDC Manager is deployed on the management hosts — these are the VCF Installer appliance credentials set when deploying it' },
+          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected'||f.sddcLocation!=='External deployment' },
+          { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'VMw@re1!', required:true, notes:'Existing host credential — never auto-generated. All management cluster hosts must share the same root password' },
           { key:'sddcLocation',  label:'SDDC Manager Location', type:'select', options:['Deployed on one of the management domain hosts','External deployment'], sample:'Deployed on one of the management domain hosts' },
         ]
       },
@@ -350,7 +353,7 @@ export const ALL_PAGES = [
             notes:'Optional — VCF Operations has no built-in cluster/floating IP (without a load balancer you reach the cluster via the node FQDNs); a load-balancer VIP must come from an external load balancer (never provided by VCF).' },
           { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.21', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
           { key:'vcfOpsSize',        label:'VCF Operations Size',              type:'select', options:['Small','Medium','Large'], sample:'Small' },
-          { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'AUTO-GENERATED' },
+          { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.autoGenPw==='Unselected' },
         ]
       },
       {
@@ -366,8 +369,8 @@ export const ALL_PAGES = [
           { key:'nsxMgr3Ip',     label:'NSX Manager 3 IP',         type:'ip',   sample:'10.11.10.73' },
           { key:'nsxVipFqdn',    label:'NSX Cluster VIP FQDN',     type:'text', sample:'sfo-m01-nsx01.sfo.rainpole.io', required:true },
           { key:'nsxVipIp',      label:'NSX Cluster VIP IP',       type:'ip',   sample:'10.11.10.74', required:true },
-          { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'AUTO-GENERATED', required:true },
-          { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'AUTO-GENERATED' },
+          { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected' },
+          { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.autoGenPw==='Unselected' },
           { key:'nsxMgrSize',    label:'NSX Manager Appliance Size', type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small', required:true },
         ]
       },
@@ -392,7 +395,9 @@ export const ALL_PAGES = [
           { key:'nsxEdgeUplink1Vlan', label:'Edge Uplink 1 VLAN',  type:'number', sample:'2711', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdgeUplink2Vlan', label:'Edge Uplink 2 VLAN',  type:'number', sample:'2712', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdgeBgpAsn',  label:'Edge BGP ASN',            type:'number', sample:'65101', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'nsxEdgePw',      label:'Edge Root Password',      type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgeAutoGenPw', label:'Auto generate passwords with VCF to manage Edge nodes', type:'toggle', options:['Selected','Unselected'], sample:'Selected', showWhen:f=>f.nsxEdgeInclude!=='Exclude',
+            notes:'Workbook: Edge passwords are masked out when deploying with system-generated passwords' },
+          { key:'nsxEdgePw',      label:'Edge Root Password',      type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.nsxEdgeInclude!=='Exclude'&&f.nsxEdgeAutoGenPw==='Unselected' },
         ]
       },
       {
@@ -452,7 +457,7 @@ export const ALL_PAGES = [
           { key:'cloudProxyInclude', label:'Deploy Cloud Proxy',        type:'toggle',   options:['Include','Exclude'], sample:'Exclude' },
           { key:'cloudProxyFqdn',    label:'Cloud Proxy FQDN',          type:'text',     sample:'sfo-m01-cpxy01.sfo.rainpole.io', showWhen:f=>f.cloudProxyInclude==='Include' },
           { key:'cloudProxyIp',      label:'Cloud Proxy IP',            type:'ip',       sample:'10.11.10.91', showWhen:f=>f.cloudProxyInclude==='Include' },
-          { key:'cloudProxyPw',      label:'Cloud Proxy Root Password', type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.cloudProxyInclude==='Include' },
+          { key:'cloudProxyPw',      label:'Cloud Proxy Root Password', type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.cloudProxyInclude==='Include'&&f.autoGenPw==='Unselected' },
         ]
       },
     ]
@@ -826,7 +831,9 @@ export const ALL_PAGES = [
           { key:'wldVcDatacenter', label:'WLD Datacenter Name',   type:'text', sample:'sfo-w01-dc01' },
           { key:'wldVcCluster',  label:'WLD Cluster Name',        type:'text', sample:'sfo-w01-cl01' },
           { key:'wldVcDatastore', label:'WLD vSAN Datastore',     type:'text', sample:'sfo-w01-cl01-ds-vsan01' },
-          { key:'wldVcAdminPw',  label:'vCenter Admin Password',  type:'password', sample:'AUTO-GENERATED' },
+          { key:'wldAutoGenPw',  label:'Auto-generate passwords for newly installed appliances', type:'toggle', options:['Selected','Unselected'], sample:'Selected',
+            notes:'Workbook (Deploy Workload Domain): appliance passwords are system-generated unless deselected' },
+          { key:'wldVcAdminPw',  label:'vCenter Admin Password',  type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.wldAutoGenPw==='Unselected' },
           { key:'wldVcModel', label:'vCenter Model',           type:'select', options:['Shared','Dedicated'], sample:'Shared', notes:'Shared reuses the Management Domain vCenter; Dedicated deploys a separate VCSA for this workload domain.' },
           { key:'wldVcSize',  label:'WLD vCenter Appliance Size', type:'select', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Small', showWhen:f=>f.wldVcModel==='Dedicated', notes:'Size the dedicated VCSA based on the number of hosts/VMs it will manage — see VCF Fleet Sizing Models.', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)' },
           { key:'wldVcStorageTier', label:'WLD vCenter Storage Tier', type:'select', options:['Default','Large','XLarge'], sample:'Default', showWhen:f=>f.wldVcModel==='Dedicated', notes:'Increase the storage tier if you plan to retain longer task/event/stats history on this vCenter.' },
