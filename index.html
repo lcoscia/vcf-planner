@@ -1877,8 +1877,14 @@ function buildNetworkSpecs(f) {
   const specs = []
   const dvs1 = f.dvsName || 'dvs01'
   const storageDvs = storageDvsName(f)
-  specs.push(netEntry(f, 'esxMgmt', 'MANAGEMENT', dvs1, 'esx-mgmt'))
-  specs.push(netEntry(f, 'vmMgmt', 'VM_MANAGEMENT', dvs1, 'vm-mgmt'))
+  // The management networks take no address range in the SddcSpec (host IPs are
+  // per-host, appliance IPs discrete) — strip any range lingering in saved state.
+  const esxMgmtEntry = netEntry(f, 'esxMgmt', 'MANAGEMENT', dvs1, 'esx-mgmt')
+  const vmMgmtEntry = netEntry(f, 'vmMgmt', 'VM_MANAGEMENT', dvs1, 'vm-mgmt')
+  delete esxMgmtEntry.includeIpAddressRanges
+  delete vmMgmtEntry.includeIpAddressRanges
+  specs.push(esxMgmtEntry)
+  specs.push(vmMgmtEntry)
   specs.push(netEntry(f, 'vmotion', 'VMOTION', dvs1, 'vmotion'))
   if (!f.principalStorage || f.principalStorage.startsWith('vSAN')) {
     specs.push(netEntry(f, 'vsan1', 'VSAN', storageDvs, 'vsan'))
@@ -2894,10 +2900,10 @@ function vcfPlanner() {
         m01Host4Fqdn: 'sfo-m01-esxi04.sfo.rainpole.io', m01Host4Ip: '10.11.10.14',
 
         // Networks — Management
-        esxMgmtVlan: '1110', esxMgmtGateway: '10.11.10.1', esxMgmtCidr: '10.11.10.0/24', esxMgmtMtu: '1500', esxMgmtIpStart: '10.11.10.101', esxMgmtIpEnd: '10.11.10.110',
-        vmMgmtVlan: '1111', vmMgmtGateway: '10.11.11.1', vmMgmtCidr: '10.11.11.0/24', vmMgmtMtu: '1500', vmMgmtIpStart: '10.11.11.101', vmMgmtIpEnd: '10.11.11.110',
+        esxMgmtVlan: '1110', esxMgmtGateway: '10.11.10.1', esxMgmtCidr: '10.11.10.0/24', esxMgmtMtu: '1500',
+        vmMgmtVlan: '1111', vmMgmtGateway: '10.11.11.1', vmMgmtCidr: '10.11.11.0/24', vmMgmtMtu: '1500',
         vcfMgmtInclude: 'Include',
-        vcfMgmtVlan: '1112', vcfMgmtGateway: '10.11.12.1', vcfMgmtCidr: '10.11.12.0/24', vcfMgmtMtu: '1500', vcfMgmtIpStart: '10.11.12.101', vcfMgmtIpEnd: '10.11.12.110',
+        vcfMgmtVlan: '1112', vcfMgmtGateway: '10.11.12.1', vcfMgmtCidr: '10.11.12.0/24', vcfMgmtMtu: '1500',
 
         // Networks — vMotion, vSAN & Overlay
         vmotionVlan: '1113', vmotionGateway: '10.11.13.1', vmotionCidr: '10.11.13.0/24', vmotionMtu: '9000', vmotionIpStart: '10.11.13.101', vmotionIpEnd: '10.11.13.110',
