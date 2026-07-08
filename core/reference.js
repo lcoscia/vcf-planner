@@ -331,6 +331,25 @@ export const ALL_PAGES = [
         ]
       },
       {
+        title:'VCF Operations',
+        description:'The VCF Installer deploys VCF Operations fleet management as part of management-domain bring-up (workbook: Deploy Management Domain → VCF Management services) — capture the node FQDNs and IPs here.',
+        fields:[
+          { key:'vcfOpsHaMode',      label:'VCF Operations Deployment Model', type:'select', options:['Single Node','HA Cluster'], sample:'HA Cluster',
+            notes:'Workbook "Deployment model": Simple (single node) or High Availability (Three-Node). Applies to newly deployed VCF Operations appliances.' },
+          { key:'vcfOpsPrimaryFqdn', label:'VCF Operations Primary Node FQDN', type:'text', sample:'flt-ops01a.rainpole.io', required:true },
+          { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.10.52' },
+          { key:'vcfOpsReplicaFqdn', label:'VCF Operations Replica Node FQDN', type:'text', sample:'flt-ops01b.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsReplicaIp',   label:'VCF Operations Replica Node IP',   type:'ip',   sample:'10.11.10.53', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsDataFqdn',    label:'VCF Operations Data Node FQDN',    type:'text', sample:'flt-ops01c.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.10.54', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'flt-ops01.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster',
+            notes:'Optional — VCF Operations has no built-in cluster/floating IP (without a load balancer you reach the cluster via the node FQDNs); a load-balancer VIP must come from an external load balancer (never provided by VCF).' },
+          { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.21', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsSize',        label:'VCF Operations Size',              type:'select', options:['Small','Medium','Large'], sample:'Small' },
+          { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'AUTO-GENERATED' },
+        ]
+      },
+      {
         title:'NSX Manager Cluster',
         description:'NSX Manager is deployed as a 3-node cluster (or single node for lab).',
         showWhen: f => f.deploymentType==='VMware Cloud Foundation',
@@ -421,25 +440,6 @@ export const ALL_PAGES = [
           { key:'apiVcenterSize', label:'vCenter Size (API)',       type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium' },
           { key:'apiNsxSize',     label:'NSX Manager Size (API)',   type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small' },
           { key:'apiNsxOpMode',   label:'NSX Operation Mode',       type:'select', options:['Standard','Enhanced Datapath Standard','Enhanced Datapath Dedicated'], sample:'Standard' },
-        ]
-      },
-      {
-        title:'VCF Operations',
-        description:'The VCF Installer deploys VCF Operations fleet management as part of management-domain bring-up (workbook: Deploy Management Domain → VCF Management services) — capture the node FQDNs and IPs here.',
-        fields:[
-          { key:'vcfOpsHaMode',      label:'VCF Operations Deployment Model', type:'select', options:['Single Node','HA Cluster'], sample:'HA Cluster',
-            notes:'Workbook "Deployment model": Simple (single node) or High Availability (Three-Node). Applies to newly deployed VCF Operations appliances.' },
-          { key:'vcfOpsPrimaryFqdn', label:'VCF Operations Primary Node FQDN', type:'text', sample:'flt-ops01a.rainpole.io', required:true },
-          { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.10.52' },
-          { key:'vcfOpsReplicaFqdn', label:'VCF Operations Replica Node FQDN', type:'text', sample:'flt-ops01b.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
-          { key:'vcfOpsReplicaIp',   label:'VCF Operations Replica Node IP',   type:'ip',   sample:'10.11.10.53', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
-          { key:'vcfOpsDataFqdn',    label:'VCF Operations Data Node FQDN',    type:'text', sample:'flt-ops01c.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
-          { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.10.54', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
-          { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'flt-ops01.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster',
-            notes:'Optional — VCF Operations has no built-in cluster/floating IP (without a load balancer you reach the cluster via the node FQDNs); a load-balancer VIP must come from an external load balancer (never provided by VCF).' },
-          { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.21', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
-          { key:'vcfOpsSize',        label:'VCF Operations Size',              type:'select', options:['Small','Medium','Large'], sample:'Small' },
-          { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'AUTO-GENERATED' },
         ]
       },
       {
