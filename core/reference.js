@@ -331,6 +331,25 @@ export const ALL_PAGES = [
         ]
       },
       {
+        title:'VCF Operations',
+        description:'The VCF Installer deploys VCF Operations fleet management as part of management-domain bring-up (workbook: Deploy Management Domain → VCF Management services) — capture the node FQDNs and IPs here.',
+        fields:[
+          { key:'vcfOpsHaMode',      label:'VCF Operations Deployment Model', type:'select', options:['Single Node','HA Cluster'], sample:'HA Cluster',
+            notes:'Workbook "Deployment model": Simple (single node) or High Availability (Three-Node). Applies to newly deployed VCF Operations appliances.' },
+          { key:'vcfOpsPrimaryFqdn', label:'VCF Operations Primary Node FQDN', type:'text', sample:'flt-ops01a.rainpole.io', required:true },
+          { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.10.52' },
+          { key:'vcfOpsReplicaFqdn', label:'VCF Operations Replica Node FQDN', type:'text', sample:'flt-ops01b.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsReplicaIp',   label:'VCF Operations Replica Node IP',   type:'ip',   sample:'10.11.10.53', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsDataFqdn',    label:'VCF Operations Data Node FQDN',    type:'text', sample:'flt-ops01c.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.10.54', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'flt-ops01.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster',
+            notes:'Optional — VCF Operations has no built-in cluster/floating IP (without a load balancer you reach the cluster via the node FQDNs); a load-balancer VIP must come from an external load balancer (never provided by VCF).' },
+          { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.21', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsSize',        label:'VCF Operations Size',              type:'select', options:['Small','Medium','Large'], sample:'Small' },
+          { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'AUTO-GENERATED' },
+        ]
+      },
+      {
         title:'NSX Manager Cluster',
         description:'NSX Manager is deployed as a 3-node cluster (or single node for lab).',
         showWhen: f => f.deploymentType==='VMware Cloud Foundation',
@@ -572,7 +591,7 @@ export const ALL_PAGES = [
         title:'VCF Operations',
         fields:[
           { key:'vcfOpsAutoMode',  label:'Deploy VCF Operations / Automation', type:'select', options:['Exclude','Deploy VCF Operations and Automation','Deploy VCF Automation'], sample:'Exclude',
-            notes:'"Deploy VCF Automation" deploys Automation only, using VCF Operations as its API transport — VCF Operations itself is not provisioned in that mode. Deployment is API-only (SDDC Manager API / VCF JSON Generator) — no longer available via the VCF Installer UI.' },
+            notes:'Day-N (deferred) deployment only — VCF Operations itself is normally deployed at bring-up by the VCF Installer (see Deploy Management Domain → VCF Operations). "Deploy VCF Automation" deploys Automation only, using VCF Operations as its API transport — VCF Operations itself is not provisioned in that mode. Day-N deployment is API-only (SDDC Manager API / VCF JSON Generator).' },
           { key:'vcfOpsHaMode',    label:'VCF Operations HA Mode',  type:'select', options:['Single Node','HA Cluster'], sample:'HA Cluster', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
           { key:'vcfOpsPrimaryFqdn', label:'VCF Operations Primary Node FQDN', type:'text', sample:'sfo-m01-vrops01a.sfo.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
           { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.99.52', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
