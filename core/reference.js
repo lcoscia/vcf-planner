@@ -561,11 +561,25 @@ export const ALL_PAGES = [
       },
       {
         title:'vSAN Stretched Cluster (Optional)',
+        description:'Stretching is performed post-bring-up (SDDC Manager API), but the workbook plans it up front: the AZ2 host networks and per-host IPs, an AZ2 network pool (vMotion / vSAN, plus NFS if used), the AZ2 host overlay VLAN, and the vSAN witness at a third site.',
         fields:[
           { key:'vsanStretchInclude', label:'Configure Stretched Cluster', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
-          { key:'vsanWitnessHost',    label:'Witness Host FQDN',           type:'text', sample:'sfo-m01-witness01.rainpole.io', showWhen:f=>f.vsanStretchInclude==='Include' },
-          { key:'vsanWitnessIp',      label:'Witness Host IP',             type:'ip',   sample:'192.168.10.1', showWhen:f=>f.vsanStretchInclude==='Include' },
           { key:'secondaryAzName',    label:'Secondary AZ Name',           type:'text', sample:'lax', showWhen:f=>f.vsanStretchInclude==='Include' },
+          // AZ2 networks — workbook: "vSAN Stretched Cluster → Initial Host Configuration" + "Create Network Pool"
+          ...makeNetFields('az2EsxMgmt', 'AZ2 ESX Management', 1211, '10.12.11.1', '10.12.11.0/24', 1500, false).map(fld => ({ ...fld, showWhen:f=>f.vsanStretchInclude==='Include' })),
+          ...makeNetFields('az2Vmotion', 'AZ2 vMotion',        1212, '10.12.12.1', '10.12.12.0/24', 9000, true).map(fld => ({ ...fld, showWhen:f=>f.vsanStretchInclude==='Include' })),
+          ...makeNetFields('az2Vsan',    'AZ2 vSAN',           1213, '10.12.13.1', '10.12.13.0/24', 9000, true).map(fld => ({ ...fld, showWhen:f=>f.vsanStretchInclude==='Include' })),
+          { key:'az2OverlayVlan',     label:'AZ2 Host Overlay VLAN',       type:'number', sample:'1414', required:true, showWhen:f=>f.vsanStretchInclude==='Include', notes:'Per-AZ host TEP VLAN for the stretched cluster' },
+          // AZ2 hosts — workbook: "Commission Hosts" (FQDNs) + per-host management IPs
+          ...makeHostFields(16,'az2','10.12.11','1211').map(fld => ({ ...fld, label:`AZ2 ${fld.label}`, showWhen:f=>f.vsanStretchInclude==='Include' })),
+          // vSAN witness at the third site — workbook: "Deploy and Configure vSAN Witness"
+          { key:'vsanWitnessHost',    label:'Witness Host FQDN',           type:'text', sample:'sfo-m01-witness01.rainpole.io', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
+          { key:'vsanWitnessIp',      label:'Witness Host Management IP',  type:'ip',   sample:'192.168.10.1', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
+          { key:'vsanWitnessVcFqdn',  label:'Witness Hosting vCenter FQDN', type:'text', sample:'lax-m01-vc01.lax.rainpole.io', required:true, showWhen:f=>f.vsanStretchInclude==='Include', notes:'vCenter Server outside AZ1 and AZ2 that hosts the vSAN witness' },
+          { key:'vsanWitnessDns1',    label:'Witness DNS Server #1',       type:'ip',   sample:'10.21.10.4', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
+          { key:'vsanWitnessDns2',    label:'Witness DNS Server #2',       type:'ip',   sample:'10.21.10.5', showWhen:f=>f.vsanStretchInclude==='Include', notes:'Should be in a different fault domain to DNS Server 1' },
+          { key:'vsanWitnessNtp',     label:'Witness NTP Server',          type:'text', sample:'ntp.lax.rainpole.io', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
+          { key:'vsanWitnessRootPw',  label:'Witness Root Password',       type:'password', sample:'AUTO-GENERATED', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
         ]
       },
     ]
