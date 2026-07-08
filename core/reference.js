@@ -37,7 +37,7 @@ const PG_LB_OPTIONS = ['Route Based on Physical NIC Load','Route based on IP has
 // name, per-portgroup load balancing, per-uplink Active/Standby/Unused choice.
 function makePortGroupFields(prefix, label, defPg, opts = {}) {
   const f = [
-    { key:`${prefix}PgName`,    label:`${label} PortGroup Name`,  type:'text',   sample:defPg, required:true, notes:'Portgroup will be created on the Primary Distributed Switch' },
+    { key:`${prefix}PgName`,    label:`${label} PortGroup Name`,  type:'text',   sample:defPg, required:true, notes:'Created on the Primary Distributed Switch with the Default profile; storage / NSX traffic moves to the Secondary or Tertiary switch under a traffic-separation profile' },
     { key:`${prefix}PgLb`,      label:`${label} Load Balancing`,  type:'select', options:PG_LB_OPTIONS, sample:opts.defLb || 'Route Based on Physical NIC Load' },
     { key:`${prefix}PgUplink1`, label:`${label} uplink1`,         type:'select', options:['Active','Standby','Unused'], sample:'Active' },
     { key:`${prefix}PgUplink2`, label:`${label} uplink2`,         type:'select', options:['Active','Standby','Unused'], sample:'Active' },
@@ -419,7 +419,6 @@ export const ALL_PAGES = [
               : ['Default','Storage Traffic Separation','Custom Switch Configuration'],
             sample:'Default', required:true, notes:'Determines which VDS switches are deployed' },
           { key:'dvsName',        label:'Primary VDS Name',         type:'text',   sample:'sfo-m01-cl01-dvs01', required:true },
-          { key:'dvsVersion',     label:'VDS Version',              type:'select', options:['9.0.0','8.0.0','7.0.3'], sample:'9.0.0' },
           { key:'dvsMtu',         label:'MTU',                      type:'number', sample:'9000' },
           { key:'dvsUplinkPolicy',label:'Teaming Policy (default)', type:'select',
             options:['Route based on IP hash','Route based on source MAC hash','Route based on source port ID','Use explicit failover order','Route Based on Physical NIC Load'],
@@ -438,7 +437,7 @@ export const ALL_PAGES = [
       },
       {
         title:'Secondary VDS (Storage Traffic)',
-        showWhen: f => f.dvsProfile && f.dvsProfile !== 'Default',
+        showWhen: f => ['Storage Traffic Separation','NSX Traffic Separation','Storage Traffic and NSX Traffic Separation'].includes(f.dvsProfile),
         fields:[
           { key:'dvs2Name',        label:'Secondary VDS Name',      type:'text',   sample:'sfo-m01-cl01-dvs02', required:true },
           { key:'dvs2Mtu',         label:'MTU',                     type:'number', sample:'9000' },
