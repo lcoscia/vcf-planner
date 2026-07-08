@@ -1862,21 +1862,30 @@ function storageDvsName(f) {
 }
 
 function netEntry(f, prefix, networkType, dvsName, suffix) {
+  // Per-portgroup uplink choices (Active/Standby/Unused) and load-balancing
+  // policy from the Distributed PortGroups section; fall back to the
+  // switch-level defaults when not set.
+  const active = [], standby = []
+  ;[1, 2].forEach((n) => {
+    const choice = f[`${prefix}PgUplink${n}`] || 'Active'
+    if (choice === 'Standby') standby.push(`uplink${n}`)
+    else if (choice !== 'Unused') active.push(`uplink${n}`)
+  })
   const entry = {
     networkType,
     ipAddressVersion: 'IPv4',
     subnet: f[`${prefix}Cidr`] || '',
     gateway: f[`${prefix}Gateway`] || '',
     vlanId: parseInt(f[`${prefix}Vlan`], 10) || 0,
-    teamingPolicy: mapTeamingPolicyLowercase(f.dvsUplinkPolicy),
-    activeUplinks: ['uplink1','uplink2'],
-    standbyUplinks: [],
+    teamingPolicy: mapTeamingPolicyLowercase(f[`${prefix}PgLb`] || f.dvsUplinkPolicy),
+    activeUplinks: active,
+    standbyUplinks: standby,
   }
   if (f[`${prefix}Mtu`]) entry.mtu = parseInt(f[`${prefix}Mtu`], 10)
   if (f[`${prefix}IpStart`] && f[`${prefix}IpEnd`]) {
     entry.includeIpAddressRanges = [{ startIpAddress:f[`${prefix}IpStart`], endIpAddress:f[`${prefix}IpEnd`] }]
   }
-  entry.portGroupKey = `${f.sddcId||'sddc'}-${dvsName||'dvs01'}-pg-${suffix}`
+  entry.portGroupKey = f[`${prefix}PgName`] || `${f.sddcId||'sddc'}-${dvsName||'dvs01'}-pg-${suffix}`
   return entry
 }
 
@@ -1980,7 +1989,13 @@ function buildDvsSpecs(f) {
   const groupA = ['MANAGEMENT','VM_MANAGEMENT','VMOTION']
   const groupB = groupBNetworks(f)
 
-  const nsxTeamings = isVcf ? [{ policy:mapNsxTeamingUppercase(f.dvsUplinkPolicy), activeUplinks:['uplink1','uplink2'], standByUplinks:null }] : null
+  const nsxActive = [], nsxStandby = []
+  ;[1, 2].forEach((n) => {
+    const choice = f[`nsxPgUplink${n}`] || 'Active'
+    if (choice === 'Standby') nsxStandby.push(`uplink${n}`)
+    else if (choice !== 'Unused') nsxActive.push(`uplink${n}`)
+  })
+  const nsxTeamings = isVcf ? [{ policy:mapNsxTeamingUppercase(f.nsxPgLb || f.dvsUplinkPolicy), activeUplinks:nsxActive, standByUplinks:nsxStandby.length ? nsxStandby : null }] : null
   const nsxtSwitchConfig = isVcf ? { transportZones:[{ name:'overlay-tz-mgmt-nsxt', transportType:'OVERLAY' }] } : null
   let lagSpecs = f.dvsLacpEnabled === 'Include'
     ? [{ name:'lag1', uplinksCount:2, lacpMode:(f.dvsLacpMode||'Active').toUpperCase(), lacpTimeoutMode:f.dvsLacpTimeout==='Slow'?'SLOW':'FAST', loadBalancingMode:mapTeamingPolicyLowercase(f.dvsUplinkPolicy) }]
@@ -2959,7 +2974,15 @@ function vcfPlanner() {
         // Distributed Switch Profile
         dvsProfile: 'Default', dvsName: 'sfo-m01-cl01-dvs01', dvsVersion: '9.0.0',
         dvsUplinkPolicy: 'Route based on IP hash', dvsLacpEnabled: 'Exclude',
-        dvsUplink1Name: 'uplink1', dvsUplink2Name: 'uplink2',
+        dvsUplink1Name: 'vmnic0', dvsUplink2Name: 'vmnic1', dvsMtu: '9000',
+
+        // Distributed PortGroups (per network traffic)
+        esxMgmtPgName: 'sfo-m01-cl01-dvs01-pg-esx-mgmt', esxMgmtPgLb: 'Route Based on Physical NIC Load', esxMgmtPgUplink1: 'Active', esxMgmtPgUplink2: 'Active',
+        vmMgmtPgName: 'sfo-m01-cl01-dvs01-pg-vm-mgmt', vmMgmtPgLb: 'Route Based on Physical NIC Load', vmMgmtPgUplink1: 'Active', vmMgmtPgUplink2: 'Active',
+        vcfMgmtPgName: 'sfo-m01-cl01-dvs01-pg-vcf-mgmt', vcfMgmtPgLb: 'Route Based on Physical NIC Load', vcfMgmtPgUplink1: 'Active', vcfMgmtPgUplink2: 'Active',
+        vmotionPgName: 'sfo-m01-cl01-dvs01-pg-vmotion', vmotionPgLb: 'Route Based on Physical NIC Load', vmotionPgUplink1: 'Active', vmotionPgUplink2: 'Active',
+        vsan1PgName: 'sfo-m01-cl01-dvs01-pg-vsan', vsan1PgLb: 'Route Based on Physical NIC Load', vsan1PgUplink1: 'Active', vsan1PgUplink2: 'Active',
+        nsxApplyDefaultOpMode: 'Selected', nsxPgLb: 'Route based on source port ID', nsxPgUplink1: 'Active', nsxPgUplink2: 'Active',
       })
 
       this.applyToggleDefaults()

@@ -24,10 +24,25 @@ function withShowWhen(fields, fn) {
 function makeUplinkFields(prefix, start, end) {
   const fields = []
   for (let i=start; i<=end; i++) {
-    fields.push({ key:`${prefix}${i}Name`, label:`Uplink ${i} Name`, type:'text', sample:`uplink${i}`,
+    fields.push({ key:`${prefix}${i}Name`, label:`Uplink ${i} Physical NIC`, type:'text', sample:`vmnic${i-1}`,
       showWhen: f => f.dvsProfile==='Custom Switch Configuration' && parseInt(f.dvsUplinkCount||'2',10) >= i })
   }
   return fields
+}
+
+const PG_LB_OPTIONS = ['Route Based on Physical NIC Load','Route based on IP hash','Route based on source MAC hash','Route based on source port ID','Use explicit failover order']
+
+// Per-traffic-type distributed portgroup block — workbook "Network Traffic: X"
+// rows (Deploy Management Domain → Distributed Switch Configuration): portgroup
+// name, per-portgroup load balancing, per-uplink Active/Standby/Unused choice.
+function makePortGroupFields(prefix, label, defPg, opts = {}) {
+  const f = [
+    { key:`${prefix}PgName`,    label:`${label} PortGroup Name`,  type:'text',   sample:defPg, notes:'Portgroup will be created on the Primary Distributed Switch' },
+    { key:`${prefix}PgLb`,      label:`${label} Load Balancing`,  type:'select', options:PG_LB_OPTIONS, sample:opts.defLb || 'Route Based on Physical NIC Load' },
+    { key:`${prefix}PgUplink1`, label:`${label} uplink1`,         type:'select', options:['Active','Standby','Unused'], sample:'Active' },
+    { key:`${prefix}PgUplink2`, label:`${label} uplink2`,         type:'select', options:['Active','Standby','Unused'], sample:'Active' },
+  ]
+  return opts.showWhen ? f.map(fld => ({ ...fld, showWhen: opts.showWhen })) : f
 }
 
 function makeHostFields(n, prefix, ipBase, vlanBase) {
@@ -405,16 +420,19 @@ export const ALL_PAGES = [
             sample:'Default', required:true, notes:'Determines which VDS switches are deployed' },
           { key:'dvsName',        label:'Primary VDS Name',         type:'text',   sample:'sfo-m01-cl01-dvs01', required:true },
           { key:'dvsVersion',     label:'VDS Version',              type:'select', options:['9.0.0','8.0.0','7.0.3'], sample:'9.0.0' },
-          { key:'dvsUplinkPolicy',label:'Teaming Policy',           type:'select',
+          { key:'dvsMtu',         label:'MTU',                      type:'number', sample:'9000' },
+          { key:'dvsUplinkPolicy',label:'Teaming Policy (default)', type:'select',
             options:['Route based on IP hash','Route based on source MAC hash','Route based on source port ID','Use explicit failover order','Route Based on Physical NIC Load'],
-            sample:'Route based on IP hash' },
+            sample:'Route based on IP hash', notes:'Switch-level default — each portgroup can override it in the Distributed PortGroups section below' },
           { key:'dvsLacpEnabled', label:'LACP Enabled',             type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'dvsLagName',     label:'LAG Name',                 type:'text',   sample:'m01-cl01-vds1-lg', showWhen:f=>f.dvsLacpEnabled==='Include' },
           { key:'dvsLacpMode',    label:'LACP Mode',                type:'select', options:['Active','Passive'], sample:'Active', showWhen:f=>f.dvsLacpEnabled==='Include' },
+          { key:'dvsLagLb',       label:'LAG Load Balancing',       type:'text',   sample:'Source and destination IP and TCP/UDP port and vLAN', showWhen:f=>f.dvsLacpEnabled==='Include' },
           { key:'dvsLacpTimeout', label:'LACP Timeout',             type:'select', options:['Slow','Fast'], sample:'Fast', showWhen:f=>f.dvsLacpEnabled==='Include' },
           { key:'dvsUplinkCount', label:'Number of Uplinks (NICs)', type:'select', options:['2','3','4','5','6','7','8','9','10'], sample:'2',
             showWhen:f=>f.dvsProfile==='Custom Switch Configuration', notes:'Number of physical NIC uplinks assigned to the primary VDS' },
-          { key:'dvsUplink1Name', label:'Uplink 1 Name',            type:'text',   sample:'uplink1' },
-          { key:'dvsUplink2Name', label:'Uplink 2 Name',            type:'text',   sample:'uplink2' },
+          { key:'dvsUplink1Name', label:'Uplink 1 Physical NIC',    type:'text',   sample:'vmnic0', notes:'Physical NIC mapped to uplink1 (workbook: uplink1 → vmnic0)' },
+          { key:'dvsUplink2Name', label:'Uplink 2 Physical NIC',    type:'text',   sample:'vmnic1' },
           ...makeUplinkFields('dvsUplink', 3, 10),
         ]
       },
@@ -423,8 +441,14 @@ export const ALL_PAGES = [
         showWhen: f => f.dvsProfile && f.dvsProfile !== 'Default',
         fields:[
           { key:'dvs2Name',        label:'Secondary VDS Name',      type:'text',   sample:'sfo-m01-cl01-dvs02', required:true },
-          { key:'dvs2Uplink1Name', label:'Uplink 1 Name',           type:'text',   sample:'uplink1' },
-          { key:'dvs2Uplink2Name', label:'Uplink 2 Name',           type:'text',   sample:'uplink2' },
+          { key:'dvs2Mtu',         label:'MTU',                     type:'number', sample:'9000' },
+          { key:'dvs2LacpEnabled', label:'LACP Enabled',            type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'dvs2LagName',     label:'LAG Name',                type:'text',   sample:'m01-cl01-vds2-lg', showWhen:f=>f.dvs2LacpEnabled==='Include' },
+          { key:'dvs2LacpMode',    label:'LACP Mode',               type:'select', options:['Active','Passive'], sample:'Active', showWhen:f=>f.dvs2LacpEnabled==='Include' },
+          { key:'dvs2LagLb',       label:'LAG Load Balancing',      type:'text',   sample:'Source and destination IP and TCP/UDP port and vLAN', showWhen:f=>f.dvs2LacpEnabled==='Include' },
+          { key:'dvs2LacpTimeout', label:'LACP Timeout',            type:'select', options:['Slow','Fast'], sample:'Fast', showWhen:f=>f.dvs2LacpEnabled==='Include' },
+          { key:'dvs2Uplink1Name', label:'Uplink 1 Physical NIC',   type:'text',   sample:'vmnic2' },
+          { key:'dvs2Uplink2Name', label:'Uplink 2 Physical NIC',   type:'text',   sample:'vmnic3' },
         ]
       },
       {
@@ -432,8 +456,34 @@ export const ALL_PAGES = [
         showWhen: f => f.dvsProfile === 'Storage Traffic and NSX Traffic Separation',
         fields:[
           { key:'dvs3Name',        label:'Tertiary VDS Name',       type:'text',   sample:'sfo-m01-cl01-dvs03', required:true },
-          { key:'dvs3Uplink1Name', label:'Uplink 1 Name',           type:'text',   sample:'uplink1' },
-          { key:'dvs3Uplink2Name', label:'Uplink 2 Name',           type:'text',   sample:'uplink2' },
+          { key:'dvs3Mtu',         label:'MTU',                     type:'number', sample:'9000' },
+          { key:'dvs3LacpEnabled', label:'LACP Enabled',            type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
+          { key:'dvs3LagName',     label:'LAG Name',                type:'text',   sample:'m01-cl01-vds3-lg', showWhen:f=>f.dvs3LacpEnabled==='Include' },
+          { key:'dvs3LacpMode',    label:'LACP Mode',               type:'select', options:['Active','Passive'], sample:'Active', showWhen:f=>f.dvs3LacpEnabled==='Include' },
+          { key:'dvs3LagLb',       label:'LAG Load Balancing',      type:'text',   sample:'Source and destination IP and TCP/UDP port and vLAN', showWhen:f=>f.dvs3LacpEnabled==='Include' },
+          { key:'dvs3LacpTimeout', label:'LACP Timeout',            type:'select', options:['Slow','Fast'], sample:'Fast', showWhen:f=>f.dvs3LacpEnabled==='Include' },
+          { key:'dvs3Uplink1Name', label:'Uplink 1 Physical NIC',   type:'text',   sample:'vmnic4' },
+          { key:'dvs3Uplink2Name', label:'Uplink 2 Physical NIC',   type:'text',   sample:'vmnic5' },
+        ]
+      },
+      {
+        title:'Distributed PortGroups (per network traffic)',
+        description:'The workbook captures a portgroup name, a load-balancing policy and a per-uplink Active/Standby choice for every network traffic type (Deploy Management Domain → Distributed Switch Configuration → Network Traffic). NSX overlay traffic has no portgroup name — it is configured on the Primary Distributed Switch with its own operational mode.',
+        fields:[
+          ...makePortGroupFields('esxMgmt', 'ESX Management', 'sfo-m01-cl01-vds01-pg-esx-mgmt'),
+          ...makePortGroupFields('vmMgmt',  'VM Management',  'sfo-m01-cl01-vds01-pg-vm-mgmt'),
+          ...makePortGroupFields('vcfMgmt', 'VCF Management', 'sfo-m01-cl01-vds01-pg-vcf-mgmt', { showWhen:f=>f.vcfMgmtInclude==='Include' }),
+          ...makePortGroupFields('vmotion', 'vMotion',        'sfo-m01-cl01-vds01-pg-vmotion'),
+          ...makePortGroupFields('vsan1',   'vSAN',           'sfo-m01-cl01-vds01-pg-vsan', { showWhen:f=>!f.principalStorage||f.principalStorage.startsWith('vSAN') }),
+          ...makePortGroupFields('nfs',     'NFS',            'sfo-m01-cl01-vds01-pg-nfs',  { showWhen:f=>f.principalStorage==='NFSv3' }),
+          // NSX overlay traffic — workbook "Network Traffic: NSX"
+          { key:'nsxApplyDefaultOpMode', label:'NSX: Apply default operation mode', type:'select', options:['Selected','Unselected'], sample:'Selected',
+            notes:'Applying the default operation mode configured in NSX Manager enables Enhanced Datapath Standard. Overlay traffic is configured on the Primary Distributed Switch.' },
+          { key:'apiNsxOpMode',   label:'NSX: Operational Mode',    type:'select', options:['Standard','Enhanced Datapath Standard','Enhanced Datapath Dedicated'], sample:'Enhanced Datapath Standard',
+            showWhen:f=>f.nsxApplyDefaultOpMode==='Unselected', notes:'Only required when not applying the default operational mode' },
+          { key:'nsxPgLb',        label:'NSX Load Balancing',       type:'select', options:PG_LB_OPTIONS, sample:'Route based on source port ID' },
+          { key:'nsxPgUplink1',   label:'NSX uplink1',              type:'select', options:['Active','Standby','Unused'], sample:'Active' },
+          { key:'nsxPgUplink2',   label:'NSX uplink2',              type:'select', options:['Active','Standby','Unused'], sample:'Active' },
         ]
       },
       {
@@ -443,7 +493,6 @@ export const ALL_PAGES = [
         fields:[
           { key:'apiVcenterSize', label:'vCenter Size (API)',       type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium' },
           { key:'apiNsxSize',     label:'NSX Manager Size (API)',   type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small' },
-          { key:'apiNsxOpMode',   label:'NSX Operation Mode',       type:'select', options:['Standard','Enhanced Datapath Standard','Enhanced Datapath Dedicated'], sample:'Standard' },
         ]
       },
       {
