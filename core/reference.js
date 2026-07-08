@@ -37,7 +37,7 @@ const PG_LB_OPTIONS = ['Route Based on Physical NIC Load','Route based on IP has
 // name, per-portgroup load balancing, per-uplink Active/Standby/Unused choice.
 function makePortGroupFields(prefix, label, defPg, opts = {}) {
   const f = [
-    { key:`${prefix}PgName`,    label:`${label} PortGroup Name`,  type:'text',   sample:defPg, notes:'Portgroup will be created on the Primary Distributed Switch' },
+    { key:`${prefix}PgName`,    label:`${label} PortGroup Name`,  type:'text',   sample:defPg, required:true, notes:'Portgroup will be created on the Primary Distributed Switch' },
     { key:`${prefix}PgLb`,      label:`${label} Load Balancing`,  type:'select', options:PG_LB_OPTIONS, sample:opts.defLb || 'Route Based on Physical NIC Load' },
     { key:`${prefix}PgUplink1`, label:`${label} uplink1`,         type:'select', options:['Active','Standby','Unused'], sample:'Active' },
     { key:`${prefix}PgUplink2`, label:`${label} uplink2`,         type:'select', options:['Active','Standby','Unused'], sample:'Active' },
@@ -425,7 +425,7 @@ export const ALL_PAGES = [
             options:['Route based on IP hash','Route based on source MAC hash','Route based on source port ID','Use explicit failover order','Route Based on Physical NIC Load'],
             sample:'Route based on IP hash', notes:'Switch-level default — each portgroup can override it in the Distributed PortGroups section below' },
           { key:'dvsLacpEnabled', label:'LACP Enabled',             type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
-          { key:'dvsLagName',     label:'LAG Name',                 type:'text',   sample:'m01-cl01-vds1-lg', showWhen:f=>f.dvsLacpEnabled==='Include' },
+          { key:'dvsLagName',     label:'LAG Name',                 type:'text',   sample:'m01-cl01-vds1-lg', required:true, showWhen:f=>f.dvsLacpEnabled==='Include' },
           { key:'dvsLacpMode',    label:'LACP Mode',                type:'select', options:['Active','Passive'], sample:'Active', showWhen:f=>f.dvsLacpEnabled==='Include' },
           { key:'dvsLagLb',       label:'LAG Load Balancing',       type:'text',   sample:'Source and destination IP and TCP/UDP port and vLAN', showWhen:f=>f.dvsLacpEnabled==='Include' },
           { key:'dvsLacpTimeout', label:'LACP Timeout',             type:'select', options:['Slow','Fast'], sample:'Fast', showWhen:f=>f.dvsLacpEnabled==='Include' },
@@ -443,7 +443,7 @@ export const ALL_PAGES = [
           { key:'dvs2Name',        label:'Secondary VDS Name',      type:'text',   sample:'sfo-m01-cl01-dvs02', required:true },
           { key:'dvs2Mtu',         label:'MTU',                     type:'number', sample:'9000' },
           { key:'dvs2LacpEnabled', label:'LACP Enabled',            type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
-          { key:'dvs2LagName',     label:'LAG Name',                type:'text',   sample:'m01-cl01-vds2-lg', showWhen:f=>f.dvs2LacpEnabled==='Include' },
+          { key:'dvs2LagName',     label:'LAG Name',                type:'text',   sample:'m01-cl01-vds2-lg', required:true, showWhen:f=>f.dvs2LacpEnabled==='Include' },
           { key:'dvs2LacpMode',    label:'LACP Mode',               type:'select', options:['Active','Passive'], sample:'Active', showWhen:f=>f.dvs2LacpEnabled==='Include' },
           { key:'dvs2LagLb',       label:'LAG Load Balancing',      type:'text',   sample:'Source and destination IP and TCP/UDP port and vLAN', showWhen:f=>f.dvs2LacpEnabled==='Include' },
           { key:'dvs2LacpTimeout', label:'LACP Timeout',            type:'select', options:['Slow','Fast'], sample:'Fast', showWhen:f=>f.dvs2LacpEnabled==='Include' },
@@ -458,7 +458,7 @@ export const ALL_PAGES = [
           { key:'dvs3Name',        label:'Tertiary VDS Name',       type:'text',   sample:'sfo-m01-cl01-dvs03', required:true },
           { key:'dvs3Mtu',         label:'MTU',                     type:'number', sample:'9000' },
           { key:'dvs3LacpEnabled', label:'LACP Enabled',            type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
-          { key:'dvs3LagName',     label:'LAG Name',                type:'text',   sample:'m01-cl01-vds3-lg', showWhen:f=>f.dvs3LacpEnabled==='Include' },
+          { key:'dvs3LagName',     label:'LAG Name',                type:'text',   sample:'m01-cl01-vds3-lg', required:true, showWhen:f=>f.dvs3LacpEnabled==='Include' },
           { key:'dvs3LacpMode',    label:'LACP Mode',               type:'select', options:['Active','Passive'], sample:'Active', showWhen:f=>f.dvs3LacpEnabled==='Include' },
           { key:'dvs3LagLb',       label:'LAG Load Balancing',      type:'text',   sample:'Source and destination IP and TCP/UDP port and vLAN', showWhen:f=>f.dvs3LacpEnabled==='Include' },
           { key:'dvs3LacpTimeout', label:'LACP Timeout',            type:'select', options:['Slow','Fast'], sample:'Fast', showWhen:f=>f.dvs3LacpEnabled==='Include' },
