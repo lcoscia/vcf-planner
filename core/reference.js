@@ -293,7 +293,9 @@ export const ALL_PAGES = [
         fields:[
           ...makeNetFields('esxMgmt',   'ESX Management',    1110, '10.11.10.1', '10.11.10.0/24', 1500, true),
           ...makeNetFields('vmMgmt',    'VM Management',     1111, '10.11.11.1', '10.11.11.0/24', 1500, true),
-          ...makeNetFields('vcfMgmt',   'VCF Management',    1112, '10.11.12.1', '10.11.12.0/24', 1500, true),
+          { key:'vcfMgmtInclude', label:'Dedicated VCF Management Network', type:'toggle', options:['Include','Exclude'], sample:'Exclude',
+            notes:'Optional — the workbook masks these inputs out unless you use a separate and dedicated network for VCF Management components. Excluded: the management components land on the VM Management network.' },
+          ...makeNetFields('vcfMgmt',   'VCF Management',    1112, '10.11.12.1', '10.11.12.0/24', 1500, true).map(fld => ({ ...fld, showWhen:f=>f.vcfMgmtInclude==='Include' })),
         ]
       },
       {
