@@ -312,8 +312,8 @@ export const ALL_PAGES = [
           { key:'vcMgmtIp',      label:'vCenter IP',                type:'ip',   sample:'10.11.10.3', required:true },
           { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium', required:true },
           { key:'vcSsoDomain',   label:'SSO Domain',                type:'text', sample:'vsphere.local', required:true },
-          { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'AUTO-GENERATED', required:true, notes:'min 8 chars, complexity required' },
-          { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'AUTO-GENERATED', required:true },
+          { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'AUTO-GENERATED', required:true, notes:'8–20 chars, 1 lowercase, 1 number, 1 special (TechDocs default password requirements). Special characters valid across ALL VCF components: ! @ # $ ^' },
+          { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'AUTO-GENERATED', required:true, notes:'8–20 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
           { key:'vcDatacenter',  label:'Datacenter Name',           type:'text', sample:'sfo-m01-dc01', required:true },
           { key:'vcCluster',     label:'Cluster Name',              type:'text', sample:'sfo-m01-cl01', required:true },
           { key:'vcDatastore',   label:'vSAN Datastore Name',       type:'text', sample:'sfo-m01-cl01-ds-vsan01', required:true,
@@ -324,9 +324,9 @@ export const ALL_PAGES = [
         title:'SDDC Manager',
         fields:[
           { key:'sddcHostname',  label:'SDDC Manager Hostname',    type:'text', sample:'sfo-m01-sddc01', required:true },
-          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'AUTO-GENERATED', required:true },
-          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'AUTO-GENERATED', required:true },
-          { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'AUTO-GENERATED', required:true, notes:'All management cluster hosts must share the same root password' },
+          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'AUTO-GENERATED', required:true, notes:'admin@local: 15–127 chars, 1 uppercase, 1 lowercase, 1 number, 1 special, no 3 consecutive identical characters' },
+          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'AUTO-GENERATED', required:true, notes:'min 12 chars, 1 uppercase, 1 lowercase, 1 number, 1 special, no dictionary words' },
+          { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'AUTO-GENERATED', required:true, notes:'All management cluster hosts must share the same root password. ESX root: 7–40 chars, at least 3 of 4 character classes, no dictionary words' },
           { key:'sddcLocation',  label:'SDDC Manager Location', type:'select', options:['Deployed on one of the management domain hosts','External deployment'], sample:'Deployed on one of the management domain hosts' },
         ]
       },
@@ -343,8 +343,8 @@ export const ALL_PAGES = [
           { key:'nsxMgr3Ip',     label:'NSX Manager 3 IP',         type:'ip',   sample:'10.11.10.73' },
           { key:'nsxVipFqdn',    label:'NSX Cluster VIP FQDN',     type:'text', sample:'sfo-m01-nsx01.sfo.rainpole.io', required:true },
           { key:'nsxVipIp',      label:'NSX Cluster VIP IP',       type:'ip',   sample:'10.11.10.74', required:true },
-          { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'AUTO-GENERATED', required:true },
-          { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'AUTO-GENERATED' },
+          { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'AUTO-GENERATED', required:true, notes:'12–128 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
+          { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'AUTO-GENERATED', notes:'12–128 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
           { key:'nsxMgrSize',    label:'NSX Manager Appliance Size', type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small', required:true },
         ]
       },
@@ -369,7 +369,7 @@ export const ALL_PAGES = [
           { key:'nsxEdgeUplink1Vlan', label:'Edge Uplink 1 VLAN',  type:'number', sample:'2711', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdgeUplink2Vlan', label:'Edge Uplink 2 VLAN',  type:'number', sample:'2712', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdgeBgpAsn',  label:'Edge BGP ASN',            type:'number', sample:'65101', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'nsxEdgePw',      label:'Edge Root Password',      type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgePw',      label:'Edge Root Password',      type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxEdgeInclude!=='Exclude', notes:'12–128 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
         ]
       },
       {
@@ -499,9 +499,9 @@ export const ALL_PAGES = [
           { key:'nsxGmNode2Ip',  label:'GM Node 2 IP',              type:'ip',       sample:'10.11.10.92', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
           { key:'nsxGmNode3Fqdn',label:'GM Node 3 FQDN',            type:'text',     sample:'sfo-m01-gm01c.rainpole.io', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
           { key:'nsxGmNode3Ip',  label:'GM Node 3 IP',              type:'ip',       sample:'10.11.10.93', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
-          { key:'nsxGmAdminPw',  label:'GM Admin Password',         type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
-          { key:'nsxGmRootPw',   label:'GM Root Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
-          { key:'nsxGmAuditPw',  label:'GM Audit Password',         type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude' },
+          { key:'nsxGmAdminPw',  label:'GM Admin Password',         type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude', notes:'12–128 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
+          { key:'nsxGmRootPw',   label:'GM Root Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude', notes:'12–128 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
+          { key:'nsxGmAuditPw',  label:'GM Audit Password',         type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.nsxFedRole&&f.nsxFedRole!=='Exclude', notes:'12–128 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
         ]
       },
       {
@@ -534,7 +534,7 @@ export const ALL_PAGES = [
           { key:'aviCtrl2Ip',      label:'AVI Controller 2 IP',        type:'ip',     sample:'10.11.10.69', showWhen:f=>f.aviInclude==='Include' },
           { key:'aviCtrl3Fqdn',    label:'AVI Controller 3 FQDN',      type:'text',   sample:'sfo-m01-avi01c.sfo.rainpole.io', showWhen:f=>f.aviInclude==='Include' },
           { key:'aviCtrl3Ip',      label:'AVI Controller 3 IP',        type:'ip',     sample:'10.11.10.71', showWhen:f=>f.aviInclude==='Include' },
-          { key:'aviAdminPass',    label:'AVI Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.aviInclude==='Include' },
+          { key:'aviAdminPass',    label:'AVI Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.aviInclude==='Include', notes:'min 15 chars, 1 uppercase, 1 special (workbook AVI Load Balancer section)' },
           { key:'aviVersion',      label:'AVI Version',                 type:'text',   sample:'31.1.1', showWhen:f=>f.aviInclude==='Include' },
           { key:'aviFormFactor',   label:'AVI Form Factor',             type:'select', options:['Edge Cluster Medium','Large'], sample:'Edge Cluster Medium', showWhen:f=>f.aviInclude==='Include' },
           { key:'aviSize',         label:'AVI Controller Size',         type:'select', options:['Small','Large','Extra-Large'], sample:'Small', showWhen:f=>f.aviInclude==='Include' },
@@ -583,7 +583,7 @@ export const ALL_PAGES = [
           { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'sfo-m01-vrops01.sfo.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation', notes:'Optional in Single Node mode — useful for connecting an external load balancer in HA Cluster mode' },
           { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.99.21', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
           { key:'vcfOpsSize',      label:'VCF Operations Size',     type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-          { key:'vcfOpsAdminPw',   label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
+          { key:'vcfOpsAdminPw',   label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation', notes:'min 15 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
         ]
       },
       {
@@ -603,7 +603,7 @@ export const ALL_PAGES = [
           { key:'vcfAutoIpPool3',  label:'VCF Automation Node IP Pool — Address 3', type:'ip',   sample:'10.11.99.48', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
           { key:'vcfAutoIpPool4',  label:'VCF Automation Node IP Pool — Address 4 (buffer)', type:'ip',   sample:'10.11.99.49', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
           { key:'vcfAutoIpPool5',  label:'VCF Automation Node IP Pool — Address 5 (buffer)', type:'ip',   sample:'10.11.99.50', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
+          { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation', notes:'min 15 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
         ]
       },
       {
@@ -634,7 +634,7 @@ export const ALL_PAGES = [
             notes:'Optional additional Virtual IP, created post-deployment on the Integrated Load Balancer tab of the Log Collection configuration. Its IP is also allocated from the VCF Services Runtime IP block, not a separate Management VM Network / Fleet VLAN address.' },
           { key:'vcfLogsLbIp',        label:'Log Management Additional VIP IP',   type:'ip',   sample:'10.11.99.45', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
           { key:'vcfLogsSize',     label:'Log Management Size',     type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfLogsInclude==='Include' },
-          { key:'vcfLogsAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfLogsInclude==='Include', notes:'min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
         ]
       },
       {
@@ -682,7 +682,7 @@ export const ALL_PAGES = [
           { key:'mgmtSvcAdditionalIp2', label:'Additional IP #2', type:'ip', sample:'10.11.99.31' },
           { key:'mgmtSvcAdditionalIp3', label:'Additional IP #3', type:'ip', sample:'10.11.99.32' },
           { key:'vcfMgmtSvcSshPw',        label:'SSH Password (vmware-system-user)', type:'password', sample:'AUTO-GENERATED',
-            notes:'Shared SSH credential for the vmware-system-user account on VCF Management Services runtime nodes.' },
+            notes:'Shared SSH credential for the vmware-system-user account on VCF Management Services runtime nodes. Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special.' },
         ]
       },
       {
@@ -789,7 +789,7 @@ export const ALL_PAGES = [
           { key:'wldVcDatacenter', label:'WLD Datacenter Name',   type:'text', sample:'sfo-w01-dc01' },
           { key:'wldVcCluster',  label:'WLD Cluster Name',        type:'text', sample:'sfo-w01-cl01' },
           { key:'wldVcDatastore', label:'WLD vSAN Datastore',     type:'text', sample:'sfo-w01-cl01-ds-vsan01' },
-          { key:'wldVcAdminPw',  label:'vCenter Admin Password',  type:'password', sample:'AUTO-GENERATED' },
+          { key:'wldVcAdminPw',  label:'vCenter Admin Password',  type:'password', sample:'AUTO-GENERATED', notes:'SSO admin: 8–20 chars, 1 lowercase, 1 number, 1 special' },
           { key:'wldVcModel', label:'vCenter Model',           type:'select', options:['Shared','Dedicated'], sample:'Shared', notes:'Shared reuses the Management Domain vCenter; Dedicated deploys a separate VCSA for this workload domain.' },
           { key:'wldVcSize',  label:'WLD vCenter Appliance Size', type:'select', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Small', showWhen:f=>f.wldVcModel==='Dedicated', notes:'Size the dedicated VCSA based on the number of hosts/VMs it will manage — see VCF Fleet Sizing Models.', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)' },
           { key:'wldVcStorageTier', label:'WLD vCenter Storage Tier', type:'select', options:['Default','Large','XLarge'], sample:'Default', showWhen:f=>f.wldVcModel==='Dedicated', notes:'Increase the storage tier if you plan to retain longer task/event/stats history on this vCenter.' },
@@ -1024,7 +1024,7 @@ export const ALL_PAGES = [
           { key:'rwrRetentionDays',  label:'Retention Period (days)',               type:'number', sample:'30', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrProtectedVms',   label:'Protected VM Count (estimate)',         type:'number', sample:'50', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrSnapshotCount',  label:'Snapshots per VM',                     type:'number', sample:'24', showWhen:f=>f.rwrOnpremInclude==='Include' },
-          { key:'rwrAdminPw',        label:'Recovery Appliance Admin Password',    type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.rwrOnpremInclude==='Include' },
+          { key:'rwrAdminPw',        label:'Recovery Appliance Admin Password',    type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.rwrOnpremInclude==='Include', notes:'VMware Live Recovery: 8–20 chars, 1 uppercase, 1 lowercase, 1 number, 1 special' },
           { key:'rwrNtp1',           label:'NTP Server 1',                         type:'text',     sample:'ntp.sfo.rainpole.io', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrNtp2',           label:'NTP Server 2',                         type:'text',     sample:'', showWhen:f=>f.rwrOnpremInclude==='Include' },
           { key:'rwrDns1',           label:'DNS Server 1',                         type:'ip',       sample:'10.11.0.2', showWhen:f=>f.rwrOnpremInclude==='Include' },
