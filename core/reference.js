@@ -220,9 +220,6 @@ export const ALL_PAGES = [
         title:'Cluster & Scale Options',
         fields:[
           { key:'mgmtClusterType', label:'Management Cluster Type', type:'select', options:['High Availability (Three-Node)','Simple'], sample:'High Availability (Three-Node)', required:true, notes:'HA requires minimum 4 hosts. Simple requires 1 host.' },
-          { key:'evcMode',         label:'EVC Mode',                type:'select',
-            options:['Disabled','Intel Cascadelake','Intel Skylake','Intel Broadwell','Intel Haswell','Intel Ivy Bridge','Intel Sandy Bridge','AMD EPYC Rome','AMD EPYC Milan','AMD EPYC Genoa'],
-            sample:'Disabled', notes:'Enhanced vMotion Compatibility mode — set to lowest common CPU microarch in cluster' },
           { key:'nsxDeployType',   label:'NSX Manager Deployment',  type:'select',
             options:['Create new NSX Manager Instance','Join existing NSX Manager Instance'],
             sample:'Create new NSX Manager Instance', required:true,
