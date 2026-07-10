@@ -461,6 +461,14 @@ export const ALL_PAGES = [
     subtitle:'Post-deployment configuration tasks',
     sections:[
       {
+        title:'vSphere Cluster Settings',
+        fields:[
+          { key:'evcMode',         label:'EVC Mode',                type:'select',
+            options:['Disabled','Intel Cascadelake','Intel Skylake','Intel Broadwell','Intel Haswell','Intel Ivy Bridge','Intel Sandy Bridge','AMD EPYC Rome','AMD EPYC Milan','AMD EPYC Genoa'],
+            sample:'Disabled', notes:'Enhanced vMotion Compatibility — not offered during bring-up; set post-deployment in vCenter (cluster → Configure → VMware EVC) to the lowest common CPU microarch in the cluster' },
+        ]
+      },
+      {
         title:'SFTP Backup Configuration',
         fields:[
           { key:'sftpBackupInclude', label:'Configure SFTP Backups', type:'toggle', options:['Include','Exclude'], sample:'Include' },
