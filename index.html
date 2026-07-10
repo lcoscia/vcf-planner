@@ -265,7 +265,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.6</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.7</div>
     </div>
   </div>
   <!-- Actions -->
@@ -355,7 +355,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.6 · Updated July 7, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.7 · Updated July 10, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -1308,7 +1308,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.6</span>
+              <span>v1.1.7</span>
               <span>·</span>
               <span>Updated July 7, 2026</span>
               <span>·</span>
@@ -1469,6 +1469,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.7<br><span class="text-gray-300">2026-07-10</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">EVC Mode moved to day-2, aligned with vSphere 9.0 baselines</p>
+            <p>The <strong>EVC Mode</strong> field moved from the Deploy Management Domain "Cluster &amp; Scale Options" to a new <strong>vSphere Cluster Settings</strong> section on the <strong>Configure Management Domain</strong> page — the VCF 9.x Installer offers no EVC selection during bring-up (verified against a real 9.1 deployment); EVC is applied post-deployment in vCenter (cluster → Configure → VMware EVC). The option list was rebuilt from the invented original (old Intel microarchs, "AMD EPYC Rome/Milan/Genoa" naming) to the actual vCenter 9.0 baseline names: <strong>Custom</strong> (new in vSphere 9.0), Intel "Skylake" through "Granite Rapids" Generation, and AMD "Zen" (Naples) through "Zen 5" (Turin) Generation. Intel baselines older than Skylake were dropped since those CPU families are discontinued in ESX 9.x; Skylake-SP itself was restored as supported (software support only) in the Broadcom Compatibility Guide on July 7, 2026. Same form key (<code class="bg-gray-100 px-1 rounded text-xs">evcMode</code>), so saved plans keep their value. Contributed by Paul van Dieen (ITQ).</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.6<br><span class="text-gray-300">2026-07-07</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">VCF Operations fillable at bring-up</p>
