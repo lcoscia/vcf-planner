@@ -464,8 +464,8 @@ export const ALL_PAGES = [
         title:'vSphere Cluster Settings',
         fields:[
           { key:'evcMode',         label:'EVC Mode',                type:'select',
-            options:['Disabled','Intel Cascadelake','Intel Skylake','Intel Broadwell','Intel Haswell','Intel Ivy Bridge','Intel Sandy Bridge','AMD EPYC Rome','AMD EPYC Milan','AMD EPYC Genoa'],
-            sample:'Disabled', notes:'Enhanced vMotion Compatibility — not offered during bring-up; set post-deployment in vCenter (cluster → Configure → VMware EVC) to the lowest common CPU microarch in the cluster' },
+            options:['Disabled','Custom','Intel "Cascade Lake" Generation','Intel "Ice Lake" Generation','Intel "Sapphire Rapids" Generation','Intel "Granite Rapids" Generation','AMD "Zen" Generation (Naples)','AMD "Zen 2" Generation (Rome)','AMD "Zen 3" Generation (Milan)','AMD "Zen 4" Generation (Genoa)','AMD "Zen 5" Generation (Turin)'],
+            sample:'Disabled', notes:'Enhanced vMotion Compatibility — not offered during bring-up; set post-deployment in vCenter (cluster → Configure → VMware EVC) to the lowest common CPU generation in the cluster. List limited to baselines meaningful on ESXi 9.x-supported CPUs (Intel Cascade Lake+, AMD Zen+); older baselines remain selectable in vCenter for cross-cluster migration compatibility. Custom EVC is new in vSphere 9.0.' },
         ]
       },
       {
