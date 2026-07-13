@@ -265,7 +265,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.7</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.8</div>
     </div>
   </div>
   <!-- Actions -->
@@ -284,6 +284,7 @@
     <div class="tb-sep"></div>
     <button @click="navigate('ports')" class="tb-action" :class="currentPage==='ports'?'active':''" title="Ports &amp; Protocols reference"><span x-html="iconSvg('plug',14)"></span>Ports</button>
     <button @click="navigate('about')" class="tb-action" :class="currentPage==='about'?'active':''" title="About this tool"><span x-html="iconSvg('info',14)"></span>About</button>
+    <button @click="openFeedback()" class="tb-action" title="Report an issue or missing feature on GitHub"><span x-html="iconSvg('feedback',14)"></span><span class="hidden md:inline">Feedback</span></button>
     <div class="tb-sep"></div>
     <button @click="toggleDark()" class="tb-action" :title="darkMode?'Switch to light mode':'Switch to dark mode'"><span x-html="iconSvg(darkMode?'sun':'moon',15)"></span></button>
     <button @click="fillDemoManagementDomain()" class="tb-action cta" title="Fill Management Domain with demo data (4-node vSAN-ESA cluster + NSX Edge)"><span x-html="iconSvg('beaker',14)"></span>Demo</button>
@@ -355,7 +356,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.7 · Updated July 10, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.8 · Updated July 13, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -1308,9 +1309,9 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.7</span>
+              <span>v1.1.8</span>
               <span>·</span>
-              <span>Updated July 7, 2026</span>
+              <span>Updated July 13, 2026</span>
               <span>·</span>
               <span>Single-file · No server · No build step</span>
             </div>
@@ -1469,6 +1470,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.8<br><span class="text-gray-300">2026-07-13</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Auto-generate-password toggles, per-portgroup VDS config &amp; Feedback button</p>
+            <p>The <strong>vCenter Management Domain</strong>, <strong>NSX Edge</strong> and <strong>Workload Domain</strong> password fields gain dedicated <strong>Auto-Generate Password</strong> toggles (<code class="bg-gray-100 px-1 rounded text-xs">autoGenPw</code> / <code class="bg-gray-100 px-1 rounded text-xs">nsxEdgeAutoGenPw</code> / <code class="bg-gray-100 px-1 rounded text-xs">wldAutoGenPw</code>), replacing the static "AUTO-GENERATED" placeholder with an explicit Selected/Unselected control that conditionally reveals the password field and omits the root vCenter password from the VCF Installer JSON export when auto-generation is selected — matching the workbook's own toggle. The Distributed Switch pages are brought to full workbook depth with a new <strong>per-portgroup configuration</strong> (name, load balancing, and Active/Standby uplink assignment for ESX Mgmt, VM Mgmt, VCF Mgmt, vMotion, vSAN and NFS traffic, plus the NSX overlay portgroup), and gain MTU, LAG and physical NIC uplink fields for the Primary/Secondary/Tertiary VDS sections. A new <strong>Feedback</strong> button in the topbar (all pages) opens a pre-filled GitHub issue (title, current app version, current page and browser user-agent) in a new tab for reporting problems or missing features — no data leaves the browser without the user's explicit submission on GitHub. Contributed by Paul van Dieen (ITQ; password toggles &amp; portgroup config).</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.7<br><span class="text-gray-300">2026-07-10</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">EVC Mode moved to day-2, aligned with vSphere 9.0 baselines</p>
@@ -2355,6 +2363,7 @@ const ICON_PATHS = {
   beaker:  '<path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/>',
   reset:   '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   check:   '<path d="M20 6 9 17l-5-5"/>',
+  feedback: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   // nav / page icons (canonical names)
   home:        '<path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9 21v-6h6v6"/>',
   sparkles:    '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/>',
@@ -2801,6 +2810,31 @@ function vcfPlanner() {
     toggleDark() {
       this.darkMode = !this.darkMode
       localStorage.setItem('vcf-dark', this.darkMode ? '1' : '0')
+    },
+
+    // ─── FEEDBACK ───
+    openFeedback() {
+      const page = this.allPages.find(p => p.id === this.currentPage)
+      const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
+      const appVersion = 'v1.1.8'
+      const title = '[Feedback] '
+      const body = [
+        '## Problème / manque constaté',
+        '',
+        '<!-- Décrivez ici le problème rencontré ou la fonctionnalité manquante -->',
+        '',
+        '## Contexte',
+        '',
+        `- Version de l'app : ${appVersion}`,
+        `- Page / étape : ${pageTitle} (${this.currentPage})`,
+        `- Navigateur : ${navigator.userAgent}`,
+        '',
+      ].join('\n')
+      const url = 'https://github.com/lcoscia/vcf-planner/issues/new'
+        + '?title=' + encodeURIComponent(title)
+        + '&body=' + encodeURIComponent(body)
+        + '&labels=feedback'
+      window.open(url, '_blank', 'noopener')
     },
 
     // ─── SECTION TOOLS ───
