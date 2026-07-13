@@ -7,85 +7,91 @@
 // (`worksheet['D12'] === { v: <value>, t: <type>, f?: <formula string> }`).
 //
 // ────────────────────────────────────────────────────────────────────────────
-// ⚠️  CELL COORDINATES ARE UNCALIBRATED PLACEHOLDERS  ⚠️
-// We do not have access to a real copy of the Broadcom workbook in this repo (it is
-// gitignored and never committed). Every `cell:` address below was guessed from the
-// field's position in the form wizard and MUST be validated/corrected against a real
-// "VCF 9.1 Planning & Preparation Workbook" export before this mapping can be trusted.
-// A more robust long-term approach: if the workbook exposes Excel Named Ranges (as
-// VMware's own `VCF.JSONGenerator` PowerShell module reads them, rather than fixed
-// A1-style coordinates), migrate EXCEL_IMPORT_MAP to reference names instead —
-// named ranges survive row/column insertions across workbook revisions, fixed cell
-// addresses do not.
+// CALIBRATION STATUS (2026-07-13): every `cell:` address below has been verified
+// directly against a real "vcf-9.1-planning-and-preparation-workbook-25june2026.xlsx"
+// export (label in the adjacent column + sample value both checked, see the audit
+// notes in git history) — this replaces an earlier, uncalibrated draft that guessed
+// coordinates from the web form's field order and was confirmed to write garbage
+// values into the form (e.g. a "Final Result" summary-table cell landing on
+// `supervisorCidr`). Anything not listed here is deliberately NOT mapped rather than
+// guessed — see the "NOT MAPPED" notes below each sheet.
+//
+// Long-term robustness note: the workbook exposes hundreds of Excel Named Ranges
+// (e.g. `input_mgmt_vc_fqdn`) that VMware's own `VCF.JSONGenerator` PowerShell module
+// reads instead of fixed A1 coordinates — named ranges survive row/column insertions
+// across workbook revisions, fixed cell addresses do not. Migrating EXCEL_IMPORT_MAP
+// to reference names is the recommended next step (tracked separately); until then,
+// re-run the calibration below against any new workbook revision before trusting it.
 // ────────────────────────────────────────────────────────────────────────────
 
-// EXCEL_IMPORT_MAP: sheet name (best-effort, matches the workbook tab names) ->
-// list of { key, cell, type } entries. `key` must be an existing form.* key from
-// ALL_PAGES (core/reference.js) — never invent a new one here.
+// EXCEL_IMPORT_MAP: sheet name (matches the workbook tab name) -> list of entries.
+// Two entry shapes:
+//   { key, cell, type }                      — one workbook cell -> one form.* key.
+//   { gatewayKey, cidrKey, cell, type:'gatewayCidr' } — the workbook stores a single
+//     "gateway IP (CIDR notation)" cell (e.g. "10.11.11.1/24"); the form instead has
+//     two separate keys (`${prefix}Gateway` = the gateway IP itself, `${prefix}Cidr`
+//     = the network address in CIDR notation, e.g. "10.11.11.0/24") — see
+//     splitGatewayCidr() below for how the network address is derived.
 export const EXCEL_IMPORT_MAP = {
   'Deploy Management Domain': [
-    // General Information
-    { key: 'domainName',    cell: 'D10', type: 'text' },
-    { key: 'subDomainName', cell: 'D11', type: 'text' },
-    { key: 'vcfSddcFqdn',   cell: 'D12', type: 'text' },
-    { key: 'vcfSddcIp',     cell: 'D13', type: 'ip' },
-    { key: 'ntpServer1',    cell: 'D14', type: 'text' },
-    { key: 'ntpServer2',    cell: 'D15', type: 'text' },
-    { key: 'dnsServer1',    cell: 'D16', type: 'ip' },
-    { key: 'dnsServer2',    cell: 'D17', type: 'ip' },
+    // DNS / NTP
+    { key: 'dnsServer1', cell: 'L72', type: 'ip' },
+    { key: 'dnsServer2', cell: 'L73', type: 'ip' },
+    { key: 'ntpServer1', cell: 'L75', type: 'text' },
+    { key: 'ntpServer2', cell: 'L76', type: 'text' },
 
-    // Networks — Management (ESX Management / VM Management)
-    { key: 'esxMgmtVlan',    cell: 'D22', type: 'number' },
-    { key: 'esxMgmtGateway', cell: 'D23', type: 'ip' },
-    { key: 'esxMgmtCidr',    cell: 'D24', type: 'cidr' },
-    { key: 'esxMgmtMtu',     cell: 'D25', type: 'number' },
-    { key: 'vmMgmtVlan',     cell: 'D26', type: 'number' },
-    { key: 'vmMgmtGateway',  cell: 'D27', type: 'ip' },
-    { key: 'vmMgmtCidr',     cell: 'D28', type: 'cidr' },
-    { key: 'vmMgmtMtu',      cell: 'D29', type: 'number' },
-
-    // Networks — vMotion, vSAN & Overlay
-    { key: 'vmotionVlan',    cell: 'D33', type: 'number' },
-    { key: 'vmotionGateway', cell: 'D34', type: 'ip' },
-    { key: 'vmotionCidr',    cell: 'D35', type: 'cidr' },
-    { key: 'vmotionMtu',     cell: 'D36', type: 'number' },
-    { key: 'vsan1Vlan',      cell: 'D37', type: 'number' },
-    { key: 'vsan1Gateway',   cell: 'D38', type: 'ip' },
-    { key: 'vsan1Cidr',      cell: 'D39', type: 'cidr' },
-    { key: 'vsan1Mtu',       cell: 'D40', type: 'number' },
-    { key: 'overlayVlan',    cell: 'D41', type: 'number' },
-    { key: 'overlayGateway', cell: 'D42', type: 'ip' },
-    { key: 'overlayCidr',    cell: 'D43', type: 'cidr' },
-    { key: 'overlayMtu',     cell: 'D44', type: 'number' },
+    // Networks — Management / vMotion / vSAN / Overlay (VLAN IDs; gateway+CIDR are
+    // a single combined workbook cell, see the gatewayCidr entries below)
+    { key: 'esxMgmtVlan', cell: 'L102', type: 'number' },
+    { gatewayKey: 'esxMgmtGateway', cidrKey: 'esxMgmtCidr', cell: 'L104', type: 'gatewayCidr' },
+    { key: 'vmMgmtVlan', cell: 'L107', type: 'number' },
+    { gatewayKey: 'vmMgmtGateway', cidrKey: 'vmMgmtCidr', cell: 'L109', type: 'gatewayCidr' },
+    { key: 'vmotionVlan', cell: 'L125', type: 'number' },
+    { key: 'vsan1Vlan', cell: 'L133', type: 'number' },
+    { key: 'overlayVlan', cell: 'L147', type: 'number' },
 
     // vCenter Server
-    { key: 'vcMgmtFqdn',   cell: 'D48', type: 'text' },
-    { key: 'vcMgmtIp',     cell: 'D49', type: 'ip' },
-    { key: 'vcMgmtSize',   cell: 'D50', type: 'select' },
-    { key: 'vcSsoDomain',  cell: 'D51', type: 'text' },
-    { key: 'vcDatacenter', cell: 'D52', type: 'text' },
-    { key: 'vcCluster',    cell: 'D53', type: 'text' },
-    { key: 'vcDatastore',  cell: 'D54', type: 'text' },
-
-    // SDDC Manager
-    { key: 'sddcHostname', cell: 'D58', type: 'text' },
-    { key: 'sddcLocation', cell: 'D59', type: 'select' },
-
-    // NSX Manager Cluster
-    { key: 'nsxMgr1Fqdn', cell: 'D63', type: 'text' },
-    { key: 'nsxMgr1Ip',   cell: 'D64', type: 'ip' },
-    { key: 'nsxMgr2Fqdn', cell: 'D65', type: 'text' },
-    { key: 'nsxMgr2Ip',   cell: 'D66', type: 'ip' },
-    { key: 'nsxMgr3Fqdn', cell: 'D67', type: 'text' },
-    { key: 'nsxMgr3Ip',   cell: 'D68', type: 'ip' },
-    { key: 'nsxVipFqdn',  cell: 'D69', type: 'text' },
-    { key: 'nsxVipIp',    cell: 'D70', type: 'ip' },
-    { key: 'nsxMgrSize',  cell: 'D71', type: 'select' },
+    { key: 'vcMgmtFqdn', cell: 'L181', type: 'text' },
+    { key: 'vcDatacenter', cell: 'L182', type: 'text' },
+    { key: 'vcCluster', cell: 'L183', type: 'text' },
+    { key: 'vcSsoDomain', cell: 'L184', type: 'text' },
+    { key: 'vcDatastore', cell: 'L190', type: 'text' },
+    { key: 'vcMgmtSize', cell: 'L327', type: 'select' },
 
     // Distributed Switch Profile
-    { key: 'dvsName', cell: 'D75', type: 'text' },
-    { key: 'dvsMtu',  cell: 'D76', type: 'number' },
+    { key: 'dvsName', cell: 'L206', type: 'text' },
+    { key: 'dvsMtu', cell: 'L207', type: 'number' },
 
+    // NSX Manager Cluster
+    { key: 'nsxVipFqdn', cell: 'L278', type: 'text' },
+    { key: 'nsxMgr1Fqdn', cell: 'L279', type: 'text' },
+    { key: 'nsxMgr2Fqdn', cell: 'L280', type: 'text' },
+    { key: 'nsxMgr3Fqdn', cell: 'L281', type: 'text' },
+    { key: 'nsxMgrSize', cell: 'L330', type: 'select' },
+
+    // SDDC Manager
+    { key: 'sddcLocation', cell: 'L291', type: 'select' },
+    { key: 'vcfSddcFqdn', cell: 'L292', type: 'text' },
+
+    // Reference IP Address block (a separate section ~100 rows below the FQDN
+    // fields above — confirmed by row order matching the sample IPs, not adjacency)
+    { key: 'vcfSddcIp', cell: 'L387', type: 'ip' },
+    { key: 'vcMgmtIp', cell: 'L388', type: 'ip' },
+    { key: 'nsxVipIp', cell: 'L390', type: 'ip' },
+    { key: 'nsxMgr1Ip', cell: 'L391', type: 'ip' },
+    { key: 'nsxMgr2Ip', cell: 'L392', type: 'ip' },
+    { key: 'nsxMgr3Ip', cell: 'L393', type: 'ip' },
+
+    // NOT MAPPED (no direct workbook equivalent found as of v1.9.1.005 — do not
+    // guess a coordinate for these, leave them for manual entry after import):
+    //   domainName, subDomainName — no distinct "DNS Domain Name" input cell found;
+    //     the closest candidate (row 68, "Management domain name") is a short SDDC
+    //     code like "sfo-m01", not the domain name the form expects.
+    //   sddcHostname — only the SDDC Manager FQDN (L292) exists; no separate
+    //     short-hostname input cell.
+    //   evcMode — no EVC field found on this sheet for the management domain (an
+    //     EVC selector exists only for workload domains, sheet 'Dumping Ground').
+    //
     // TODO: dynamic per-host arrays (makeHostFields: m01Host1Fqdn..m01Host16Ip) are
     // not mapped in this first pass — the workbook lays these out as a repeating
     // table rather than fixed labelled cells, so they need a row-scanning strategy
@@ -96,51 +102,35 @@ export const EXCEL_IMPORT_MAP = {
   ],
 
   'Configure Management Domain': [
-    // vSphere Cluster Settings
-    { key: 'evcMode', cell: 'D10', type: 'select' },
-
     // SFTP Backup Configuration
-    { key: 'sftpBackupInclude', cell: 'D14', type: 'select' },
-    { key: 'sftpHost',          cell: 'D15', type: 'text' },
-    { key: 'sftpPort',           cell: 'D16', type: 'number' },
-    { key: 'sftpUser',           cell: 'D17', type: 'text' },
-    { key: 'sftpPath',           cell: 'D18', type: 'text' },
+    { key: 'sftpHost', cell: 'D22', type: 'text' },
+    { key: 'sftpPort', cell: 'D23', type: 'number' },
+    { key: 'sftpPath', cell: 'D27', type: 'text' },
 
     // Certificate Authority
-    { key: 'caType',       cell: 'D23', type: 'select' },
-    { key: 'caFqdn',       cell: 'D24', type: 'text' },
-    { key: 'caAdminUser',  cell: 'D25', type: 'text' },
-    { key: 'caTemplate',   cell: 'D26', type: 'text' },
-    { key: 'certKeySize',  cell: 'D27', type: 'select' },
-    { key: 'caOrg',        cell: 'D28', type: 'text' },
-    { key: 'caOrgUnit',    cell: 'D29', type: 'text' },
-    { key: 'caCountry',    cell: 'D30', type: 'text' },
-    { key: 'caState',      cell: 'D31', type: 'text' },
-    { key: 'caLocality',   cell: 'D32', type: 'text' },
+    { key: 'caFqdn', cell: 'D34', type: 'text' },
+    { key: 'caAdminUser', cell: 'D35', type: 'text' },
+    { key: 'caTemplate', cell: 'D46', type: 'text' },
+    { key: 'caOrg', cell: 'D60', type: 'text' },      // workbook label: "Organization"
+    { key: 'caOrgUnit', cell: 'D61', type: 'text' },  // workbook label: "Organizational Unit"
+    { key: 'caCountry', cell: 'D62', type: 'text' },
+    { key: 'caState', cell: 'D63', type: 'text' },
+    { key: 'caLocality', cell: 'D64', type: 'text' },
+    { key: 'certKeySize', cell: 'D66', type: 'select' },
 
-    // NSX Network Connectivity
-    { key: 'nsxConnectivity',    cell: 'D37', type: 'select' },
-    { key: 'nsxRoutingProtocol', cell: 'D38', type: 'select' },
-    { key: 'nsxT0Name',          cell: 'D39', type: 'text' },
-    { key: 'nsxT0Asn',           cell: 'D40', type: 'number' },
-    { key: 'nsxUpstreamAsn',     cell: 'D41', type: 'number' },
-    { key: 'nsxUpstreamIp1',     cell: 'D42', type: 'ip' },
-    { key: 'nsxUpstreamIp2',     cell: 'D43', type: 'ip' },
-    { key: 'nsxExtIpBlock',      cell: 'D44', type: 'cidr' },
-
-    // vSphere Supervisor (Kubernetes)
-    { key: 'supervisorInclude',      cell: 'D49', type: 'select' },
-    { key: 'supervisorCluster',      cell: 'D50', type: 'text' },
-    { key: 'supervisorStoragePolicy',cell: 'D51', type: 'text' },
-    { key: 'supervisorContentLib',   cell: 'D52', type: 'text' },
-    { key: 'supervisorCidr',         cell: 'D53', type: 'cidr' },
-    { key: 'supervisorEgressCidr',   cell: 'D54', type: 'cidr' },
-    { key: 'supervisorName',         cell: 'D55', type: 'text' },
-    { key: 'supervisorServiceCidr',  cell: 'D56', type: 'cidr' },
-
-    // TODO: NSX Federation (Multi-Site) block left out of this first pass — its
-    // fields only apply showWhen nsxFedRole !== 'Exclude' and the workbook layout
-    // for the federation sheet/section hasn't been inspected yet.
+    // NOT MAPPED — the previous draft guessed coordinates for sftpBackupInclude,
+    // caType, the NSX Network Connectivity block (nsxConnectivity,
+    // nsxRoutingProtocol, nsxT0Name, nsxT0Asn, nsxUpstreamAsn, nsxUpstreamIp1/2,
+    // nsxExtIpBlock) and the vSphere Supervisor block (supervisorInclude,
+    // supervisorCluster, supervisorStoragePolicy, supervisorContentLib,
+    // supervisorCidr, supervisorEgressCidr, supervisorName, supervisorServiceCidr).
+    // Those guesses were confirmed WRONG: rows 12-17 of this sheet are a
+    // "Select Option / Feature / Final Result" summary table (computed toggle
+    // results, not free-form inputs), and writing its "Final Result" column into
+    // e.g. supervisorCidr produced garbage ("Microsoft", a certsrv URL fragment).
+    // Deliberately left unmapped until the real input cells for these sections are
+    // located and verified the same way as the fields above — do not re-add
+    // guessed coordinates here.
   ],
 }
 
@@ -157,18 +147,66 @@ function normalizeValue(raw) {
   return String(raw).trim().replace(/\s+/g, ' ')
 }
 
+function ipToInt(ip) {
+  const parts = ip.split('.').map(n => parseInt(n, 10))
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0
+}
+
+function intToIp(int) {
+  return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.')
+}
+
+// splitGatewayCidr("10.11.11.1/24") -> { gateway: "10.11.11.1", cidr: "10.11.11.0/24" }
+// The workbook stores the gateway's own IP + prefix length in one cell; the form
+// wants the gateway IP and the network address (host bits zeroed) as two fields.
+// Returns null if the value doesn't match "<ip>/<prefix>".
+function splitGatewayCidr(raw) {
+  const m = /^(\d{1,3}(?:\.\d{1,3}){3})\s*\/\s*(\d{1,2})$/.exec(raw)
+  if (!m) return null
+  const [, ip, prefixStr] = m
+  const prefix = parseInt(prefixStr, 10)
+  if (prefix < 0 || prefix > 32 || ip.split('.').some(o => Number(o) > 255)) return null
+  const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0
+  const network = intToIp(ipToInt(ip) & mask)
+  return { gateway: ip, cidr: `${network}/${prefix}` }
+}
+
+// detectWorkbookVersion(workbook) — the "Version History" sheet lists revisions
+// newest-first immediately below a "Version" / "Date" header row (verified against
+// v1.9.1.004 and v1.9.1.005: a new row is inserted right after the header on every
+// release, pushing older rows down). Scanning for the header instead of a fixed row
+// number survives that insertion. Returns null if the sheet/header/pattern isn't
+// found rather than guessing.
+function detectWorkbookVersion(workbook) {
+  const sheetNames = (workbook && workbook.SheetNames) || []
+  if (!sheetNames.includes('Version History')) return null
+  const ws = workbook.Sheets['Version History']
+  if (!ws) return null
+
+  const ref = ws['!ref']
+  const maxRow = ref ? parseInt(ref.split(':')[1].replace(/[A-Z]/g, ''), 10) : 50
+  for (let row = 1; row <= Math.min(maxRow, 50); row++) {
+    const label = ws[`B${row}`]
+    if (label && String(label.v).trim() === 'Version') {
+      const versionCell = ws[`B${row + 1}`]
+      const dateCell = ws[`C${row + 1}`]
+      const version = versionCell ? String(versionCell.v).trim() : ''
+      if (/^v\d+(\.\d+)*$/.test(version)) {
+        return dateCell ? `${version} (${String(dateCell.v).trim()})` : version
+      }
+      return null
+    }
+  }
+  return null
+}
+
 // applyExcelWorkbook(workbook, form)
 // workbook: SheetJS-shaped { SheetNames: string[], Sheets: { [name]: WorkSheet } }.
 // form: plain reactive object, MUTATED in place — a matched, non-empty cell wins,
 // but only ever a real value overwrites an existing form field (never blanks it out).
 export function applyExcelWorkbook(workbook, form) {
   const report = {
-    // Not yet identified: we don't have a real workbook copy to confirm which cell
-    // (if any) carries a workbook/template version string. Leaving this null rather
-    // than guessing a coordinate and presenting a false certainty; wire this up once
-    // a real "VCF 9.1 Planning & Preparation Workbook" sample is available to
-    // inspect (e.g. a cover-sheet "Version" or "Revision" cell).
-    detectedVersion: null,
+    detectedVersion: detectWorkbookVersion(workbook),
     applied: [],
     skipped: [],
     ambiguous: [],
@@ -179,24 +217,48 @@ export function applyExcelWorkbook(workbook, form) {
 
   for (const [sheetName, entries] of Object.entries(EXCEL_IMPORT_MAP)) {
     const sheetPresent = sheetNames.includes(sheetName)
+    const worksheet = sheetPresent ? sheets[sheetName] : undefined
 
     for (const entry of entries) {
-      const { key, cell, type } = entry
+      const { cell } = entry
 
       if (!sheetPresent) {
-        report.skipped.push({ key, sheet: sheetName, cell, reason: 'sheet not found in workbook' })
+        const keys = entry.type === 'gatewayCidr' ? [entry.gatewayKey, entry.cidrKey] : [entry.key]
+        for (const key of keys) report.skipped.push({ key, sheet: sheetName, cell, reason: 'sheet not found in workbook' })
         continue
       }
-
-      const worksheet = sheets[sheetName]
-      const cellObj = worksheet ? worksheet[cell] : undefined
 
       // Known pitfall: a cell can carry a cached formula result (`.v`) alongside its
       // formula source (`.f`, e.g. "=CONCATENATE(...)"). We deliberately only ever
       // read `.v` — the value Excel computed and cached at save time — because `.f`
       // is an uninterpreted formula string, not a value, and this module has no
       // spreadsheet formula engine to evaluate it.
+      const cellObj = worksheet ? worksheet[cell] : undefined
       const rawValue = cellObj ? cellObj.v : undefined
+
+      if (entry.type === 'gatewayCidr') {
+        const { gatewayKey, cidrKey } = entry
+        if (rawValue === undefined || rawValue === null || rawValue === '') {
+          report.skipped.push({ key: gatewayKey, sheet: sheetName, cell, reason: 'empty cell' })
+          report.skipped.push({ key: cidrKey, sheet: sheetName, cell, reason: 'empty cell' })
+          continue
+        }
+        const split = splitGatewayCidr(normalizeValue(rawValue))
+        if (!split) {
+          report.ambiguous.push({
+            key: `${gatewayKey}/${cidrKey}`, sheet: sheetName, cell, rawValue,
+            reason: 'expected "<ip>/<prefix>" (e.g. 10.11.11.1/24), could not parse',
+          })
+          continue
+        }
+        form[gatewayKey] = split.gateway
+        form[cidrKey] = split.cidr
+        report.applied.push({ key: gatewayKey, sheet: sheetName, cell, value: split.gateway })
+        report.applied.push({ key: cidrKey, sheet: sheetName, cell, value: split.cidr })
+        continue
+      }
+
+      const { key, type } = entry
 
       if (rawValue === undefined || rawValue === null || rawValue === '') {
         report.skipped.push({ key, sheet: sheetName, cell, reason: 'empty cell' })

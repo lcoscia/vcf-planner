@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.11</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.12</div>
     </div>
   </div>
   <!-- Actions -->
@@ -437,7 +437,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.11 · Updated July 13, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.12 · Updated July 13, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -1391,7 +1391,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.11</span>
+              <span>v1.1.12</span>
               <span>·</span>
               <span>Updated July 13, 2026</span>
               <span>·</span>
@@ -1552,6 +1552,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.12<br><span class="text-gray-300">2026-07-13</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Fixed Excel Workbook import — was writing wrong values into the form</p>
+            <p>Testing against a real Broadcom workbook export revealed that the Excel import (introduced in v1.1.9) was writing <strong>incorrect values</strong> into several fields — its cell mapping targeted the wrong column on "Deploy Management Domain" (D instead of the real "Your Value" column, L) and, on "Configure Management Domain", several fields pointed at a "Select Option / Feature / Final Result" summary table instead of real input cells, producing garbage like <code class="bg-gray-100 px-1 rounded text-xs">supervisorCidr = "Microsoft"</code>. <code class="bg-gray-100 px-1 rounded text-xs">core/excel-import.js</code>'s <code class="bg-gray-100 px-1 rounded text-xs">EXCEL_IMPORT_MAP</code> has been rebuilt with ~45 cell coordinates verified directly against a real workbook export (label + sample value both checked per cell, cross-tested against both a blank and a filled-in copy); unverifiable fields (SFTP/CA toggles, NSX connectivity, vSphere Supervisor, and a few workbook-only concepts like the short SDDC hostname) were removed rather than left as guesses — they'll come back once their real input cells are located. The workbook's combined "Gateway (CIDR notation)" cell (e.g. <code class="bg-gray-100 px-1 rounded text-xs">10.11.11.1/24</code>) is now correctly split into the form's separate Gateway and network-CIDR fields, and the detected workbook version is read defensively from the "Version History" sheet's header row rather than a fixed cell.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.11<br><span class="text-gray-300">2026-07-13</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Higher CPU oversubscription ratios (up to 4:1)</p>
@@ -2949,7 +2956,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.11'
+      const appVersion = 'v1.1.12'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
