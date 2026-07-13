@@ -60,9 +60,9 @@ export const LT = {
     'Extra-Large':{ vcpu:16, ram:64, disk:1750 },
   },
   vcfa: {
-    'Small':  { vcpu:24, ram:96,  disk:717 },
-    'Medium': { vcpu:24, ram:96,  disk:334 },
-    'Large':  { vcpu:32, ram:128, disk:430 },
+    'Small':  { vcpu:24, ram:96,  disk:600 },
+    'Medium': { vcpu:24, ram:96,  disk:900 },
+    'Large':  { vcpu:32, ram:128, disk:1200 },
   },
   ssp: {
     'Excluded': { vcpu:0,  ram:0,   disk:0    },

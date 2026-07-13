@@ -2,7 +2,7 @@
 """
 Verify that core/data.js's `const LT` lookup tables and `const SUBNET_MASKS`
 list match the "Static Reference Tables" sheet of
-vcf-9.1-planning-and-preparation-workbook-updated.xlsx.
+vcf-9.1-planning-and-preparation-workbook-25june2026.xlsx (v1.9.1.005).
 
 (These tables used to live inline in index.html; they were extracted into the
 shared ES module core/data.js — the single source of truth consumed by both
@@ -26,7 +26,7 @@ import warnings
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE_FILE = os.path.join(ROOT, 'core', 'data.js')
-EXCEL_FILE = os.path.join(ROOT, 'vcf-9.1-planning-and-preparation-workbook-15june2026.xlsx')
+EXCEL_FILE = os.path.join(ROOT, 'vcf-9.1-planning-and-preparation-workbook-25june2026.xlsx')  # v1.9.1.005, 25 Jun 2026
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +144,7 @@ def build_expected(blocks):
         'disk': blocks['Cross-Cloud Mobility - HCX Conn']['Disk'],
     }
     e['vcenter_disk_tiers'] = parse_vcenter_disk(blocks)
+    e['vcfa'] = tri(blocks, 'VCF Automation CPU', 'VCF Automation RAM', 'VCF Automation Disk')
     return e
 
 
