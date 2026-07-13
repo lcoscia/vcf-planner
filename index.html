@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VCF 9.1 Planning & Preparation Workbook</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (xlsx) — used to parse an uploaded Broadcom Planning & Preparation .xlsx workbook -->
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -272,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.8</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.9</div>
     </div>
   </div>
   <!-- Actions -->
@@ -287,6 +289,7 @@
       <div x-show="open" x-transition x-cloak class="tb-menu absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
         <button @click="importTrigger(); open=false" class="tb-menu-item">Import JSON<span class="tb-menu-item-desc">Load a previously exported JSON file</span></button>
         <button @click="importVcfInstallerTrigger(); open=false" class="tb-menu-item">Import VCF Installer JSON<span class="tb-menu-item-desc">Best-effort import of a SddcSpec JSON</span></button>
+        <button @click="importExcelTrigger(); open=false" class="tb-menu-item">Import Excel Workbook<span class="tb-menu-item-desc">Pre-fill the form from a filled-in Broadcom Planning &amp; Preparation .xlsx</span></button>
       </div>
     </div>
     <div class="relative" x-data="{open:false}" @click.outside="open=false" @keydown.escape.window="open=false">
@@ -308,9 +311,70 @@
     <button @click="confirmReset()" class="tb-action danger" title="Reset all data"><span x-html="iconSvg('reset',14)"></span>Reset</button>
     <input type="file" id="import-file" accept=".json" class="hidden" @change="importJSON($event)">
     <input type="file" id="import-vcf-installer-file" accept=".json" class="hidden" @change="importVcfInstallerJson($event)">
+    <input type="file" id="import-excel-file" accept=".xlsx" class="hidden" @change="importExcelWorkbook($event)">
+    <span x-show="excelImporting" x-cloak class="inline-flex items-center gap-1 text-xs px-3" style="color:rgba(255,255,255,.7);"><span x-html="iconSvg('excel',13)"></span>Parsing workbook…</span>
     <div x-show="saveIndicator" x-transition class="inline-flex items-center gap-1 text-xs px-3" style="color:rgba(255,255,255,.7);"><span x-html="iconSvg('check',13)"></span>Saved</div>
   </div>
 </header>
+
+<!-- EXCEL IMPORT REPORT -->
+<div x-show="showExcelImportReport" x-cloak class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto" @click.outside="showExcelImportReport=false">
+    <h2 class="text-lg font-bold text-gray-800 mb-1">Excel Import Report</h2>
+    <p class="text-xs text-gray-500 mb-4" x-show="excelImportReport && excelImportReport.detectedVersion">
+      Detected workbook version: <span class="font-semibold" x-text="excelImportReport && excelImportReport.detectedVersion"></span>
+    </p>
+    <template x-if="excelImportReport">
+      <div class="space-y-4">
+        <div>
+          <div class="text-sm font-semibold text-green-700 mb-1" x-text="'Applied (' + excelImportReport.applied.length + ')'"></div>
+          <div class="border border-gray-100 rounded-lg max-h-40 overflow-y-auto text-xs divide-y divide-gray-100">
+            <template x-for="item in excelImportReport.applied" :key="item.sheet + item.cell + item.key">
+              <div class="px-2 py-1 flex justify-between gap-2">
+                <span class="text-gray-700" x-text="item.key"></span>
+                <span class="text-gray-400" x-text="item.sheet + '!' + item.cell"></span>
+              </div>
+            </template>
+            <div class="px-2 py-1 text-gray-400" x-show="excelImportReport.applied.length === 0">None</div>
+          </div>
+        </div>
+        <div>
+          <div class="text-sm font-semibold text-gray-500 mb-1" x-text="'Skipped (' + excelImportReport.skipped.length + ')'"></div>
+          <div class="border border-gray-100 rounded-lg max-h-40 overflow-y-auto text-xs divide-y divide-gray-100">
+            <template x-for="item in excelImportReport.skipped" :key="item.sheet + item.cell + item.key">
+              <div class="px-2 py-1">
+                <div class="flex justify-between gap-2">
+                  <span class="text-gray-700" x-text="item.key"></span>
+                  <span class="text-gray-400" x-text="item.sheet + '!' + item.cell"></span>
+                </div>
+                <div class="text-gray-400" x-text="item.reason"></div>
+              </div>
+            </template>
+            <div class="px-2 py-1 text-gray-400" x-show="excelImportReport.skipped.length === 0">None</div>
+          </div>
+        </div>
+        <div>
+          <div class="text-sm font-semibold text-orange-600 mb-1" x-text="'Ambiguous (' + excelImportReport.ambiguous.length + ')'"></div>
+          <div class="border border-gray-100 rounded-lg max-h-40 overflow-y-auto text-xs divide-y divide-gray-100">
+            <template x-for="item in excelImportReport.ambiguous" :key="item.sheet + item.cell + item.key">
+              <div class="px-2 py-1">
+                <div class="flex justify-between gap-2">
+                  <span class="text-gray-700" x-text="item.key"></span>
+                  <span class="text-gray-400" x-text="item.sheet + '!' + item.cell"></span>
+                </div>
+                <div class="text-gray-400" x-text="'Raw value: ' + item.rawValue + ' — ' + item.reason"></div>
+              </div>
+            </template>
+            <div class="px-2 py-1 text-gray-400" x-show="excelImportReport.ambiguous.length === 0">None</div>
+          </div>
+        </div>
+      </div>
+    </template>
+    <div class="mt-5 flex justify-end">
+      <button @click="showExcelImportReport=false" class="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200">Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- SIDEBAR -->
 <nav id="sidebar" class="fixed left-0 overflow-y-auto z-40" style="background:#FFFFFF; border-right:1px solid #E2E3E4; top:60px; bottom:0; width:252px;">
@@ -373,7 +437,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.8 · Updated July 13, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.9 · Updated July 13, 2026</div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -1326,7 +1390,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.8</span>
+              <span>v1.1.9</span>
               <span>·</span>
               <span>Updated July 13, 2026</span>
               <span>·</span>
@@ -1487,6 +1551,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.9<br><span class="text-gray-300">2026-07-13</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Import an existing Planning &amp; Preparation Excel workbook</p>
+            <p>A new <strong>Import Excel Workbook</strong> entry in the topbar's Import menu lets you pre-fill the form directly from an already filled-in Broadcom "VCF 9.1 Planning &amp; Preparation Workbook" (.xlsx). Parsing happens entirely client-side (SheetJS, loaded from CDN with Subresource Integrity, pinned) — the workbook file is never uploaded anywhere, matching the tool's zero-network-requests-with-your-data promise. After import, a report panel lists every field as <strong>Applied</strong>, <strong>Skipped</strong> (empty cell / sheet not found) or <strong>Ambiguous</strong> (dropdown/toggle values applied without validation against the field's known options) so you can verify the result. <strong>This first iteration only covers the Deploy/Configure Management Domain pages, and its cell coordinates are uncalibrated placeholders</strong> — Broadcom's workbook file isn't distributed with this repo, so the mapping (<code class="bg-gray-100 px-1 rounded text-xs">core/excel-import.js</code>) was built from the form's own field order rather than a real spreadsheet; always check the import report before trusting the result, and see the README's Development section if you want to help calibrate it against a real workbook.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.8<br><span class="text-gray-300">2026-07-13</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Auto-generate-password toggles, per-portgroup VDS config &amp; Feedback button</p>
@@ -2403,6 +2474,7 @@ const ICON_PATHS = {
   cpu:         '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>',
   book:        '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
   clipboard:   '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+  excel:       '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 9v12"/><path d="m6 13 2 2.5L6 18"/><path d="m14 13 3 5"/><path d="m17 13-3 5"/>',
 }
 const EMOJI_ICON = {
   '🏠':'home', '👋':'sparkles', '🗂️':'folder', '✅':'circle-check', '📐':'ruler',
@@ -2427,6 +2499,9 @@ function vcfPlanner() {
     saveIndicator: false,
     darkMode: false,
     copyFeedback: '',
+    excelImporting: false,
+    excelImportReport: null,
+    showExcelImportReport: false,
     form: {},
     sizing: {
       hostCores: 36,
@@ -2820,6 +2895,31 @@ function vcfPlanner() {
       }
       reader.readAsText(file)
     },
+    importExcelTrigger() {
+      document.getElementById('import-excel-file').click()
+    },
+    async importExcelWorkbook(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      if (!confirm('This will pre-fill the form from the Excel workbook and may overwrite fields you have already filled in. Continue?')) {
+        event.target.value = ''; return
+      }
+      this.excelImporting = true
+      try {
+        const buf = await file.arrayBuffer()
+        const workbook = XLSX.read(buf, { type:'array', cellDates:true })
+        const report = Core.applyExcelWorkbook(workbook, this.form)
+        this.excelImportReport = report
+        this.showExcelImportReport = true
+        this.applyToggleDefaults()
+        this.save()
+      } catch(e) {
+        alert('Failed to parse the Excel workbook: ' + e.message)
+      } finally {
+        this.excelImporting = false
+        event.target.value = ''
+      }
+    },
     isValidIp(v) { return Core.isValidIp(v) },
     isValidCidr(v) { return Core.isValidCidr(v) },
     isFqdn(v) { return Core.isFqdn(v) },
@@ -2834,7 +2934,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.8'
+      const appVersion = 'v1.1.9'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',

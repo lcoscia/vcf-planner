@@ -124,17 +124,19 @@ A few details in the sizing calculator are intentional web-side additions or sim
 
 | Button | Action |
 |---|---|
-| ⬆ Import | Load a previously exported JSON file |
-| ⬇ JSON | Export current form state as JSON |
-| 📄 MD | Export As-Built report as Markdown |
-| 📊 CSV | Export all IP/text fields as CSV (IPAM) |
-| 🚀 JSON VCF Installer ready | Export a VCF Installer `SddcSpec` JSON (`POST /v1/sddcs` payload) |
-| ⬆ JSON VCF Installer ready | Best-effort import of a VCF Installer `SddcSpec` JSON back into the form |
-| 🌙 / ☀️ | Toggle dark / light mode |
+| **Import ▾** — Import JSON | Load a previously exported JSON file |
+| **Import ▾** — Import VCF Installer JSON | Best-effort import of a VCF Installer `SddcSpec` JSON back into the form |
+| **Import ▾** — Import Excel Workbook | Parses an official Broadcom `.xlsx` workbook file **entirely client-side** (SheetJS, loaded via CDN with SRI) and pre-fills the form from the recognized cells; shows a post-import report (applied / ignored / ambiguous fields) — see [Privacy & Data Handling](#privacy--data-handling) and [Development](#development) |
+| **Export ▾** — Export JSON | Export current form state as JSON |
+| **Export ▾** — Export Markdown | Export As-Built report as Markdown |
+| **Export ▾** — Export CSV | Export all IP/text fields as CSV (IPAM) |
+| **Export ▾** — Export VCF Installer JSON | Export a VCF Installer `SddcSpec` JSON (`POST /v1/sddcs` payload) |
 | 🔌 Ports | Jump to the Ports & Protocols reference page |
+| ℹ️ About | Jump to the About page |
+| 💬 Feedback | Opens a pre-filled GitHub issue (app version, current page, browser user-agent) in a new tab to report a problem or missing feature |
+| 🌙 / ☀️ | Toggle dark / light mode |
 | 🧪 DEMO | Fill all Management Domain fields with example data (4-node vSAN-ESA cluster + NSX Edge) — confirmation required |
 | ↺ Reset | Clear all form data (with confirmation) |
-| 💬 Feedback | Opens a pre-filled GitHub issue (app version, current page, browser user-agent) in a new tab to report a problem or missing feature |
 
 ---
 
@@ -198,6 +200,8 @@ This tool makes **zero network requests containing your data**. All processing h
 
 The Alpine.js and `@alpinejs/collapse` scripts are loaded with **Subresource Integrity (SRI)** hashes (pinned to v3.14.1), so the browser refuses to run them if the CDN ever serves a modified file.
 
+**Import Excel Workbook** (see Toolbar Buttons) follows the same guarantee: the `.xlsx` file you select is parsed entirely in the browser via SheetJS (also CDN-loaded with an SRI hash) — its content is never uploaded or sent over the network, only read locally to pre-fill the form.
+
 ⚠️ **Password fields are stored in plaintext** in `localStorage` and are included unencrypted in **Export JSON** backups (root/SSO/SSH passwords, API keys/tokens) and, where applicable, in the **VCF Installer JSON** export (ESXi root and vCenter root passwords only). Treat exported `.json` files as sensitive credentials — don't commit them to public repos or share over unencrypted channels. Anyone with access to the same browser profile/device can also read this data via DevTools, as with any localStorage-based app.
 
 ---
@@ -224,6 +228,10 @@ To add a new field, add an entry to the relevant `sections[].fields[]` array in 
 ```
 
 To add a new page, add an entry to `ALL_PAGES` (`core/reference.js`) and a corresponding item to `NAV_GROUPS` (still in `index.html`).
+
+### Excel import mapping
+
+The Import Excel Workbook feature's cell→field mapping lives in `core/excel-import.js`, in a single `EXCEL_IMPORT_MAP` structure (sheet name + cell reference → form field `key`, mirroring the `ALL_PAGES` field keys from `core/reference.js`). As noted in the Changelog, this mapping was written best-effort and has not yet been checked against a real workbook file. To validate or correct a cell reference, place a real copy of the official `vcf-9.1-planning-and-preparation-workbook-updated.xlsx` next to `index.html` (same gitignored location already used by `tools/check_lt_constants.py`), run an import through the UI, and compare the post-import report's applied/ignored/ambiguous fields against the workbook's actual cell contents before adjusting `EXCEL_IMPORT_MAP`.
 
 ### Verification
 
@@ -261,6 +269,7 @@ node --test mcp/test/scenarios.test.js
 
 ## Changelog
 
+- **v1.1.9** (2026-07-13) — Import Excel Workbook (first iteration, unverified cell mapping): a new **Import Excel Workbook** entry in the topbar **Import ▾** menu opens a file picker for the official Broadcom "VCF 9.1 Planning & Preparation Workbook" `.xlsx` file and parses it **entirely client-side** using [SheetJS](https://sheetjs.com/) (loaded from CDN with a Subresource Integrity hash, same pattern as Alpine.js/Tailwind) — the imported file never leaves the browser, consistent with the app's existing "zero network requests containing your data" guarantee. Recognized cells are mapped to form fields via a new `EXCEL_IMPORT_MAP` in `core/excel-import.js` and pre-fill the form; a post-import report panel then lists **applied**, **ignored**, and **ambiguous** fields so the result can be checked before trusting it. ⚠️ This first version's cell→field mapping is a best-effort draft that has **not** been calibrated against a real copy of the workbook (the official `.xlsx` is gitignored and never shipped with this repo) — always review the post-import report and cross-check imported values manually; the mapping will be refined incrementally as it gets validated against real workbook files (see `core/excel-import.js` and the Development section below).
 - **v1.1.8** (2026-07-13) — Auto-generate-password toggles, per-portgroup VDS config & Feedback button: the vCenter Management Domain, NSX Edge and Workload Domain password fields gain dedicated **Auto-Generate Password** toggles (`autoGenPw` / `nsxEdgeAutoGenPw` / `wldAutoGenPw`), replacing the static "AUTO-GENERATED" placeholder with an explicit Selected/Unselected control that conditionally reveals the password field and omits the root vCenter password from the VCF Installer JSON export when auto-generation is selected. The Distributed Switch pages gain a **per-portgroup configuration** (name, load balancing, Active/Standby uplink assignment for ESX Mgmt, VM Mgmt, VCF Mgmt, vMotion, vSAN and NFS traffic, plus the NSX overlay portgroup) and MTU/LAG/physical NIC uplink fields for the Primary/Secondary/Tertiary VDS sections. A new **Feedback** button in the topbar (all pages) opens a pre-filled GitHub issue (app version, current page, browser user-agent) in a new tab — no data leaves the browser without the user's explicit submission on GitHub. Contributed by Paul van Dieen (ITQ; password toggles & portgroup config).
 - **v1.1.7** (2026-07-10) — EVC Mode moved to day-2, aligned with vSphere 9.0 baselines: the EVC Mode field moved from the Deploy Management Domain "Cluster & Scale Options" to a new **vSphere Cluster Settings** section on the **Configure Management Domain** page — the VCF 9.x Installer offers no EVC selection during bring-up (verified against a real 9.1 deployment); EVC is applied post-deployment in vCenter (cluster → Configure → VMware EVC). The option list was rebuilt to the actual vCenter 9.0 baseline names: **Custom** (new in vSphere 9.0), Intel "Skylake" through "Granite Rapids" Generation, and AMD "Zen" (Naples) through "Zen 5" (Turin) Generation, replacing the previous list (old Intel microarchs, "AMD EPYC Rome/Milan/Genoa" naming). Intel baselines older than Skylake were dropped since those CPU families are discontinued in ESX 9.x; Skylake-SP itself was restored as supported (software support only) in the Broadcom Compatibility Guide on July 7, 2026. The form key (`evcMode`) is unchanged, so saved plans keep their value. Contributed by Paul van Dieen (ITQ).
 - **v1.1.5** (2026-06-23) — ITQ brand redesign: ported the visual layer of the claude.ai/design redesign onto `index.html` while keeping all logic and reference data in `core/` (the single source of truth shared with the MCP server) — new ITQ navy palette, Metropolis + Titillium fonts under `assets/fonts/`, a restyled top bar/sidebar, and an ITQ ↔ VMware brand toggle (heart button / `Shift+B`, persisted in `localStorage`). Emoji nav/page icons are now rendered as inline SVGs via a new `iconSvg()` helper; no nav data or `core/` files changed. Contributed by Florian Casse (ITQ).
