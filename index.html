@@ -103,6 +103,13 @@
     .tb-action.cta { color:#fff; background:var(--brand-accent); }
     .tb-action.cta:hover { background:var(--brand-accent-hover); color:#fff; }
     .tb-action.danger:hover { background:rgba(220,53,69,.32); color:#fff; }
+    .tb-menu { min-width:15rem; }
+    .tb-menu-item { display:flex; flex-direction:column; align-items:flex-start; gap:1px; width:100%; text-align:left; padding:8px 14px; font-size:13px; font-weight:600; background:transparent; border:none; cursor:pointer; color:#374151; }
+    .tb-menu-item:hover { background:#F3F4F6; }
+    .tb-menu-item .tb-menu-item-desc { font-size:11px; font-weight:400; color:#9CA3AF; }
+    .dark .tb-menu-item { color:#D5D6E0; }
+    .dark .tb-menu-item:hover { background:rgba(255,255,255,.06); }
+    .dark .tb-menu-item .tb-menu-item-desc { color:#8A8CA0; }
     .tb-sep { width:1px; align-self:center; height:26px; background:rgba(255,255,255,.16); flex:none; }
     .sidebar-item.active .si-label { color:var(--brand-active-text); font-weight:700; }
     .sidebar-item.active .si-icon { color:var(--brand-accent); }
@@ -275,12 +282,22 @@
       <div class="progress-bar w-20"><div class="progress-fill" :style="'width:'+completionPct()+'%'"></div></div>
     </div>
     <div class="tb-sep"></div>
-    <button @click="importTrigger()" class="tb-action" title="Import JSON"><span x-html="iconSvg('import',14)"></span>Import</button>
-    <button @click="exportJSON()" class="tb-action" title="Export JSON"><span x-html="iconSvg('export',14)"></span>JSON</button>
-    <button @click="exportMarkdown()" class="tb-action hidden sm:inline-flex" title="Export Markdown As-Built"><span x-html="iconSvg('md',14)"></span>MD</button>
-    <button @click="exportCsv()" class="tb-action hidden sm:inline-flex" title="Export CSV IPAM table"><span x-html="iconSvg('csv',14)"></span>CSV</button>
-    <button @click="exportVcfInstallerJson()" class="tb-action hidden xl:inline-flex" title="Export VCF Installer JSON (POST /v1/sddcs payload)"><span x-html="iconSvg('rocket',14)"></span>Installer JSON</button>
-    <button @click="importVcfInstallerTrigger()" class="tb-action hidden xl:inline-flex" title="Import VCF Installer Ready JSON (POST /v1/sddcs payload)"><span x-html="iconSvg('install',14)"></span>Import Installer</button>
+    <div class="relative" x-data="{open:false}" @click.outside="open=false" @keydown.escape.window="open=false">
+      <button @click="open=!open" class="tb-action" :class="open?'active':''" title="Import a saved configuration"><span x-html="iconSvg('import',14)"></span><span class="hidden sm:inline">Import</span><span x-html="iconSvg('chevron-down',10)"></span></button>
+      <div x-show="open" x-transition x-cloak class="tb-menu absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+        <button @click="importTrigger(); open=false" class="tb-menu-item">Import JSON<span class="tb-menu-item-desc">Load a previously exported JSON file</span></button>
+        <button @click="importVcfInstallerTrigger(); open=false" class="tb-menu-item">Import VCF Installer JSON<span class="tb-menu-item-desc">Best-effort import of a SddcSpec JSON</span></button>
+      </div>
+    </div>
+    <div class="relative" x-data="{open:false}" @click.outside="open=false" @keydown.escape.window="open=false">
+      <button @click="open=!open" class="tb-action" :class="open?'active':''" title="Export your configuration"><span x-html="iconSvg('export',14)"></span><span class="hidden sm:inline">Export</span><span x-html="iconSvg('chevron-down',10)"></span></button>
+      <div x-show="open" x-transition x-cloak class="tb-menu absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+        <button @click="exportJSON(); open=false" class="tb-menu-item">Export JSON<span class="tb-menu-item-desc">Full configuration backup</span></button>
+        <button @click="exportMarkdown(); open=false" class="tb-menu-item">Export Markdown<span class="tb-menu-item-desc">As-Built report</span></button>
+        <button @click="exportCsv(); open=false" class="tb-menu-item">Export CSV<span class="tb-menu-item-desc">IPAM table (all IP/text fields)</span></button>
+        <button @click="exportVcfInstallerJson(); open=false" class="tb-menu-item">Export VCF Installer JSON<span class="tb-menu-item-desc">POST /v1/sddcs payload</span></button>
+      </div>
+    </div>
     <div class="tb-sep"></div>
     <button @click="navigate('ports')" class="tb-action" :class="currentPage==='ports'?'active':''" title="Ports &amp; Protocols reference"><span x-html="iconSvg('plug',14)"></span>Ports</button>
     <button @click="navigate('about')" class="tb-action" :class="currentPage==='about'?'active':''" title="About this tool"><span x-html="iconSvg('info',14)"></span>About</button>
@@ -2364,6 +2381,7 @@ const ICON_PATHS = {
   reset:   '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   check:   '<path d="M20 6 9 17l-5-5"/>',
   feedback: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  'chevron-down': '<path d="m6 9 6 6 6-6"/>',
   // nav / page icons (canonical names)
   home:        '<path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9 21v-6h6v6"/>',
   sparkles:    '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/>',
@@ -2819,15 +2837,15 @@ function vcfPlanner() {
       const appVersion = 'v1.1.8'
       const title = '[Feedback] '
       const body = [
-        '## Problème / manque constaté',
+        '## Problem / missing feature',
         '',
-        '<!-- Décrivez ici le problème rencontré ou la fonctionnalité manquante -->',
+        '<!-- Describe the problem you ran into, or the feature that is missing -->',
         '',
-        '## Contexte',
+        '## Context',
         '',
-        `- Version de l'app : ${appVersion}`,
-        `- Page / étape : ${pageTitle} (${this.currentPage})`,
-        `- Navigateur : ${navigator.userAgent}`,
+        `- App version: ${appVersion}`,
+        `- Page / step: ${pageTitle} (${this.currentPage})`,
+        `- Browser: ${navigator.userAgent}`,
         '',
       ].join('\n')
       const url = 'https://github.com/lcoscia/vcf-planner/issues/new'
