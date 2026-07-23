@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.12</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.13</div>
     </div>
   </div>
   <!-- Actions -->
@@ -577,6 +577,12 @@
                 <div class="flex items-center justify-between">
                   <label class="text-sm font-medium text-gray-700">Workload Domains</label>
                   <input type="number" x-model.number="sizing.wldCount" min="0" max="35" class="w-28 text-right" placeholder="0">
+                </div>
+                <div class="flex items-center justify-between" x-show="sizing.wldCount>0">
+                  <label class="text-xs text-gray-400">WLD vCenter Size</label>
+                  <select x-model="sizing.compSizes.wldVcSize" class="w-24 text-xs">
+                    <option>Tiny</option><option>Small</option><option>Medium</option><option>Large</option><option>XLarge</option>
+                  </select>
                 </div>
                 <div class="flex items-center justify-between" x-show="sizing.components.vcf_svc_runtime">
                   <label class="text-sm font-medium text-gray-700">
@@ -1242,7 +1248,7 @@
             <div><span class="text-gray-400">Storage Type:</span> <span class="font-medium" x-text="sizing.storageType"></span></div>
             <div><span class="text-gray-400">CPU Oversubscription:</span> <span class="font-medium" x-text="sizing.cpuOverSub+'×'"></span></div>
             <div><span class="text-gray-400">Cluster Model:</span> <span class="font-medium" x-text="sizing.clusterModel"></span></div>
-            <div><span class="text-gray-400">Workload Domains:</span> <span class="font-medium" x-text="sizing.wldCount"></span></div>
+            <div><span class="text-gray-400">Workload Domains:</span> <span class="font-medium" x-text="sizing.wldCount + (sizing.wldCount>0 ? ' × '+sizing.compSizes.wldVcSize : '')"></span></div>
           </div>
         </div>
       </div>
@@ -1391,9 +1397,9 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.12</span>
+              <span>v1.1.13</span>
               <span>·</span>
-              <span>Updated July 13, 2026</span>
+              <span>Updated July 23, 2026</span>
               <span>·</span>
               <span>Single-file · No server · No build step</span>
             </div>
@@ -1552,6 +1558,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.13<br><span class="text-gray-300">2026-07-23</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Workload Domains now count fully — and visibly — toward the sizing totals</p>
+            <p>A user reported that the Management Domain Sizing totals seemed to include something they couldn't see or adjust in detail. Turned out to be accurate: the <strong>Workload Domains</strong> count was already adding its per-domain vCenter + NSX Manager <strong>vCPU and RAM</strong> to the totals, but <strong>never added disk</strong> (the lookup data existed and was simply unused), and had <strong>no line item</strong> in the sizing breakdown table — so it silently moved the totals with zero explanation. Disk is now included in the calculation, a dedicated <strong>"Workload Domain vCenter/NSX"</strong> row appears in the breakdown once the count is above zero, and a new <strong>WLD vCenter Size</strong> selector (previously hardcoded to Small) lets you match it to your actual deployment. Also relabeled the <strong>Cloud Proxy</strong> breakdown row to <strong>"VCF Operations — Cloud Proxy"</strong> for consistency with the other VCF Operations rows, since its plain name made it easy to overlook when auditing "VCF Ops" numbers.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.12<br><span class="text-gray-300">2026-07-13</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Fixed Excel Workbook import — was writing wrong values into the form</p>
@@ -2956,7 +2969,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.12'
+      const appVersion = 'v1.1.13'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',

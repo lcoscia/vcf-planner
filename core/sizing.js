@@ -58,6 +58,18 @@ export function vcfaNodes(s) {
   return s.compSizes.vcfa === 'Small' ? 1 : 3
 }
 
+// Per-Workload-Domain contribution: 1 dedicated vCenter + (if NSX enabled) 3× NSX Manager Small
+export function wldPerDomain(s) {
+  const c = s.components; const cs = s.compSizes
+  const tier = LT.wld_vcenter[cs.wldVcSize || 'Small']
+  const nsxMult = c.nsx_manager ? 3 : 0
+  return {
+    vcpu: tier.vcpu + LT.nsx_manager['Small'].vcpu * nsxMult,
+    ram:  tier.ram  + LT.nsx_manager['Small'].ram  * nsxMult,
+    disk: tier.disk + LT.nsx_manager['Small'].disk * nsxMult,
+  }
+}
+
 export function calcRawCPU(s) {
   const c = s.components; const cs = s.compSizes; let t = 0
   if (c.sddc_manager) t += LT.sddc_manager.vcpu
@@ -83,9 +95,8 @@ export function calcRawCPU(s) {
   if (c.hvm)                        t += LT.hvm.vcpu
   if (c.cloud_ransomware)           t += LT.cloud_ransomware.vcpu
   if (c.hcx_connector)              t += LT.hcx_connector.vcpu
-  // Per WLD: add 1 vCenter Small + 3 NSX Manager Small (if NSX enabled)
-  const wldVcpuPerDomain = (LT.wld_vcenter[cs.wldVcSize || 'Small'].vcpu) + (c.nsx_manager ? LT.nsx_manager['Small'].vcpu * 3 : 0)
-  t += wldVcpuPerDomain * (s.wldCount || 0)
+  // Per WLD: add 1 vCenter + 3 NSX Manager Small (if NSX enabled)
+  t += wldPerDomain(s).vcpu * (s.wldCount || 0)
   return t
 }
 
@@ -126,9 +137,8 @@ export function calcRawRAM(s) {
   if (c.hvm)                        t += LT.hvm.ram
   if (c.cloud_ransomware)           t += LT.cloud_ransomware.ram
   if (c.hcx_connector)              t += LT.hcx_connector.ram
-  // Per WLD: add 1 vCenter Small + 3 NSX Manager Small (if NSX enabled)
-  const wldRamPerDomain = (LT.wld_vcenter[cs.wldVcSize || 'Small'].ram) + (c.nsx_manager ? LT.nsx_manager['Small'].ram * 3 : 0)
-  t += wldRamPerDomain * (s.wldCount || 0)
+  // Per WLD: add 1 vCenter + 3 NSX Manager Small (if NSX enabled)
+  t += wldPerDomain(s).ram * (s.wldCount || 0)
   return t
 }
 
@@ -161,6 +171,8 @@ export function calcRawDisk(s) {
   if (c.hvm)                        t += LT.hvm.disk
   if (c.cloud_ransomware)           t += LT.cloud_ransomware.disk
   if (c.hcx_connector)              t += LT.hcx_connector.disk
+  // Per WLD: add 1 vCenter + 3 NSX Manager Small disk (if NSX enabled)
+  t += wldPerDomain(s).disk * (s.wldCount || 0)
   return t
 }
 
@@ -240,7 +252,7 @@ export function sizingBreakdown(s) {
     { name:'vDefend/AVI Licensing Hub', excluded:!(c.ssp && cs.ssp !== 'Excluded'), ...LT.ssp_license },
     { name:`VCF Services Runtime (Control ×${vcfmsAggregate(s).ctrlNodes} + Worker ×${vcfmsAggregate(s).workerNodes})`, excluded:!c.vcf_svc_runtime,
       ...(({vcpu,ram,disk})=>({vcpu,ram,disk}))(vcfmsAggregate(s)) },
-    { name:`Cloud Proxy (${cs.cloud_proxy})`, excluded:!c.cloud_proxy, ...(LT.vcfops_proxy[cs.cloud_proxy] || LT.cloud_proxy) },
+    { name:`VCF Operations — Cloud Proxy (${cs.cloud_proxy})`, excluded:!c.cloud_proxy, ...(LT.vcfops_proxy[cs.cloud_proxy] || LT.cloud_proxy) },
     { name:'License Server', excluded:!c.license_server, ...LT.license_server },
     { name:`VCF Operations for Networks (${cs.vcf_ops_networks})`, excluded:!c.vcf_ops_networks, ...(LT.vcf_ops_networks[cs.vcf_ops_networks]||{vcpu:0,ram:0,disk:0}) },
     { name:`VCF Operations for Networks — Collector (${cs.vcf_ops_networks_collector})`, excluded:!c.vcf_ops_networks_collector, ...(LT.vcf_ops_networks_collector[cs.vcf_ops_networks_collector]||{vcpu:0,ram:0,disk:0}) },
@@ -254,6 +266,8 @@ export function sizingBreakdown(s) {
     { name:'Health Reporting and Monitoring (HVM)', excluded:!c.hvm, ...LT.hvm },
     { name:'Cloud-Based Ransomware Recovery', excluded:!c.cloud_ransomware, ...LT.cloud_ransomware },
     { name:'HCX Connector (Cross-Cloud Mobility)', excluded:!c.hcx_connector, ...LT.hcx_connector },
+    { name:`Workload Domain vCenter/NSX ×${s.wldCount||0} (${cs.wldVcSize||'Small'})`, excluded:!(s.wldCount>0),
+      vcpu:wldPerDomain(s).vcpu*(s.wldCount||0), ram:wldPerDomain(s).ram*(s.wldCount||0), disk:wldPerDomain(s).disk*(s.wldCount||0) },
   ]
   return rows
 }
