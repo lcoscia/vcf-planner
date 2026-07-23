@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.13</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.14</div>
     </div>
   </div>
   <!-- Actions -->
@@ -582,6 +582,20 @@
                   <label class="text-xs text-gray-400">WLD vCenter Size</label>
                   <select x-model="sizing.compSizes.wldVcSize" class="w-24 text-xs">
                     <option>Tiny</option><option>Small</option><option>Medium</option><option>Large</option><option>XLarge</option>
+                  </select>
+                </div>
+                <div class="flex items-center justify-between" x-show="sizing.wldCount>0">
+                  <label class="text-xs text-gray-400">WLD NSX Manager Model</label>
+                  <select x-model="sizing.compSizes.wldNsxModel" class="w-40 text-xs">
+                    <option>Shared (use Management NSX)</option>
+                    <option>Dedicated - Single Node</option>
+                    <option>Dedicated - HA Cluster</option>
+                  </select>
+                </div>
+                <div class="flex items-center justify-between" x-show="sizing.wldCount>0 && sizing.compSizes.wldNsxModel!=='Shared (use Management NSX)'">
+                  <label class="text-xs text-gray-400">WLD NSX Manager Size</label>
+                  <select x-model="sizing.compSizes.wldNsxSize" class="w-24 text-xs">
+                    <option>Small</option><option>Medium</option><option>Large</option><option>XLarge</option>
                   </select>
                 </div>
                 <div class="flex items-center justify-between" x-show="sizing.components.vcf_svc_runtime">
@@ -1397,7 +1411,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.13</span>
+              <span>v1.1.14</span>
               <span>·</span>
               <span>Updated July 23, 2026</span>
               <span>·</span>
@@ -1558,6 +1572,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.14<br><span class="text-gray-300">2026-07-23</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Workload Domain NSX Manager sizing: independent Shared/Dedicated model</p>
+            <p>Analysis of the official workbook's "Management Domain Sizing" sheet showed each Workload Domain has its own independent NSX Manager configuration — a <strong>Shared / Dedicated - Single Node / Dedicated - HA Cluster</strong> model and a <strong>Small/Medium/Large/XLarge</strong> appliance size, defaulting to Dedicated - HA Cluster / Large — entirely decoupled from the Management Domain's own NSX Manager toggle. Our calculator previously hardcoded every Workload Domain to 3× NSX Manager Small, gated on the wrong toggle. `core/sizing.js` now exposes a dedicated <strong>WLD NSX Manager Model</strong> and <strong>Size</strong> selector: choosing "Shared (use Management NSX)" correctly zeroes the NSX Manager cost for that domain (it reuses an existing instance), "Dedicated - Single Node" counts 1 node, and "Dedicated - HA Cluster" counts 3 — each shown as its own line item in the sizing breakdown alongside the Workload Domain vCenter row.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.13<br><span class="text-gray-300">2026-07-23</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Workload Domains now count fully — and visibly — toward the sizing totals</p>
@@ -2578,6 +2599,8 @@ function vcfPlanner() {
         vcenter: 'Medium',
         vcenterStorage: 'Large',
         wldVcSize: 'Small',
+        wldNsxModel: 'Dedicated - HA Cluster',
+        wldNsxSize: 'Large',
         nsx_manager: 'Medium',
         nsx_manager_model: 'Mandatory - HA Cluster',
         nsx_edge: 'NSX Edge Medium',
@@ -2969,7 +2992,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.13'
+      const appVersion = 'v1.1.14'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',

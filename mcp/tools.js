@@ -55,6 +55,8 @@ const SIZING_DEFAULTS = {
     vcenter: 'Medium',
     vcenterStorage: 'Large',
     wldVcSize: 'Small',
+    wldNsxModel: 'Dedicated - HA Cluster',
+    wldNsxSize: 'Large',
     nsx_manager: 'Medium',
     nsx_manager_model: 'Mandatory - HA Cluster',
     nsx_edge: 'NSX Edge Medium',

@@ -26,6 +26,7 @@ function baseSizing() {
     },
     compSizes: {
       vcenter: 'Medium', vcenterStorage: 'Large', wldVcSize: 'Small',
+      wldNsxModel: 'Dedicated - HA Cluster', wldNsxSize: 'Large',
       nsx_manager: 'Medium', nsx_manager_model: 'Mandatory - HA Cluster',
       nsx_edge: 'NSX Edge Medium', vcf_operations: 'Small', vcf_logs: 'Small',
       avi_lb: 'Small', vcfa: 'Small', cloud_proxy: 'Medium', ssp: 'Medium',
@@ -78,23 +79,50 @@ test('Scenario 3 — Fleet/VCFMS + additional components (HA vSAN-ESA Large)', (
   assertScenario(s, { rawCPU: 360, rawRAM: 1020, rawDisk: 14943, hosts: 4, totalDisk: 34242, diskPerHost: 11414 })
 })
 
-test('Scenario 4 — Workload Domains add CPU/RAM/disk and appear in the breakdown', () => {
+test('Scenario 4 — Workload Domain vCenter + NSX Manager (default Dedicated - HA Cluster), independent of the Management Domain NSX toggle', () => {
+  const s = baseSizing()
+  Object.assign(s, { hostCores: 128, hostRAM: 1024, storageType: 'vSAN-ESA', instanceProfileSize: 'Medium', wldCount: 2 })
+  // Management Domain's own NSX Manager toggle is OFF — the WLD NSX contribution must not depend on it.
+  Object.assign(s.components, { sddc_manager: true, vcenter: true, nsx_manager: false, vcf_svc_runtime: true })
+  Object.assign(s.compSizes, { wldVcSize: 'Medium' })
+  assertScenario(s, { rawCPU: 184, rawRAM: 568, rawDisk: 10413, hosts: 4, totalDisk: 23556, diskPerHost: 7852 })
+
+  const [vcRow, nsxRow] = computeSizing(s).breakdown.filter(r => r.name.includes('Workload Domain'))
+  assert.equal(vcRow.excluded, false, 'WLD vCenter row is not excluded when wldCount > 0')
+  assert.deepEqual({ vcpu: vcRow.vcpu, ram: vcRow.ram, disk: vcRow.disk }, { vcpu: 16, ram: 60, disk: 1866 })
+  assert.equal(nsxRow.excluded, false, 'WLD NSX Manager row is not excluded for Dedicated models')
+  assert.deepEqual({ vcpu: nsxRow.vcpu, ram: nsxRow.ram, disk: nsxRow.disk }, { vcpu: 72, ram: 288, disk: 1800 })
+})
+
+test('Scenario 5 — Workload Domain "Shared" NSX model contributes zero NSX cost', () => {
   const s = baseSizing()
   Object.assign(s, { hostCores: 128, hostRAM: 1024, storageType: 'vSAN-ESA', instanceProfileSize: 'Medium', wldCount: 2 })
   Object.assign(s.components, { sddc_manager: true, vcenter: true, nsx_manager: true, vcf_svc_runtime: true })
-  Object.assign(s.compSizes, { wldVcSize: 'Medium' })
-  // 2× WLD domains, each contributing wld_vcenter.Medium {vcpu:8,ram:30,disk:933} +
-  // 3× nsx_manager.Small {vcpu:4,ram:16,disk:300} = {vcpu:20,ram:78,disk:1833} per domain
-  // -> +40 vcpu, +156 ram, +3666 disk on top of sddc_manager+vcenter+nsx_manager+vcf_svc_runtime.
-  assertScenario(s, { rawCPU: 154, rawRAM: 448, rawDisk: 11313, hosts: 4, totalDisk: 25229, diskPerHost: 8410 })
+  Object.assign(s.compSizes, { wldVcSize: 'Medium', wldNsxModel: 'Shared (use Management NSX)' })
+  assertScenario(s, { rawCPU: 130, rawRAM: 352, rawDisk: 9513, hosts: 4, totalDisk: 21162, diskPerHost: 7054 })
 
-  const wldRow = computeSizing(s).breakdown.find(r => r.name.includes('Workload Domain'))
-  assert.ok(wldRow, 'breakdown includes a Workload Domain row')
-  assert.equal(wldRow.excluded, false, 'Workload Domain row is not excluded when wldCount > 0')
-  assert.deepEqual({ vcpu: wldRow.vcpu, ram: wldRow.ram, disk: wldRow.disk }, { vcpu: 40, ram: 156, disk: 3666 })
+  const [vcRow, nsxRow] = computeSizing(s).breakdown.filter(r => r.name.includes('Workload Domain'))
+  assert.equal(vcRow.excluded, false, 'WLD vCenter still counts when NSX is Shared')
+  assert.equal(nsxRow.excluded, true, 'WLD NSX Manager row is excluded when Shared')
+  assert.deepEqual({ vcpu: nsxRow.vcpu, ram: nsxRow.ram, disk: nsxRow.disk }, { vcpu: 0, ram: 0, disk: 0 })
+})
 
+test('Scenario 6 — Workload Domain "Dedicated - Single Node" NSX model uses 1 node, not 3', () => {
+  const s = baseSizing()
+  Object.assign(s, { hostCores: 128, hostRAM: 1024, storageType: 'vSAN-ESA', instanceProfileSize: 'Medium', wldCount: 2 })
+  Object.assign(s.components, { sddc_manager: true, vcenter: true, nsx_manager: false, vcf_svc_runtime: true })
+  Object.assign(s.compSizes, { wldVcSize: 'Medium', wldNsxModel: 'Dedicated - Single Node', wldNsxSize: 'Medium' })
+  assertScenario(s, { rawCPU: 124, rawRAM: 328, rawDisk: 9213, hosts: 4, totalDisk: 20467, diskPerHost: 6823 })
+
+  const [, nsxRow] = computeSizing(s).breakdown.filter(r => r.name.includes('Workload Domain'))
+  assert.equal(nsxRow.name, 'Workload Domain NSX Manager ×2 (Dedicated - Single Node, Medium)')
+  assert.deepEqual({ vcpu: nsxRow.vcpu, ram: nsxRow.ram, disk: nsxRow.disk }, { vcpu: 12, ram: 48, disk: 600 })
+})
+
+test('Scenario 7 — wldCount 0 excludes both Workload Domain breakdown rows', () => {
   const s0 = baseSizing()
   Object.assign(s0.components, { sddc_manager: true })
-  const wldRowExcluded = computeSizing(s0).breakdown.find(r => r.name.includes('Workload Domain'))
-  assert.equal(wldRowExcluded.excluded, true, 'Workload Domain row is excluded when wldCount is 0')
+  const rows = computeSizing(s0).breakdown.filter(r => r.name.includes('Workload Domain'))
+  assert.equal(rows.length, 2, 'both WLD vCenter and WLD NSX Manager rows are present (just excluded)')
+  assert.ok(rows.every(r => r.excluded), 'both Workload Domain rows are excluded when wldCount is 0')
 })

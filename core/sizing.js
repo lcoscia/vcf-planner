@@ -58,15 +58,26 @@ export function vcfaNodes(s) {
   return s.compSizes.vcfa === 'Small' ? 1 : 3
 }
 
-// Per-Workload-Domain contribution: 1 dedicated vCenter + (if NSX enabled) 3× NSX Manager Small
+// Per-WLD NSX Manager contribution: node count depends on wldNsxModel (Shared=0, Dedicated Single=1,
+// Dedicated HA=3), tier depends on wldNsxSize — both independently configurable per WLD, per Excel
+// "Management Domain Sizing" J16/K16/L16/M16. Independent of the Management Domain's own NSX Manager toggle.
+export function wldNsxPerDomain(s) {
+  const cs = s.compSizes
+  const model = cs.wldNsxModel || 'Dedicated - HA Cluster'
+  const nodes = model === 'Dedicated - HA Cluster' ? 3 : model === 'Dedicated - Single Node' ? 1 : 0
+  const tier = LT.nsx_manager[cs.wldNsxSize || 'Large']
+  return { vcpu: tier.vcpu * nodes, ram: tier.ram * nodes, disk: tier.disk * nodes, nodes }
+}
+
+// Per-Workload-Domain contribution: 1 dedicated vCenter + WLD NSX Manager (see wldNsxPerDomain)
 export function wldPerDomain(s) {
-  const c = s.components; const cs = s.compSizes
-  const tier = LT.wld_vcenter[cs.wldVcSize || 'Small']
-  const nsxMult = c.nsx_manager ? 3 : 0
+  const cs = s.compSizes
+  const vcTier = LT.wld_vcenter[cs.wldVcSize || 'Small']
+  const nsx = wldNsxPerDomain(s)
   return {
-    vcpu: tier.vcpu + LT.nsx_manager['Small'].vcpu * nsxMult,
-    ram:  tier.ram  + LT.nsx_manager['Small'].ram  * nsxMult,
-    disk: tier.disk + LT.nsx_manager['Small'].disk * nsxMult,
+    vcpu: vcTier.vcpu + nsx.vcpu,
+    ram:  vcTier.ram  + nsx.ram,
+    disk: vcTier.disk + nsx.disk,
   }
 }
 
@@ -266,8 +277,13 @@ export function sizingBreakdown(s) {
     { name:'Health Reporting and Monitoring (HVM)', excluded:!c.hvm, ...LT.hvm },
     { name:'Cloud-Based Ransomware Recovery', excluded:!c.cloud_ransomware, ...LT.cloud_ransomware },
     { name:'HCX Connector (Cross-Cloud Mobility)', excluded:!c.hcx_connector, ...LT.hcx_connector },
-    { name:`Workload Domain vCenter/NSX ×${s.wldCount||0} (${cs.wldVcSize||'Small'})`, excluded:!(s.wldCount>0),
-      vcpu:wldPerDomain(s).vcpu*(s.wldCount||0), ram:wldPerDomain(s).ram*(s.wldCount||0), disk:wldPerDomain(s).disk*(s.wldCount||0) },
+    { name:`Workload Domain vCenter ×${s.wldCount||0} (${cs.wldVcSize||'Small'})`, excluded:!(s.wldCount>0),
+      vcpu:LT.wld_vcenter[cs.wldVcSize||'Small'].vcpu*(s.wldCount||0),
+      ram:LT.wld_vcenter[cs.wldVcSize||'Small'].ram*(s.wldCount||0),
+      disk:LT.wld_vcenter[cs.wldVcSize||'Small'].disk*(s.wldCount||0) },
+    { name:`Workload Domain NSX Manager ×${s.wldCount||0} (${cs.wldNsxModel||'Dedicated - HA Cluster'}${wldNsxPerDomain(s).nodes>0 ? ', '+(cs.wldNsxSize||'Large') : ''})`,
+      excluded:!(s.wldCount>0 && wldNsxPerDomain(s).nodes>0),
+      vcpu:wldNsxPerDomain(s).vcpu*(s.wldCount||0), ram:wldNsxPerDomain(s).ram*(s.wldCount||0), disk:wldNsxPerDomain(s).disk*(s.wldCount||0) },
   ]
   return rows
 }
