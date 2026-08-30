@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.14</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.15</div>
     </div>
   </div>
   <!-- Actions -->
@@ -1411,7 +1411,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.14</span>
+              <span>v1.1.15</span>
               <span>·</span>
               <span>Updated July 23, 2026</span>
               <span>·</span>
@@ -1571,6 +1571,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.15<br><span class="text-gray-300">2026-08-30</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">VCF Installer JSON export: fixed missing VCF Management Services / License Server / Identity Broker</p>
+            <p>A real VCF Installer import surfaced 4 errors — missing VCF Management Services IP pool range, Cloud Proxy appliance FQDN, License Server FQDN, and Identity Broker FQDN — even though the form already collected all of that data. The exporter (`buildVcfInstallerSpec()`) simply never read it: <strong>vspClusterSpec</strong>, <strong>licenseServerSpec</strong>, <strong>vidbSpec</strong>, and the <strong>fleetLcmSpec / sddcLcmSpec / fleetDepotSpec / telemetryAcceptorSpec / saltSpec / saltRaasSpec</strong> blocks are now built and included. Added a new <strong>VCF Services Runtime IP Range End</strong> field (the pool needed a start *and* end address; only the start existed). Also added a <strong>VCF Operations Remote Collector</strong> section (on by default) producing <strong>vcfOperationsCollectorSpec</strong>, and an <strong>ESXi Root Password</strong> mode toggle — Same for all hosts (unchanged default) vs. Different per host, with 16 new per-host password fields. Pre-export validation now warns if any of these required fields are missing, instead of only failing inside VCF Installer.</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.14<br><span class="text-gray-300">2026-07-23</span></span>
           <div class="text-gray-600">
@@ -2001,12 +2008,14 @@ function buildNtpServers(f) {
 
 function buildHostSpecs(f) {
   const hosts = []
+  const perHost = f.esxiRootPwMode === 'Different per host'
   for (let i=1; i<=16; i++) {
     const fqdn = f[`m01Host${i}Fqdn`]
     if (!fqdn) continue
     const host = { hostname: fqdn }
-    if (f.skipEsxThumbprintValidation === 'Exclude' && f.esxiRootPw) {
-      host.credentials = { username:'root', password:f.esxiRootPw }
+    if (f.skipEsxThumbprintValidation === 'Exclude') {
+      const pw = perHost ? f[`m01Host${i}Pw`] : f.esxiRootPw
+      if (pw) host.credentials = { username:'root', password:pw }
     }
     hosts.push(host)
   }
@@ -2240,6 +2249,47 @@ function buildSddcManagerSpec(f) {
     if (domain) hostname = `${hostname}.${domain}`
   }
   return { hostname, useExistingDeployment: false }
+}
+
+function buildVspClusterSpec(f) {
+  if (!f.vcfSvcRuntimeFqdn || !f.vcfSvcRuntimeIp) return null
+  return {
+    platformFqdn: f.vcfSvcRuntimeFqdn,
+    systemUserPassword: '',
+    ipv4Pool: { ipRange: { startIpAddress: f.vcfSvcRuntimeIp, endIpAddress: f.vcfSvcRuntimeIpEnd || f.vcfSvcRuntimeIp } },
+    size: 'small',
+    internalClusterCidrIpv4: f.fleetCidr || '198.18.0.0/15',
+    instanceFqdn: f.instanceComponentsFqdn,
+    fleetFqdn: f.fleetComponentsFqdn,
+  }
+}
+
+function buildLicenseServerSpec(f) {
+  if (!f.licenseServerFqdn) return null
+  return { hostname: f.licenseServerFqdn }
+}
+
+function buildVidbSpec(f) {
+  if (f.idBrokerInclude !== 'Include' || !f.idBrokerFqdn) return null
+  return { hostname: f.idBrokerFqdn, size: (f.idBrokerSize||'small').toLowerCase() }
+}
+
+function buildFleetLcmSpec(f) { return { size: 'small' } }
+function buildSddcLcmSpec(f) { return { size: 'small' } }
+function buildFleetDepotSpec(f) { return { size: 'small' } }
+function buildTelemetryAcceptorSpec(f) { return { size: 'small' } }
+function buildSaltSpec(f) { return { size: 'small' } }
+function buildSaltRaasSpec(f) { return { size: 'small' } }
+
+function buildVcfOperationsCollectorSpec(f) {
+  if (f.vcfOpsCollectorInclude === 'Exclude' || !f.vcfOpsCollectorFqdn) return null
+  const sizeMap = { Small:'small', Medium:'medium', Large:'large' }
+  return {
+    hostname: f.vcfOpsCollectorFqdn,
+    rootUserPassword: (f.autoGenPw === 'Unselected' && f.vcfOpsCollectorPw) || '',
+    applianceSize: sizeMap[f.vcfOpsCollectorSize] || 'small',
+    useExistingDeployment: false,
+  }
 }
 
 // ─── VCF Installer JSON IMPORT — reverse mappers (best-effort) ───
@@ -2992,7 +3042,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.14'
+      const appVersion = 'v1.1.15'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
@@ -3414,6 +3464,20 @@ function vcfPlanner() {
       setIfPresent(spec, 'datastoreSpec', buildDatastoreSpec(f))
       setIfPresent(spec, 'nsxtSpec', buildNsxtSpec(f))
       setIfPresent(spec, 'vcfOperationsSpec', buildVcfOperationsSpec(f))
+      setIfPresent(spec, 'vspClusterSpec', buildVspClusterSpec(f))
+      if (spec.vspClusterSpec) {
+        setIfPresent(spec, 'fleetLcmSpec', buildFleetLcmSpec(f))
+        setIfPresent(spec, 'sddcLcmSpec', buildSddcLcmSpec(f))
+        setIfPresent(spec, 'fleetDepotSpec', buildFleetDepotSpec(f))
+        setIfPresent(spec, 'telemetryAcceptorSpec', buildTelemetryAcceptorSpec(f))
+        setIfPresent(spec, 'saltSpec', buildSaltSpec(f))
+        setIfPresent(spec, 'saltRaasSpec', buildSaltRaasSpec(f))
+      }
+      setIfPresent(spec, 'licenseServerSpec', buildLicenseServerSpec(f))
+      setIfPresent(spec, 'vidbSpec', buildVidbSpec(f))
+      if (spec.vcfOperationsSpec) {
+        setIfPresent(spec, 'vcfOperationsCollectorSpec', buildVcfOperationsCollectorSpec(f))
+      }
       return spec
     },
     exportVcfInstallerJson() {
@@ -3426,6 +3490,10 @@ function vcfPlanner() {
       if (!f.subDomainName) missing.push('Child Domain Name (DNS subdomain)')
       if (!f.dnsServer1) missing.push('DNS Server 1')
       if (![f.esxMgmtVlan, f.vmMgmtVlan, f.vmotionVlan].every(Boolean)) missing.push('Core network VLANs (Management / VM Management / vMotion)')
+      if (!f.vcfSvcRuntimeFqdn || !f.vcfSvcRuntimeIp || !f.vcfSvcRuntimeIpEnd) missing.push('VCF Services Runtime FQDN/IP range (VCF Management Services section)')
+      if (!f.licenseServerFqdn) missing.push('License Server FQDN (VCF Management Services section)')
+      if (f.idBrokerInclude === 'Include' && !f.idBrokerFqdn) missing.push('Identity Broker FQDN')
+      if (f.vcfOpsCollectorInclude !== 'Exclude' && !f.vcfOpsCollectorFqdn) missing.push('VCF Operations Collector FQDN')
 
       if (missing.length && !confirm('The following fields used by VCF Installer are missing or invalid:\n\n- ' + missing.join('\n- ') + '\n\nExport anyway?')) return
 

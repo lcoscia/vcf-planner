@@ -300,7 +300,14 @@ export const ALL_PAGES = [
       {
         title:'Hosts (Management Cluster)',
         description:'Minimum 4 hosts for High Availability cluster. Enter FQDN and management IP for each ESXi host.',
-        fields: makeHostFields(16,'m01','10.11.10','1110'),
+        fields: [
+          ...makeHostFields(16,'m01','10.11.10','1110'),
+          ...Array.from({length:16}, (_,idx) => {
+            const i = idx+1
+            return { key:`m01Host${i}Pw`, label:`Host ${i} Root Password`, type:'password', sample:'VMw@re1!', required: i<=4,
+              showWhen:f=>f.esxiRootPwMode==='Different per host' }
+          }),
+        ],
       },
       {
         title:'Networks — Management',
@@ -345,7 +352,10 @@ export const ALL_PAGES = [
           { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected'||f.sddcLocation!=='External deployment',
             notes:'Not auto-generated when SDDC Manager is deployed on the management hosts — these are the VCF Installer appliance credentials set when deploying it' },
           { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected'||f.sddcLocation!=='External deployment' },
-          { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'VMw@re1!', required:true, notes:'Existing host credential — never auto-generated. All management cluster hosts must share the same root password' },
+          { key:'esxiRootPwMode', label:'ESXi Root Password', type:'toggle', options:['Same for all hosts','Different per host'], sample:'Same for all hosts' },
+          { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'VMw@re1!', required:true,
+            showWhen:f=>f.esxiRootPwMode!=='Different per host',
+            notes:'Existing host credential — never auto-generated. Used for every management cluster host unless "Different per host" is selected above.' },
           { key:'sddcLocation',  label:'SDDC Manager Location', type:'select', options:['Deployed on one of the management domain hosts','External deployment'], sample:'Deployed on one of the management domain hosts' },
         ]
       },
@@ -366,6 +376,12 @@ export const ALL_PAGES = [
           { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.21', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
           { key:'vcfOpsSize',        label:'VCF Operations Size',              type:'select', options:['Small','Medium','Large'], sample:'Small' },
           { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.autoGenPw==='Unselected' },
+          { key:'vcfOpsCollectorInclude', label:'Deploy VCF Operations Remote Collector', type:'toggle', options:['Include','Exclude'], sample:'Include',
+            notes:'Lightweight appliance that collects metrics for VCF Operations from a remote/isolated site and forwards them to the main cluster. Included by default; set to Exclude to skip it.' },
+          { key:'vcfOpsCollectorFqdn', label:'VCF Operations Collector FQDN', type:'text', sample:'flt-ops-col01.rainpole.io', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
+          { key:'vcfOpsCollectorIp',   label:'VCF Operations Collector IP',   type:'ip',   sample:'10.11.10.55', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
+          { key:'vcfOpsCollectorSize', label:'VCF Operations Collector Size', type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
+          { key:'vcfOpsCollectorPw',   label:'VCF Operations Collector Root Password', type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude'&&f.autoGenPw==='Unselected' },
         ]
       },
       {
@@ -769,6 +785,8 @@ export const ALL_PAGES = [
             notes:'1 FQDN to access the VCF services runtime component to troubleshoot issues, restart components, etc. The hostname from this FQDN is prefixed to the names of its node VMs and related objects. Do not use capital letters in the FQDN (lowercase only).' },
           { key:'vcfSvcRuntimeIp',        label:'VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.10',
             notes:'First address of the VCF Services Runtime IP block. The block must be on the VCF Management Network with a minimum of 12 IPs (/28) for the initial deployment; reserve up to 30 IPs (/27) if Day-N components and scale-out (additional Log Management replicas, Real-time Metrics, etc.) are planned.' },
+          { key:'vcfSvcRuntimeIpEnd',     label:'VCF Services Runtime IP Range End', type:'ip', sample:'10.11.99.30',
+            notes:'Last address of the VCF Services Runtime IP block (see VCF Services Runtime IP above for the first address). Minimum /28 (12 IPs), recommended /27 (30 IPs).' },
           { key:'licenseServerFqdn',      label:'License Server FQDN',       type:'text', sample:'flt-lc01.rainpole.io',
             notes:'1 FQDN, fleet-level and portable, on the VCF Management Network. Separate from the VCF Management Services FQDN set above (Fleet Components, Instance Components, VCF Services Runtime, Identity Broker) — not allocated from the VCF Services Runtime IP block.' },
           { key:'licenseServerIp',        label:'License Server IP',         type:'ip',   sample:'10.11.99.22' },
