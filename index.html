@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.15</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.16</div>
     </div>
   </div>
   <!-- Actions -->
@@ -1411,7 +1411,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.15</span>
+              <span>v1.1.16</span>
               <span>·</span>
               <span>Updated July 23, 2026</span>
               <span>·</span>
@@ -1571,6 +1571,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.16<br><span class="text-gray-300">2026-08-31</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">VCF Installer JSON export: fixed vCenter root / VSP-Cloud Proxy password validation errors</p>
+            <p>A real VCF Installer import failed with "vCenter Server root password must be between 8 and 20 characters", "VCF Cloud Proxy password must be at least 15 characters", and "VSP password must be at least 15 characters". `buildVcenterSpec()` and `buildVspClusterSpec()` in `index.html` were sending an empty string for `rootVcenterPassword` and `vspClusterSpec.systemUserPassword` whenever "Auto-generate passwords" was selected, on the assumption VCF Installer would generate them at bring-up — it doesn't, for these two fields, since there is no live orchestrator yet to do so before the fleet exists. The <strong>vCenter Root Password</strong> field is now always required (no longer hidden behind the auto-generate toggle), and the existing but previously unused <strong>VSP / Cloud Proxy System User Password</strong> field (`vcfMgmtSvcSshPw`, renamed from "SSH Password") is now wired into the export and made required too. Pre-export validation warns if either is left blank.</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.15<br><span class="text-gray-300">2026-08-30</span></span>
           <div class="text-gray-600">
@@ -2082,8 +2089,7 @@ function buildNetworkSpecs(f) {
 function buildVcenterSpec(f) {
   const spec = {
     vcenterHostname: f.vcMgmtFqdn || '',
-    // Auto-generated passwords are omitted from the spec (the Installer creates them)
-    rootVcenterPassword: (f.autoGenPw === 'Unselected' && f.vcRootPw) || '',
+    rootVcenterPassword: f.vcRootPw || '',
     vmSize: (f.vcMgmtSize||'Small').toLowerCase(),
     storageSize: 'lstorage',
     useExistingDeployment: false,
@@ -2255,7 +2261,7 @@ function buildVspClusterSpec(f) {
   if (!f.vcfSvcRuntimeFqdn || !f.vcfSvcRuntimeIp) return null
   return {
     platformFqdn: f.vcfSvcRuntimeFqdn,
-    systemUserPassword: '',
+    systemUserPassword: f.vcfMgmtSvcSshPw || '',
     ipv4Pool: { ipRange: { startIpAddress: f.vcfSvcRuntimeIp, endIpAddress: f.vcfSvcRuntimeIpEnd || f.vcfSvcRuntimeIp } },
     size: 'small',
     internalClusterCidrIpv4: f.fleetCidr || '198.18.0.0/15',
@@ -3042,7 +3048,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.15'
+      const appVersion = 'v1.1.16'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
@@ -3486,7 +3492,8 @@ function vcfPlanner() {
       if (!f.sddcId) missing.push('SDDC ID (Deploy Management Domain → VCF Installer Export Settings)')
       else if (!/^[a-zA-Z0-9-]{3,20}$/.test(f.sddcId)) missing.push('SDDC ID must be 3-20 chars, alphanumeric/hyphen only')
       if (!f.vcMgmtFqdn) missing.push('vCenter FQDN')
-      if (f.autoGenPw === 'Unselected' && !f.vcRootPw) missing.push('vCenter Root Password')
+      if (!f.vcRootPw) missing.push('vCenter Root Password')
+      if (!f.vcfMgmtSvcSshPw) missing.push('VSP / Cloud Proxy System User Password')
       if (!f.subDomainName) missing.push('Child Domain Name (DNS subdomain)')
       if (!f.dnsServer1) missing.push('DNS Server 1')
       if (![f.esxMgmtVlan, f.vmMgmtVlan, f.vmotionVlan].every(Boolean)) missing.push('Core network VLANs (Management / VM Management / vMotion)')

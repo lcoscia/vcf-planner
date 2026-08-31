@@ -294,7 +294,7 @@ export const ALL_PAGES = [
           { key:'dnsServer1',      label:'DNS Server 1',             type:'ip',   sample:'10.11.0.2', required:true },
           { key:'dnsServer2',      label:'DNS Server 2 (optional)',  type:'ip',   sample:'10.11.0.3' },
           { key:'autoGenPw',       label:'Auto-generate passwords for newly installed appliances', type:'toggle', options:['Selected','Unselected'], sample:'Selected',
-            notes:'Workbook default — appliance passwords are system-generated at bring-up and managed via VCF Operations Password Management afterwards. Set to Unselected to specify your own; exceptions that always need a value: the ESXi root password (existing host credential) and the SDDC Manager passwords when it is deployed on the management hosts (they are the VCF Installer appliance credentials you set when deploying it).' },
+            notes:'Workbook default — appliance passwords are system-generated at bring-up and managed via VCF Operations Password Management afterwards. Set to Unselected to specify your own; exceptions that always need a value: the ESXi root password (existing host credential), the SDDC Manager passwords when it is deployed on the management hosts, the vCenter root password, and the VSP/Cloud Proxy system user password (VCF Installer does not auto-generate these at bring-up).' },
         ]
       },
       {
@@ -342,7 +342,8 @@ export const ALL_PAGES = [
           { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium', required:true },
           { key:'vcSsoDomain',   label:'SSO Domain',                type:'text', sample:'vsphere.local', required:true },
           { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected', notes:'min 8 chars, complexity required' },
-          { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected' },
+          { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'VMw@re1!VMw@re1!', required:true,
+            notes:'Always required — VCF Installer does not auto-generate this password at bring-up time even when "Auto-generate passwords" is selected (min 15 chars for a new vCenter deployment).' },
           { key:'vcDatacenter',  label:'Datacenter Name',           type:'text', sample:'sfo-m01-dc01', required:true },
           { key:'vcCluster',     label:'Cluster Name',              type:'text', sample:'sfo-m01-cl01', required:true },
           { key:'vcDatastore',   label:'vSAN Datastore Name',       type:'text', sample:'sfo-m01-cl01-ds-vsan01', required:true,
@@ -794,8 +795,8 @@ export const ALL_PAGES = [
             notes:'Spare IP addresses reserved within the VCF Services Runtime IP block (/28 minimum, /27 recommended) for future component scale-out — e.g. additional Log Management replicas, Real-time Metrics, or other fleet-/instance-level services added post-deployment.' },
           { key:'mgmtSvcAdditionalIp2', label:'Additional IP #2', type:'ip', sample:'10.11.99.31' },
           { key:'mgmtSvcAdditionalIp3', label:'Additional IP #3', type:'ip', sample:'10.11.99.32' },
-          { key:'vcfMgmtSvcSshPw',        label:'SSH Password (vmware-system-user)', type:'password', sample:'AUTO-GENERATED',
-            notes:'Shared SSH credential for the vmware-system-user account on VCF Management Services runtime nodes.' },
+          { key:'vcfMgmtSvcSshPw',        label:'VSP / Cloud Proxy System User Password', type:'password', sample:'VMw@re1!VMw@re1!', required:true,
+            notes:'Shared credential for the vmware-system-user account on the VCF Services Runtime (VSP) and Cloud Proxy nodes. Always required — VCF Installer rejects a blank value here even when "Auto-generate passwords" is selected (min 15 chars).' },
         ]
       },
       {
