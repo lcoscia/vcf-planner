@@ -301,11 +301,11 @@ export const ALL_PAGES = [
         title:'Hosts (Management Cluster)',
         description:'Minimum 4 hosts for High Availability cluster. Enter FQDN and management IP for each ESXi host.',
         fields: [
-          ...makeHostFields(16,'m01','10.11.10','1110'),
           { key:'esxiRootPwMode', label:'ESXi Root Password', type:'toggle', options:['Same for all hosts','Different per host'], sample:'Same for all hosts' },
           { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'VMw@re1!', required:true,
             showWhen:f=>f.esxiRootPwMode!=='Different per host',
             notes:'Existing host credential — never auto-generated. Used for every management cluster host unless "Different per host" is selected above.' },
+          ...makeHostFields(16,'m01','10.11.10','1110'),
           ...Array.from({length:16}, (_,idx) => {
             const i = idx+1
             return { key:`m01Host${i}Pw`, label:`Host ${i} Root Password`, type:'password', sample:'VMw@re1!', required: i<=4,
