@@ -207,7 +207,7 @@ export const ALL_PAGES = [
             notes:'3-20 chars, alphanumeric/hyphen only. Required by VCF Installer.' },
           { key:'ceipEnabled',     label:'Enable CEIP',       type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
           { key:'skipEsxThumbprintValidation', label:'Skip ESXi SSL Thumbprint Validation', type:'toggle', options:['Include','Exclude'], sample:'Include',
-            notes:'When included, host credentials/SSL thumbprints are omitted from the export' },
+            notes:'Controls only whether VCF Installer validates each host\'s SSL thumbprint at bring-up. Host credentials (root password) are always included in the export regardless of this setting.' },
         ]
       },
       {
