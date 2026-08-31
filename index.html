@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.18</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.19</div>
     </div>
   </div>
   <!-- Actions -->
@@ -1422,7 +1422,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.18</span>
+              <span>v1.1.19</span>
               <span>·</span>
               <span>Updated July 23, 2026</span>
               <span>·</span>
@@ -1582,6 +1582,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.19<br><span class="text-gray-300">2026-08-31</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Fixed missing VCF Operations root user password</p>
+            <p>VCF Installer rejected the export with "Root user password missing for VCF Operations". Each node in `vcfOperationsSpec.nodes[]` needs its own `rootUserPassword` — a separate OS-level credential from the `adminUserPassword` (UI login) already fixed in v1.1.17 — but no form field existed for it and `buildVcfOperationsSpec()` never set it. Added a new <strong>Root User Password</strong> field, applied to every VCF Operations node (Primary/Replica/Data share one root credential from the appliance template).</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.18<br><span class="text-gray-300">2026-08-31</span></span>
           <div class="text-gray-600">
@@ -2288,11 +2295,12 @@ function buildVcfOperationsSpec(f) {
   // Deploy Management Domain fields whenever they are filled (the Day-N
   // vcfOpsAutoMode selector only gates the deferred SDDC-Manager-API path).
   const sizeMap = { Small:'small', Medium:'medium', Large:'large' }
+  const rootPw = f.vcfOpsRootPw || ''
   const nodes = []
-  if (f.vcfOpsPrimaryFqdn) nodes.push({ hostname:f.vcfOpsPrimaryFqdn, type:'master' })
+  if (f.vcfOpsPrimaryFqdn) nodes.push({ hostname:f.vcfOpsPrimaryFqdn, type:'master', rootUserPassword:rootPw })
   if (f.vcfOpsHaMode === 'HA Cluster') {
-    if (f.vcfOpsReplicaFqdn) nodes.push({ hostname:f.vcfOpsReplicaFqdn, type:'replica' })
-    if (f.vcfOpsDataFqdn) nodes.push({ hostname:f.vcfOpsDataFqdn, type:'data' })
+    if (f.vcfOpsReplicaFqdn) nodes.push({ hostname:f.vcfOpsReplicaFqdn, type:'replica', rootUserPassword:rootPw })
+    if (f.vcfOpsDataFqdn) nodes.push({ hostname:f.vcfOpsDataFqdn, type:'data', rootUserPassword:rootPw })
   }
   if (!nodes.length) return null
   return {
@@ -3110,7 +3118,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.18'
+      const appVersion = 'v1.1.19'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
@@ -3572,7 +3580,7 @@ function vcfPlanner() {
       if (!f.vcfMgmtSvcSshPw) missing.push('VSP / Cloud Proxy System User Password')
       if (!f.sddcRootPw || !f.sddcAdminPw) missing.push('SDDC Manager Root/Admin Password')
       if (f.nsxVipFqdn && (!f.nsxAdminPw || !f.nsxAuditPw || !f.nsxRootPw)) missing.push('NSX Admin/Audit/Root Password')
-      if (f.vcfOpsPrimaryFqdn && !f.vcfOpsAdminPw) missing.push('VCF Operations Admin Password')
+      if (f.vcfOpsPrimaryFqdn && (!f.vcfOpsAdminPw || !f.vcfOpsRootPw)) missing.push('VCF Operations Admin/Root Password')
       if (!f.subDomainName) missing.push('Child Domain Name (DNS subdomain)')
       if (!f.dnsServer1) missing.push('DNS Server 1')
       if (![f.esxMgmtVlan, f.vmMgmtVlan, f.vmotionVlan].every(Boolean)) missing.push('Core network VLANs (Management / VM Management / vMotion)')

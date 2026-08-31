@@ -379,6 +379,8 @@ export const ALL_PAGES = [
           { key:'vcfOpsSize',        label:'VCF Operations Size',              type:'select', options:['Small','Medium','Large'], sample:'Small' },
           { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'VMw@re1!VMw@re1!', required:true,
             notes:'Always required — VCF Installer does not auto-generate this password at bring-up time even when "Auto-generate passwords" is selected.' },
+          { key:'vcfOpsRootPw',      label:'Root User Password',               type:'password', sample:'VMw@re1!VMw@re1!', required:true,
+            notes:'Always required — VCF Installer does not auto-generate this password at bring-up time. Applies to every VCF Operations node (Primary/Replica/Data share one root credential from the appliance template).' },
           { key:'vcfOpsCollectorInclude', label:'Deploy VCF Operations Remote Collector', type:'toggle', options:['Include','Exclude'], sample:'Include',
             notes:'Lightweight appliance that collects metrics for VCF Operations from a remote/isolated site and forwards them to the main cluster. Included by default; set to Exclude to skip it.' },
           { key:'vcfOpsCollectorFqdn', label:'VCF Operations Collector FQDN', type:'text', sample:'flt-ops-col01.rainpole.io', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
