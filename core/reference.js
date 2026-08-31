@@ -294,7 +294,7 @@ export const ALL_PAGES = [
           { key:'dnsServer1',      label:'DNS Server 1',             type:'ip',   sample:'10.11.0.2', required:true },
           { key:'dnsServer2',      label:'DNS Server 2 (optional)',  type:'ip',   sample:'10.11.0.3' },
           { key:'autoGenPw',       label:'Auto-generate passwords for newly installed appliances', type:'toggle', options:['Selected','Unselected'], sample:'Selected',
-            notes:'Workbook default — appliance passwords are system-generated at bring-up and managed via VCF Operations Password Management afterwards. Set to Unselected to specify your own; exceptions that always need a value: the ESXi root password (existing host credential), the SDDC Manager passwords when it is deployed on the management hosts, the vCenter root password, and the VSP/Cloud Proxy system user password (VCF Installer does not auto-generate these at bring-up).' },
+            notes:'Workbook default — appliance passwords are system-generated at bring-up and managed via VCF Operations Password Management afterwards. Set to Unselected to specify your own; exceptions that always need a value: the ESXi root password (existing host credential), the SDDC Manager root/admin passwords when it is deployed on the management hosts, the vCenter root and SSO admin passwords, the VSP/Cloud Proxy system user password, the NSX Manager admin/audit/root passwords, and the VCF Operations admin password (VCF Installer does not auto-generate any of these at bring-up).' },
         ]
       },
       {
@@ -341,7 +341,7 @@ export const ALL_PAGES = [
           { key:'vcMgmtIp',      label:'vCenter IP',                type:'ip',   sample:'10.11.10.3', required:true },
           { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium', required:true },
           { key:'vcSsoDomain',   label:'SSO Domain',                type:'text', sample:'vsphere.local', required:true },
-          { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected', notes:'min 8 chars, complexity required' },
+          { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'VMw@re1!VMw@re1!', required:true, notes:'Always required — VCF Installer does not auto-generate this password at bring-up time (min 8 chars, complexity required).' },
           { key:'vcRootPw',      label:'Root Password',             type:'password', sample:'VMw@re1!VMw@re1!', required:true,
             notes:'Always required — VCF Installer does not auto-generate this password at bring-up time even when "Auto-generate passwords" is selected (min 15 chars for a new vCenter deployment).' },
           { key:'vcDatacenter',  label:'Datacenter Name',           type:'text', sample:'sfo-m01-dc01', required:true },
@@ -354,9 +354,10 @@ export const ALL_PAGES = [
         title:'SDDC Manager',
         fields:[
           { key:'sddcHostname',  label:'SDDC Manager Hostname',    type:'text', sample:'sfo-m01-sddc01', required:true },
-          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected'||f.sddcLocation!=='External deployment',
+          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.sddcLocation!=='External deployment',
             notes:'Not auto-generated when SDDC Manager is deployed on the management hosts — these are the VCF Installer appliance credentials set when deploying it' },
-          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected'||f.sddcLocation!=='External deployment' },
+          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.sddcLocation!=='External deployment',
+            notes:'Also used as the SSH password — SDDC Manager has no separate SSH credential.' },
           { key:'sddcLocation',  label:'SDDC Manager Location', type:'select', options:['Deployed on one of the management domain hosts','External deployment'], sample:'Deployed on one of the management domain hosts' },
         ]
       },
@@ -376,7 +377,8 @@ export const ALL_PAGES = [
             notes:'Optional — VCF Operations has no built-in cluster/floating IP (without a load balancer you reach the cluster via the node FQDNs); a load-balancer VIP must come from an external load balancer (never provided by VCF).' },
           { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.21', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
           { key:'vcfOpsSize',        label:'VCF Operations Size',              type:'select', options:['Small','Medium','Large'], sample:'Small' },
-          { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.autoGenPw==='Unselected' },
+          { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'VMw@re1!VMw@re1!', required:true,
+            notes:'Always required — VCF Installer does not auto-generate this password at bring-up time even when "Auto-generate passwords" is selected.' },
           { key:'vcfOpsCollectorInclude', label:'Deploy VCF Operations Remote Collector', type:'toggle', options:['Include','Exclude'], sample:'Include',
             notes:'Lightweight appliance that collects metrics for VCF Operations from a remote/isolated site and forwards them to the main cluster. Included by default; set to Exclude to skip it.' },
           { key:'vcfOpsCollectorFqdn', label:'VCF Operations Collector FQDN', type:'text', sample:'flt-ops-col01.rainpole.io', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
@@ -398,8 +400,10 @@ export const ALL_PAGES = [
           { key:'nsxMgr3Ip',     label:'NSX Manager 3 IP',         type:'ip',   sample:'10.11.10.73' },
           { key:'nsxVipFqdn',    label:'NSX Cluster VIP FQDN',     type:'text', sample:'sfo-m01-nsx01.sfo.rainpole.io', required:true },
           { key:'nsxVipIp',      label:'NSX Cluster VIP IP',       type:'ip',   sample:'10.11.10.74', required:true },
-          { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.autoGenPw==='Unselected' },
-          { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.autoGenPw==='Unselected' },
+          { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'VMw@re1!VMw@re1!', required:true },
+          { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'VMw@re1!VMw@re1!', required:true },
+          { key:'nsxRootPw',     label:'NSX Manager Root Password', type:'password', sample:'VMw@re1!VMw@re1!', required:true,
+            notes:'Always required — VCF Installer does not auto-generate this password at bring-up time even when "Auto-generate passwords" is selected.' },
           { key:'nsxMgrSize',    label:'NSX Manager Appliance Size', type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small', required:true },
         ]
       },

@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.16</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.17</div>
     </div>
   </div>
   <!-- Actions -->
@@ -1001,6 +1001,9 @@
                   <template x-if="getSectionHostPrefix(section)">
                     <button @click="fillHostIps(getSectionHostPrefix(section))" class="text-xs px-2 py-0.5 rounded" style="background:rgba(255,255,255,.2); color:inherit;" title="Auto-fill sequential IP addresses for hosts">⚡ Fill IPs</button>
                   </template>
+                  <template x-if="section.fields && section.fields.some(f=>f.type==='password')">
+                    <button @click="generateSectionPasswords(section)" class="text-xs px-2 py-0.5 rounded" style="background:rgba(255,255,255,.2); color:inherit;" title="Auto-generate compliant passwords for empty password fields in this section">🎲 Generate Passwords</button>
+                  </template>
                   <button @click="copySection(section.fields, section.title)" class="text-xs px-2 py-0.5 rounded" style="background:rgba(255,255,255,.2); color:inherit;" title="Copy section values to clipboard">⎘</button>
                 </div>
                 <span class="text-xs opacity-70" x-text="openSections.includes(page.id+':'+section.title)?'▼':'▶'"></span>
@@ -1411,7 +1414,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.16</span>
+              <span>v1.1.17</span>
               <span>·</span>
               <span>Updated July 23, 2026</span>
               <span>·</span>
@@ -1571,6 +1574,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.17<br><span class="text-gray-300">2026-08-31</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">VCF Installer JSON export: wired up remaining Day-0 appliance passwords + password generator button</p>
+            <p>Following the v1.1.16 fix, auditing NSX turned up the same bug in three more places: <strong>nsxtAdminPassword / nsxtAuditPassword / rootNsxtManagerPassword</strong> (NSX Manager), <strong>rootPassword / sshPassword / localUserPassword</strong> (SDDC Manager), <strong>adminUserSsoPassword</strong> (vCenter SSO), and <strong>adminUserPassword</strong> (VCF Operations) all had a form field the user could fill in, but no builder ever read it — the value was silently dropped from the export. All four are now wired in and required regardless of the "Auto-generate passwords" toggle, matching the same Day-0 reasoning as the vCenter root / VSP fix. Added a new <strong>NSX Manager Root Password</strong> field (the schema needed it and no field existed for it). Also added a <strong>🎲 Generate Passwords</strong> button to every section that has password fields — one click fills any empty password field in that section with a random 16-character value guaranteed to contain uppercase, lowercase, digits and special characters with no 3+ repeated characters, satisfying every length/complexity rule in the app without ever overwriting a password you already typed.</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.16<br><span class="text-gray-300">2026-08-31</span></span>
           <div class="text-gray-600">
@@ -2002,6 +2012,31 @@ function mapNsxTeamingUppercase(policy) {
   })[policy] || 'LOADBALANCE_SRCID'
 }
 
+function genCompliantPassword(len = 16) {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'   // no I/O (ambiguous)
+  const lower = 'abcdefghijkmnpqrstuvwxyz'   // no l/o
+  const digits = '23456789'                  // no 0/1
+  const special = '!@#$%^-_'
+  const all = upper + lower + digits + special
+  const randInt = (max) => {
+    const buf = new Uint32Array(1)
+    crypto.getRandomValues(buf)
+    return buf[0] % max
+  }
+  const pick = (pool) => pool[randInt(pool.length)]
+  let pw
+  do {
+    const chars = [upper, upper, lower, lower, digits, digits, special, special].map(pick)
+    while (chars.length < len) chars.push(pick(all))
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = randInt(i + 1)
+      ;[chars[i], chars[j]] = [chars[j], chars[i]]
+    }
+    pw = chars.join('')
+  } while (/(.)\1\1/.test(pw))   // reject 3+ identical consecutive chars
+  return pw
+}
+
 function buildDnsSpec(f) {
   return {
     subdomain: f.subDomainName || '',
@@ -2090,6 +2125,7 @@ function buildVcenterSpec(f) {
   const spec = {
     vcenterHostname: f.vcMgmtFqdn || '',
     rootVcenterPassword: f.vcRootPw || '',
+    adminUserSsoPassword: f.vcSsoAdminPw || '',
     vmSize: (f.vcMgmtSize||'Small').toLowerCase(),
     storageSize: 'lstorage',
     useExistingDeployment: false,
@@ -2216,6 +2252,9 @@ function buildNsxtSpec(f) {
     nsxtManagerSize: sizeMap[f.nsxMgrSize] || 'medium',
     useExistingDeployment: false,
     nsxtManagers: [f.nsxMgr1Fqdn, f.nsxMgr2Fqdn, f.nsxMgr3Fqdn].filter(Boolean).map(hostname => ({ hostname })),
+    nsxtAdminPassword: f.nsxAdminPw || '',
+    nsxtAuditPassword: f.nsxAuditPw || '',
+    rootNsxtManagerPassword: f.nsxRootPw || '',
   }
   if (f.overlayVlan) spec.transportVlanId = parseInt(f.overlayVlan, 10)
   if (f.overlayCidr && f.overlayGateway) {
@@ -2244,6 +2283,7 @@ function buildVcfOperationsSpec(f) {
   return {
     applianceSize: sizeMap[f.vcfOpsSize] || 'small',
     useExistingDeployment: false,
+    adminUserPassword: f.vcfOpsAdminPw || '',
     nodes,
   }
 }
@@ -2254,7 +2294,13 @@ function buildSddcManagerSpec(f) {
     const domain = f.subDomainName || f.domainName || ''
     if (domain) hostname = `${hostname}.${domain}`
   }
-  return { hostname, useExistingDeployment: false }
+  return {
+    hostname,
+    useExistingDeployment: false,
+    rootPassword: f.sddcRootPw || '',
+    sshPassword: f.sddcRootPw || '',
+    localUserPassword: f.sddcAdminPw || '',
+  }
 }
 
 function buildVspClusterSpec(f) {
@@ -3048,7 +3094,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.16'
+      const appVersion = 'v1.1.17'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
@@ -3136,6 +3182,19 @@ function vcfPlanner() {
       }
       this.save()
       this.showCopyFeedback('Host IPs auto-filled!')
+    },
+    generateSectionPasswords(section) {
+      let count = 0
+      for (const field of (section.fields || [])) {
+        if (field.type !== 'password') continue
+        if (!this.isFieldVisible(field)) continue
+        if (this.form[field.key]) continue
+        this.form[field.key] = genCompliantPassword()
+        count++
+      }
+      if (!count) { this.showCopyFeedback('No empty password fields in this section'); return }
+      this.save()
+      this.showCopyFeedback(`${count} password(s) generated!`)
     },
     fillDemoManagementDomain() {
       if (!confirm('This fills in ALL Management Domain fields with demo data for a 4-node vSAN-ESA cluster (with a 3-node NSX Manager and a 2-node NSX Edge cluster). Existing values in these fields will be overwritten. Continue?')) return
@@ -3493,7 +3552,11 @@ function vcfPlanner() {
       else if (!/^[a-zA-Z0-9-]{3,20}$/.test(f.sddcId)) missing.push('SDDC ID must be 3-20 chars, alphanumeric/hyphen only')
       if (!f.vcMgmtFqdn) missing.push('vCenter FQDN')
       if (!f.vcRootPw) missing.push('vCenter Root Password')
+      if (!f.vcSsoAdminPw) missing.push('vCenter SSO Admin Password')
       if (!f.vcfMgmtSvcSshPw) missing.push('VSP / Cloud Proxy System User Password')
+      if (f.sddcLocation !== 'External deployment' && (!f.sddcRootPw || !f.sddcAdminPw)) missing.push('SDDC Manager Root/Admin Password')
+      if (f.nsxVipFqdn && (!f.nsxAdminPw || !f.nsxAuditPw || !f.nsxRootPw)) missing.push('NSX Admin/Audit/Root Password')
+      if (f.vcfOpsPrimaryFqdn && !f.vcfOpsAdminPw) missing.push('VCF Operations Admin Password')
       if (!f.subDomainName) missing.push('Child Domain Name (DNS subdomain)')
       if (!f.dnsServer1) missing.push('DNS Server 1')
       if (![f.esxMgmtVlan, f.vmMgmtVlan, f.vmotionVlan].every(Boolean)) missing.push('Core network VLANs (Management / VM Management / vMotion)')
