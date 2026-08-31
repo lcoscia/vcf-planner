@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.17</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.18</div>
     </div>
   </div>
   <!-- Actions -->
@@ -1062,18 +1062,26 @@
                           </template>
                           <!-- Text / IP / CIDR / number -->
                           <template x-if="field.type==='text'||field.type==='ip'||field.type==='cidr'||field.type==='number'||field.type==='password'">
-                            <input :id="'field-'+field.key"
-                                   :type="field.type==='password'?'password':(field.type==='number'?'number':'text')"
-                                   x-model="form[field.key]"
-                                   @input="save()"
-                                   :placeholder="field.sample||''"
-                                   :aria-label="field.label"
-                                   :class="{
-                                     'missing': field.required && !form[field.key],
-                                     'ip-error': field.type==='ip' && form[field.key] && !isValidIp(form[field.key]),
-                                     'cidr-error': field.type==='cidr' && form[field.key] && !isValidCidr(form[field.key]),
-                                     'fqdn-error': field.type==='text' && field.label && field.label.includes('FQDN') && form[field.key] && !isFqdn(form[field.key])
-                                   }">
+                            <div class="flex items-center gap-1">
+                              <input :id="'field-'+field.key"
+                                     :type="field.type==='password'?(pwVisible[field.key]?'text':'password'):(field.type==='number'?'number':'text')"
+                                     x-model="form[field.key]"
+                                     @input="save()"
+                                     :placeholder="field.sample||''"
+                                     :aria-label="field.label"
+                                     :class="{
+                                       'missing': field.required && !form[field.key],
+                                       'ip-error': field.type==='ip' && form[field.key] && !isValidIp(form[field.key]),
+                                       'cidr-error': field.type==='cidr' && form[field.key] && !isValidCidr(form[field.key]),
+                                       'fqdn-error': field.type==='text' && field.label && field.label.includes('FQDN') && form[field.key] && !isFqdn(form[field.key])
+                                     }">
+                              <button x-show="field.type==='password'" type="button"
+                                      @click="pwVisible[field.key] = !pwVisible[field.key]"
+                                      class="text-xs text-gray-400 hover:text-gray-600 shrink-0" style="width:1.25rem;"
+                                      :aria-label="pwVisible[field.key] ? 'Hide password' : 'Show password'"
+                                      :title="pwVisible[field.key] ? 'Hide password' : 'Show password'"
+                                      x-text="pwVisible[field.key] ? '🙈' : '👁'"></button>
+                            </div>
                           </template>
                           <!-- Textarea -->
                           <template x-if="field.type==='textarea'">
@@ -1414,7 +1422,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.17</span>
+              <span>v1.1.18</span>
               <span>·</span>
               <span>Updated July 23, 2026</span>
               <span>·</span>
@@ -1574,6 +1582,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.18<br><span class="text-gray-300">2026-08-31</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Fixed SDDC Manager password gating + added a password reveal toggle</p>
+            <p>Another real VCF Installer import failed with "SDDC Manager Local User Password must be at least 12 characters", "SDDC Manager root User Password must be at least 15 characters", and "SDDC Manager vcf User Password must be at least 15 characters" — the v1.1.17 fix wired these fields into the export correctly, but the <strong>Admin Password</strong> and <strong>Root Password</strong> fields were still hidden (and therefore unfillable) whenever SDDC Manager Location was set to "External deployment", on the assumption that mode didn't need them. The real installer proves that assumption wrong — both fields are now always visible and required, regardless of SDDC Manager Location. Also added a <strong>👁 show/hide toggle</strong> next to every password field in the data-entry form, so a typed or 🎲-generated password can actually be read back — previously there was no way to see what value a field held. The As-Built recap page still masks passwords as •••••••• by design.</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.17<br><span class="text-gray-300">2026-08-31</span></span>
           <div class="text-gray-600">
@@ -2657,6 +2672,7 @@ function vcfPlanner() {
     saveIndicator: false,
     darkMode: false,
     copyFeedback: '',
+    pwVisible: {},
     excelImporting: false,
     excelImportReport: null,
     showExcelImportReport: false,
@@ -3094,7 +3110,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.17'
+      const appVersion = 'v1.1.18'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
@@ -3554,7 +3570,7 @@ function vcfPlanner() {
       if (!f.vcRootPw) missing.push('vCenter Root Password')
       if (!f.vcSsoAdminPw) missing.push('vCenter SSO Admin Password')
       if (!f.vcfMgmtSvcSshPw) missing.push('VSP / Cloud Proxy System User Password')
-      if (f.sddcLocation !== 'External deployment' && (!f.sddcRootPw || !f.sddcAdminPw)) missing.push('SDDC Manager Root/Admin Password')
+      if (!f.sddcRootPw || !f.sddcAdminPw) missing.push('SDDC Manager Root/Admin Password')
       if (f.nsxVipFqdn && (!f.nsxAdminPw || !f.nsxAuditPw || !f.nsxRootPw)) missing.push('NSX Admin/Audit/Root Password')
       if (f.vcfOpsPrimaryFqdn && !f.vcfOpsAdminPw) missing.push('VCF Operations Admin Password')
       if (!f.subDomainName) missing.push('Child Domain Name (DNS subdomain)')

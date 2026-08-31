@@ -354,10 +354,10 @@ export const ALL_PAGES = [
         title:'SDDC Manager',
         fields:[
           { key:'sddcHostname',  label:'SDDC Manager Hostname',    type:'text', sample:'sfo-m01-sddc01', required:true },
-          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.sddcLocation!=='External deployment',
-            notes:'Not auto-generated when SDDC Manager is deployed on the management hosts — these are the VCF Installer appliance credentials set when deploying it' },
-          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'VMw@re1!VMw@re1!', required:true, showWhen:f=>f.sddcLocation!=='External deployment',
-            notes:'Also used as the SSH password — SDDC Manager has no separate SSH credential.' },
+          { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'VMw@re1!VMw@re1!', required:true,
+            notes:'Always required — VCF Installer does not auto-generate this password at bring-up time even when "Auto-generate passwords" is selected, and regardless of SDDC Manager Location.' },
+          { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'VMw@re1!VMw@re1!', required:true,
+            notes:'Also used as the "vcf" user SSH password — SDDC Manager has no separate SSH credential field. Always required regardless of SDDC Manager Location.' },
           { key:'sddcLocation',  label:'SDDC Manager Location', type:'select', options:['Deployed on one of the management domain hosts','External deployment'], sample:'Deployed on one of the management domain hosts' },
         ]
       },
