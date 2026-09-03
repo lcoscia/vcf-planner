@@ -819,6 +819,12 @@ export const ALL_PAGES = [
   {
     id:'active-directory', title:'Active Directory Inputs', icon:'👥', group:'fleet',
     subtitle:'AD / LDAP identity configuration for all VCF components',
+    // The dedicated "Active Directory Inputs" sheet is present in the 9.1.0
+    // Planning & Preparation Workbook but absent from the real 9.1.1 export (diffed
+    // 2026-09-03) — some AD-related prerequisite text/CA-username fields remain
+    // elsewhere in 9.1.1 (Prerequisite Checklist, Configure Management Domain), but
+    // this dedicated input sheet itself is gone.
+    droppedInWorkbook: ['9.1.1'],
     sections:[
       {
         title:'Active Directory / LDAP Configuration',
@@ -1162,6 +1168,12 @@ export const ALL_PAGES = [
     id:'ransomware-cloud', title:'Cloud-Based Ransomware Recovery', icon:'☁️', group:'recovery',
     subtitle:'VMware Cloud Disaster Recovery (DRaaS) — AWS cloud configuration',
     showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    // "Cloud-Based Ransomware Recovery" sheet is present in the 9.1.0 workbook,
+    // absent from the real 9.1.1 export (diffed 2026-09-03). Note the sizing
+    // calculator's own "Cloud-Based Ransomware Recovery" constant (LT.cloud_ransomware)
+    // is unaffected — that lookup table value is identical between both versions'
+    // "Static Reference Tables" sheet, only this dedicated planning sheet is gone.
+    droppedInWorkbook: ['9.1.1'],
     sections:[
       {
         title:'Cloud-Based DR Configuration',
@@ -1187,6 +1199,11 @@ export const ALL_PAGES = [
     id:'cross-cloud', title:'Cross Cloud Mobility (HCX)', icon:'☁️', group:'cloudai',
     subtitle:'VMware HCX — workload mobility to VMware Cloud on AWS',
     showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    // "Cross Cloud Mobility" sheet is present in the 9.1.0 workbook, with zero
+    // mentions anywhere in the real 9.1.1 export (diffed 2026-09-03) — the sizing
+    // calculator's own "HCX Connector" component (LT.hcx_connector) is unaffected,
+    // its value is identical between both versions, only this planning sheet is gone.
+    droppedInWorkbook: ['9.1.1'],
     sections:[
       {
         title:'HCX Configuration',
@@ -1221,6 +1238,9 @@ export const ALL_PAGES = [
     id:'private-ai', title:'Private AI Ready Infrastructure', icon:'🤖', group:'cloudai',
     subtitle:'GPU workloads — NVIDIA GPU Operator, vGPU, Private AI Foundation',
     showWhen: f => f.deploymentType==='VMware Cloud Foundation',
+    // "Private AI Ready Infrastructure" sheet is present in the 9.1.0 workbook, with
+    // zero mentions anywhere in the real 9.1.1 export (diffed 2026-09-03).
+    droppedInWorkbook: ['9.1.1'],
     sections:[
       {
         title:'Private AI Configuration',

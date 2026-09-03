@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.24</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.25</div>
     </div>
   </div>
   <!-- Actions -->
@@ -1001,6 +1001,12 @@
               </button>
             </template>
           </div>
+          <div class="p-4 no-print" x-show="pageMissingFromWorkbook(page)">
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 text-sm text-amber-800">
+              <span style="color:#C99700;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg></span>
+              This section has no corresponding sheet in the VCF 9.1.1 Planning &amp; Preparation Workbook (present in the 9.1.0 workbook, dropped in 9.1.1) — the underlying VCF feature may still exist, but there's no official Broadcom worksheet backing these fields for 9.1.1. Fill in with care and cross-check against current Broadcom documentation.
+            </div>
+          </div>
           <div class="p-4">
           <template x-for="section in page.sections" :key="section.title">
             <div x-show="isSectionVisible(section)" class="mb-4 bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
@@ -1436,7 +1442,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.24</span>
+              <span>v1.1.25</span>
               <span>·</span>
               <span>Updated September 3, 2026</span>
               <span>·</span>
@@ -1596,6 +1602,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.25<br><span class="text-gray-300">2026-09-03</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Flagged 4 sections that have no corresponding sheet in the 9.1.1 workbook</p>
+            <p>Diffing the real 9.1.1 export against 9.1.0 sheet-by-sheet found 5 sheets present in 9.1.0 with zero trace anywhere in 9.1.1: <strong>Active Directory Inputs</strong>, <strong>Cloud-Based Ransomware Recovery</strong>, <strong>Cross Cloud Mobility</strong>, <strong>Private AI Ready Infrastructure</strong>, and <strong>Public Reference Sheet</strong> (the last is a pure computed recap with no app equivalent). The app's <strong>Active Directory Inputs</strong>, <strong>Cloud-Based Ransomware Recovery</strong>, <strong>Cross Cloud Mobility (HCX)</strong> and <strong>Private AI Ready Infrastructure</strong> pages had no version awareness at all — they looked identical regardless of the selected VCF Version, even though Broadcom's own 9.1.1 planning workbook no longer documents these areas. Added a new page-level <code class="bg-gray-100 px-1 rounded text-xs">droppedInWorkbook</code> flag (<code class="bg-gray-100 px-1 rounded text-xs">core/reference.js</code>) and an amber advisory banner (shown via a new <code class="bg-gray-100 px-1 rounded text-xs">pageMissingFromWorkbook()</code> check) on those 4 pages when VCF Version 9.1.1.0 is selected — the fields stay fully usable (the underlying VCF feature may well still exist), the banner just makes clear there's no official 9.1.1 worksheet backing them, so fill in with a cross-check against current Broadcom docs rather than the workbook. (The sizing calculator's own Cloud-Based Ransomware Recovery / HCX Connector constants are unaffected — those "Static Reference Tables" values are identical between both versions; only the dedicated planning sheets are gone.)</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.24<br><span class="text-gray-300">2026-09-03</span></span>
           <div class="text-gray-600">
@@ -2868,6 +2881,16 @@ function vcfPlanner() {
       return field.showWhen(this.form)
     },
     isExcluded(field) { return false },
+    // True when the current page's ALL_PAGES entry declares `droppedInWorkbook`
+    // (sheet(s) confirmed absent from a later workbook version, e.g. Cross Cloud
+    // Mobility / Private AI Ready Infrastructure — present in the 9.1.0 "Planning &
+    // Preparation Workbook", zero mentions anywhere in the real 9.1.1 export, diffed
+    // 2026-09-03) and the selected VCF Version falls in that range.
+    pageMissingFromWorkbook(page) {
+      if (!page.droppedInWorkbook) return false
+      const v = this.form.vcfVersion || ''
+      return page.droppedInWorkbook.some(prefix => v.startsWith(prefix))
+    },
 
     // ─── FIELD HELPERS ───
     getFieldOptions(field) {
@@ -3206,7 +3229,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.24'
+      const appVersion = 'v1.1.25'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
