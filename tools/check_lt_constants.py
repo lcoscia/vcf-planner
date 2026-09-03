@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 """
-Verify that core/data.js's `const LT` lookup tables and `const SUBNET_MASKS`
-list match the "Static Reference Tables" sheet of
-vcf-9.1-planning-and-preparation-workbook-25june2026.xlsx (v1.9.1.005).
+Verify that core/data.js's `const LT_910`/`const LT_911` lookup tables and
+`const SUBNET_MASKS` list match the "Static Reference Tables" sheet of the
+official Broadcom workbooks:
+  - vcf-9.1-planning-and-preparation-workbook-25june2026.xlsx (v1.9.1.005) for LT_910
+  - vcf-9.1.1-planning-and-preparation-workbook.xlsx (v1.9.1.101) for LT_911's
+    overrides only (LT_911 = { ...LT_910, <overrides> } — unlisted keys are
+    identical to LT_910 by construction and are already covered by that check)
 
 (These tables used to live inline in index.html; they were extracted into the
 shared ES module core/data.js — the single source of truth consumed by both
-index.html and the MCP server in mcp/. The `export const LT = ` / `export const
-SUBNET_MASKS = ` declarations there still match the regexes below.)
+index.html and the MCP server in mcp/. The `export const LT_TABLES = ` /
+`export const SUBNET_MASKS = ` declarations there still match the regexes below.)
 
 Usage:
     python3 tools/check_lt_constants.py
 
 Exits with code 0 if everything matches, 1 if any divergence is found
-(and prints a ✓/✗ report), 2 if the workbook file cannot be found
-(it's gitignored — keep a copy next to index.html to run this check).
+(and prints a ✓/✗ report), 2 if either workbook file cannot be found
+(both are gitignored — keep copies next to index.html to run this check).
 
 Requires: openpyxl (pip install openpyxl)
 """
@@ -27,6 +31,7 @@ import warnings
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE_FILE = os.path.join(ROOT, 'core', 'data.js')
 EXCEL_FILE = os.path.join(ROOT, 'vcf-9.1-planning-and-preparation-workbook-25june2026.xlsx')  # v1.9.1.005, 25 Jun 2026
+EXCEL_FILE_911 = os.path.join(ROOT, 'vcf-9.1.1-planning-and-preparation-workbook.xlsx')  # v1.9.1.101
 
 
 # ---------------------------------------------------------------------------
@@ -72,12 +77,14 @@ def tri(blocks, cpu_block, ram_block, disk_block, tier_map=None):
 def parse_vcenter_disk(blocks):
     """Parse the single 'vCenter Disk' block, whose keys concatenate a vCenter
     appliance size (Tiny/Small/Medium/Large/XLarge) with a disk tier
-    (Default/Large/XLarge) with no separator, e.g. 'TinyDefault',
-    'XLargeLarge'. Note 'Large' is ambiguous (appears as both a size and a
-    tier name), so suffixes are tested longest/most-specific first
-    (XLarge before Large) and stripped from the key to recover the size."""
+    (Default/Large/XLarge, plus 9.1.1's lstorage/xlstorage aliases) with no
+    separator, e.g. 'TinyDefault', 'XLargeLarge', 'Tinyxlstorage'. Note 'Large' is
+    ambiguous (appears as both a size and a tier name, and 'xlstorage' ends with
+    'lstorage'), so suffixes are tested longest/most-specific first (XLarge before
+    Large, xlstorage before lstorage) and stripped from the key to recover the
+    size."""
     raw = blocks['vCenter Disk']
-    tiers = ('Default', 'XLarge', 'Large')
+    tiers = ('Default', 'XLarge', 'xlstorage', 'Large', 'lstorage')
     out = {}
     for key, value in raw.items():
         for tier in tiers:
@@ -86,6 +93,13 @@ def parse_vcenter_disk(blocks):
                 break
         else:
             raise ValueError(f"vCenter Disk: unrecognized tier suffix in key {key!r}")
+        # The 9.1.1 workbook has one inconsistently-cased row ('Xlargexlstorage'
+        # instead of 'XLargexlstorage') — fold case-insensitively against the known
+        # size names rather than treating it as a distinct 6th size.
+        for known_size in ('Tiny', 'Small', 'Medium', 'Large', 'XLarge'):
+            if size.lower() == known_size.lower():
+                size = known_size
+                break
         out.setdefault(size, {})[tier] = value
     return out
 
@@ -190,15 +204,25 @@ def _js_literal_to_json(src):
 
 
 def extract_lt_and_masks(html_text):
-    m = re.search(r'const LT = ', html_text)
-    lt_raw = _extract_balanced(html_text, m.end())
-    lt = json.loads(_js_literal_to_json(lt_raw))
+    """Returns (lt_910, lt_911_overrides, masks). lt_911_overrides holds ONLY the
+    keys core/data.js's `const LT_911 = { ...LT_910, <overrides> }` actually
+    overrides — the `...LT_910` spread isn't valid JSON, so it's stripped rather
+    than resolved; unlisted keys are identical to LT_910 and are covered by that
+    comparison already."""
+    m = re.search(r'const LT_910 = ', html_text)
+    lt_910_raw = _extract_balanced(html_text, m.end())
+    lt_910 = json.loads(_js_literal_to_json(lt_910_raw))
+
+    m = re.search(r'const LT_911 = ', html_text)
+    lt_911_raw = _extract_balanced(html_text, m.end())
+    lt_911_raw = lt_911_raw.replace('...LT_910,', '', 1)
+    lt_911_overrides = json.loads(_js_literal_to_json(lt_911_raw))
 
     m = re.search(r'const SUBNET_MASKS = ', html_text)
     masks_raw = _extract_balanced(html_text, m.end())
     masks = json.loads(_js_literal_to_json(masks_raw))
 
-    return lt, masks
+    return lt_910, lt_911_overrides, masks
 
 
 # ---------------------------------------------------------------------------
@@ -260,35 +284,81 @@ def compare_vcenter_disk_tiers(expected, actual, problems):
     return all_ok
 
 
+# 9.1.1-changed keys only — everything else in LT_911 is identical to LT_910 (a JS
+# spread, not re-typed), so only these need re-checking against the 9.1.1 workbook.
+LT_911_CHANGED_KEYS = {'ssp', 'ssp_license', 'vcfops_proxy', 'vcf_ops_networks', 'vcf_ops_networks_collector', 'vcenter_disk_tiers'}
+
+
 def main():
     if not os.path.exists(EXCEL_FILE):
         print(f"Workbook not found: {EXCEL_FILE}")
         print("(it's gitignored — place a copy next to index.html to run this check)")
         return 2
+    if not os.path.exists(EXCEL_FILE_911):
+        print(f"Workbook not found: {EXCEL_FILE_911}")
+        print("(it's gitignored — place a copy next to index.html to run this check)")
+        return 2
 
     import openpyxl
     warnings.filterwarnings('ignore')
-    wb = openpyxl.load_workbook(EXCEL_FILE, data_only=True)
-    ws = wb['Static Reference Tables']
-
-    blocks = extract_blocks(ws)
-    expected = build_expected(blocks)
-    expected_masks = extract_subnet_masks(ws)
 
     with open(SOURCE_FILE, encoding='utf-8') as f:
         source_text = f.read()
-    lt, masks = extract_lt_and_masks(source_text)
+    lt_910, lt_911_overrides, masks = extract_lt_and_masks(source_text)
 
     problems = []
-    print('Comparing core/data.js `const LT` against Static Reference Tables...')
-    for key in expected:
+
+    wb = openpyxl.load_workbook(EXCEL_FILE, data_only=True)
+    ws = wb['Static Reference Tables']
+    blocks = extract_blocks(ws)
+    expected_910 = build_expected(blocks)
+    expected_masks = extract_subnet_masks(ws)
+
+    print(f'Comparing core/data.js `LT_910` against 9.1.0 workbook ({os.path.basename(EXCEL_FILE)})...')
+    for key in expected_910:
         if key == 'vcenter_disk_tiers':
             continue
-        compare(expected[key], lt.get(key), key, True, problems)
+        compare(expected_910[key], lt_910.get(key), key, True, problems)
+    compare_vcenter_disk_tiers(expected_910['vcenter_disk_tiers'], lt_910.get('vcenter_disk_tiers'), problems)
 
-    compare_vcenter_disk_tiers(expected['vcenter_disk_tiers'], lt.get('vcenter_disk_tiers'), problems)
+    wb911 = openpyxl.load_workbook(EXCEL_FILE_911, data_only=True)
+    ws911 = wb911['Static Reference Tables']
+    blocks911 = extract_blocks(ws911)
+    # NOT build_expected(blocks911) — that also computes vcfms_worker_node/etc.,
+    # whose 9.1.1 source blocks moved past extract_blocks()'s fixed row-31-350
+    # window (9.1.1's VCFMS worker-node model was replaced entirely anyway, see
+    # core/data.js's VCFMS_911 — this script intentionally doesn't check it).
+    expected_911 = {
+        'ssp': tri(blocks911, 'SSP CPU', 'SSP RAM', 'SSP Disk'),
+        'ssp_license': {
+            'vcpu': blocks911['SSP License']['CPU'],
+            'ram': blocks911['SSP License']['RAM'],
+            'disk': blocks911['SSP License']['Storage'],
+        },
+        'vcfops_proxy': tri(blocks911, 'VCF Operations Proxy CPU', 'VCF Operations Proxy RAM', 'VCF Operations Proxy Disk'),
+        'vcf_ops_networks': tri(blocks911, 'VCF Operations for networks CPU', 'VCF Operations for networks RAM',
+                                 'VCF Operations for networks DISK'),
+        'vcf_ops_networks_collector': tri(
+            blocks911,
+            'VCF Operations for networks - Collector CPU',
+            'VCF Operations for networks - Collector RAM',
+            'VCF Operations for networks - Collecter DISK',
+        ),
+        'vcenter_disk_tiers': parse_vcenter_disk(blocks911),
+    }
+    expected_911['ssp']['Excluded'] = {'vcpu': 0, 'ram': 0, 'disk': 0}
 
-    print('\nComparing SUBNET_MASKS...')
+    print(f'\nComparing core/data.js `LT_911` overrides against 9.1.1 workbook ({os.path.basename(EXCEL_FILE_911)})...')
+    if set(lt_911_overrides) != LT_911_CHANGED_KEYS:
+        problems.append(f'LT_911 override keys changed: expected {sorted(LT_911_CHANGED_KEYS)}, got {sorted(lt_911_overrides)}')
+        print(f"  ✗ LT_911 now overrides {sorted(lt_911_overrides)} — update LT_911_CHANGED_KEYS and this script's expectations")
+    for key in LT_911_CHANGED_KEYS:
+        if key == 'vcenter_disk_tiers':
+            continue
+        compare(expected_911[key], lt_911_overrides.get(key), key, True, problems)
+    compare_vcenter_disk_tiers(expected_911['vcenter_disk_tiers'], lt_911_overrides.get('vcenter_disk_tiers'), problems)
+
+    print('\nComparing SUBNET_MASKS (9.1.0 workbook)...')
     if masks == expected_masks:
         print(f"  ✓ SUBNET_MASKS ({len(masks)} entries)")
     else:
@@ -305,7 +375,7 @@ def main():
     if problems:
         print(f"FAILED — {len(problems)} divergence(s) found.")
         return 1
-    print("OK — core/data.js LT/SUBNET_MASKS match the workbook.")
+    print("OK — core/data.js LT_910/LT_911/SUBNET_MASKS match both workbooks.")
     return 0
 
 

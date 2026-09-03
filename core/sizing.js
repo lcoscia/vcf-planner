@@ -3,13 +3,25 @@
 // became the explicit `s` parameter and every `this.x()` an in-module call. No DOM
 // or Alpine coupling. Formulas mirror the official Excel "Management Domain Sizing"
 // sheet (rows R8, R15–R21). Verified by mcp/test/scenarios.test.js.
-import { LT } from './data.js'
+//
+// Version-aware since 2026-09-03: `s.workbookVersion` ('9.1.0' | '9.1.1', defaults to
+// '9.1.0' when absent) selects which LT_TABLES entry a calculation reads via
+// ltFor(s) — Broadcom changed several sizing constants in 9.1.1 (see core/data.js's
+// LT_TABLES comment) and, for VCF services runtime worker nodes specifically,
+// replaced the whole formula (see vcfmsAggregate911() below).
+import { LT_TABLES, VCFMS_911 } from './data.js'
+
+function ltFor(s) {
+  return LT_TABLES[s.workbookVersion] || LT_TABLES['9.1.0']
+}
 
 // Aggregate VCFMS Control + Worker node specs based on instanceProfileSize
 // (Small/Medium/Large), clusterModel (Simple -> 1 control node, High Availability
 // -> 3 control nodes) and vcfInstanceModel (First/Additional Instance, which affects
 // worker node count and adds an extra worker disk allotment per Excel J21/M21).
-export function vcfmsAggregate(s) {
+// 9.1.0 formula — flat per-size node-count/CPU/RAM/disk lookup.
+function vcfmsAggregate910(s) {
+  const LT = ltFor(s)
   const size = s.instanceProfileSize
   const im = s.vcfInstanceModel || 'First Instance'
   const ctrlNodes = s.clusterModel === 'Simple' ? LT.vcfms_control_nodes['Simple'] : LT.vcfms_control_nodes['High Availability']
@@ -32,23 +44,138 @@ export function vcfmsAggregate(s) {
   }
 }
 
+// 9.1.1 formula — capacity-driven, replaces the flat lookup entirely. Transcribed
+// from the live Excel formula in 'Management Domain Sizing'!J23:M23 and
+// 'Static Reference Tables'!D388:D391 (verified 2026-09-03 against one real cached
+// scenario — First Instance/High Availability/Medium, Log Mgmt + RTM both Excluded
+// → 2 nodes, 24 vCPU, 48 GB RAM, 3300 GB disk; other combos are formula-derived but
+// not independently re-verified against a live Excel recalculation — see
+// core/data.js's VCFMS_911 comment).
+//
+// Log Management / Real-time Metrics / Software Depot / Identity Broker no longer
+// get their own separate CPU+RAM line items in 9.1.1 — their capacity need is
+// absorbed into scaling this worker node count (see logMgmtAggregate/
+// rtMetricsAggregate below, which zero out vcpu/ram under '9.1.1' since this
+// function already accounts for them). Their disk usage still adds separately.
+function vcfmsAggregate911(s) {
+  const size = s.instanceProfileSize
+  const im = s.vcfInstanceModel || 'First Instance'
+  const availability = s.clusterModel === 'Simple' ? 'Simple' : 'High Availability'
+  const comboKey = `${im}${availability}${size}` // e.g. 'First InstanceHigh AvailabilityMedium'
+  const availSizeKey = `${availability}${size}`  // e.g. 'High AvailabilityMedium' — Day-0/rtm key shape
+
+  const worker = VCFMS_911.worker[comboKey] || VCFMS_911.worker['First InstanceHigh AvailabilityMedium']
+
+  const ctrlNodes = s.clusterModel === 'Simple' ? LT_TABLES['9.1.1'].vcfms_control_nodes['Simple'] : LT_TABLES['9.1.1'].vcfms_control_nodes['High Availability']
+  const ctrlTier = LT_TABLES['9.1.1'].vcfms_control_node[size] || LT_TABLES['9.1.1'].vcfms_control_node['Medium']
+
+  // Day-0 baseline: First Instance sums all 7 fixed platform services; Additional
+  // Instance only sddc_lcm/salt/telemetry (idbroker/software_depot Day-0 CPU/RAM are 0).
+  const dz = VCFMS_911.dayZero
+  const first = im !== 'Additional Instance'
+  const day0Cpu = dz.sddc_lcm.cpu[availSizeKey] + dz.salt.cpu[availSizeKey] + dz.telemetry.cpu[availSizeKey]
+    + (first ? dz.salt_raas.cpu[availSizeKey] + dz.fleet.cpu[availSizeKey] : 0)
+  const day0Ram = dz.sddc_lcm.ram[availSizeKey] + dz.salt.ram[availSizeKey] + dz.telemetry.ram[availSizeKey]
+    + (first ? dz.salt_raas.ram[availSizeKey] + dz.fleet.ram[availSizeKey] : 0)
+
+  // Day-N deltas: optional components' capacity contribution
+  const logmanOn = s.components?.vcf_logs
+  const rtmOn = s.components?.realtime_metrics
+
+  let dayNCpu = 0, dayNRam = 0
+  if (logmanOn) {
+    const lm = logMgmtAggregate(s)
+    dayNCpu += lm.nodes * (VCFMS_911.logman.cpu[s.compSizes.vcf_logs] || 0)
+    dayNRam += lm.nodes * (VCFMS_911.logman.ram[s.compSizes.vcf_logs] || 0)
+  }
+  if (rtmOn) {
+    const rtmKey = `${availability}${size}`
+    dayNCpu += VCFMS_911.rtm.cpu[rtmKey] || 0
+    dayNRam += VCFMS_911.rtm.ram[rtmKey] || 0
+  }
+  // Software Depot / Identity Broker Day-N CPU/RAM are 0 in the live formula (disk-only, added below)
+
+  const ramRequirements = roundUp((dayNRam + day0Ram) * 1.2)
+  const cpuRequirements = roundUp((dayNCpu + day0Cpu) * 1.09)
+  const ramNodes = roundUp(ramRequirements / worker.ram) + (noPlusOneRam(comboKey) ? 0 : 1)
+  const cpuNodes = roundUp(cpuRequirements / worker.cpu) + cpuNodeAdj(comboKey, logmanOn, rtmOn)
+  const workerNodes = Math.max(ramNodes, cpuNodes)
+
+  // Disk stays the flat per-node-SET table value only — Log Management / Real-time
+  // Metrics / Software Depot / Identity Broker disk are NOT added here even though
+  // the live Excel formula (M23) bakes their Day-N disk deltas into this same cell.
+  // Reason: this app has always modeled those as separate, independently-toggled
+  // breakdown rows (logMgmtAggregate/rtMetricsAggregate, and the flat
+  // LT.identity_broker/LT.software_depot lines in calcRawDisk) regardless of
+  // workbook version — neither 9.1.0 nor 9.1.1's own summary sheet has separate rows
+  // for them either, so this has always been an app-level modeling choice, not a
+  // literal per-row mirror of Excel. Folding the deltas in here too would double-count
+  // them on top of those existing separate lines.
+  return {
+    vcpu: ctrlTier.vcpu*ctrlNodes + worker.cpu*workerNodes,
+    ram:  ctrlTier.ram*ctrlNodes  + worker.ram*workerNodes,
+    disk: ctrlTier.disk*ctrlNodes + worker.disk,
+    ctrlNodes, workerNodes,
+  }
+}
+
+// RAM node-count "+1" exceptions (Static Reference Tables!D388, literal transcription)
+function noPlusOneRam(comboKey) {
+  return comboKey === 'Additional InstanceSimpleSmall'
+    || comboKey === 'First InstanceHigh AvailabilityMedium'
+    || comboKey === 'First InstanceSimpleSmall'
+}
+
+// CPU node-count adjustment (Static Reference Tables!D389). Unlike RAM's simple
+// "+1 except these 3 combos" rule, the CPU formula is a nested IF chain whose
+// default (when nothing below matches) is 0, not 1 — verified by paren-matching the
+// live formula rather than eyeballing it (a flat read looks like a "+1 except..."
+// list, but the third IF in the chain omits its false-branch, which Excel treats as
+// 0, not falling through to the trailing "1"). So: 0 for every combo EXCEPT
+// 'First InstanceHigh AvailabilityMedium' with Log Management or Real-time Metrics
+// enabled, which gets +1.
+function cpuNodeAdj(comboKey, logmanOn, rtmOn) {
+  if (comboKey === 'Additional InstanceSimpleSmall') return 0
+  if (comboKey === 'Additional InstanceHigh AvailabilityMedium' && !logmanOn && !rtmOn) return 0
+  if (comboKey === 'First InstanceHigh AvailabilityMedium' && (logmanOn || rtmOn)) return 1
+  return 0
+}
+
+export function vcfmsAggregate(s) {
+  return s.workbookVersion === '9.1.1' ? vcfmsAggregate911(s) : vcfmsAggregate910(s)
+}
+
 // Log Management (Excel "Management Domain Sizing" row 26):
 //  nodes = replicas (×2 when size = Large); replicas: min 1 (Small) / 3 (Medium, Large), max 19
-//  CPU/RAM per node = VCFMS worker tier of the selected size; disk = replicas × 575 (vRLI disk)
+//  disk = replicas × 575 (vRLI disk), same in both versions.
+//  9.1.0: CPU/RAM per node = VCFMS worker tier of the selected size (added on top of VCFMS as a
+//    fully separate line item).
+//  9.1.1: CPU/RAM are 0 here — that capacity is instead folded into vcfmsAggregate911()'s worker
+//    node count (see its Day-N deltas) so it isn't double-counted; only disk still adds separately.
 export function logMgmtAggregate(s) {
   const size = s.compSizes.vcf_logs
   const minReplicas = size === 'Small' ? 1 : 3
   const replicas = Math.min(19, Math.max(minReplicas, parseInt(s.logReplicaCount) || minReplicas))
   const nodes = size === 'Large' ? 2 * replicas : replicas
+  if (s.workbookVersion === '9.1.1') {
+    return { vcpu: 0, ram: 0, disk: replicas*VCFMS_911.logman.disk[size], nodes, replicas }
+  }
+  const LT = ltFor(s)
   const tier = LT.vcfms_worker_node[size] || LT.vcfms_worker_node['Medium']
   return { vcpu: nodes*tier.vcpu, ram: nodes*tier.ram, disk: replicas*LT.vrli_disk, nodes, replicas }
 }
 
-// Real-time Metrics (Excel row 29): 2 nodes (Small/Medium Instance Profile) or 3 (Large),
-// CPU/RAM per node = VCFMS worker tier of the Instance Profile Size, flat 205 GB disk
+// Real-time Metrics (Excel row 29): 2 nodes (Small/Medium Instance Profile) or 3 (Large).
+//  9.1.0: CPU/RAM per node = VCFMS worker tier of the Instance Profile Size, flat 205 GB disk.
+//  9.1.1: CPU/RAM are 0 here (folded into vcfmsAggregate911(), see logMgmtAggregate's note above);
+//    disk stays flat 205.
 export function rtMetricsAggregate(s) {
   const size = s.instanceProfileSize
   const nodes = size === 'Large' ? 3 : 2
+  if (s.workbookVersion === '9.1.1') {
+    return { vcpu: 0, ram: 0, disk: VCFMS_911.rtm.disk, nodes }
+  }
+  const LT = ltFor(s)
   const tier = LT.vcfms_worker_node[size] || LT.vcfms_worker_node['Medium']
   return { vcpu: nodes*tier.vcpu, ram: nodes*tier.ram, disk: LT.realtime_metrics_disk, nodes }
 }
@@ -62,6 +189,7 @@ export function vcfaNodes(s) {
 // Dedicated HA=3), tier depends on wldNsxSize — both independently configurable per WLD, per Excel
 // "Management Domain Sizing" J16/K16/L16/M16. Independent of the Management Domain's own NSX Manager toggle.
 export function wldNsxPerDomain(s) {
+  const LT = ltFor(s)
   const cs = s.compSizes
   const model = cs.wldNsxModel || 'Dedicated - HA Cluster'
   const nodes = model === 'Dedicated - HA Cluster' ? 3 : model === 'Dedicated - Single Node' ? 1 : 0
@@ -71,6 +199,7 @@ export function wldNsxPerDomain(s) {
 
 // Per-Workload-Domain contribution: 1 dedicated vCenter + WLD NSX Manager (see wldNsxPerDomain)
 export function wldPerDomain(s) {
+  const LT = ltFor(s)
   const cs = s.compSizes
   const vcTier = LT.wld_vcenter[cs.wldVcSize || 'Small']
   const nsx = wldNsxPerDomain(s)
@@ -82,6 +211,7 @@ export function wldPerDomain(s) {
 }
 
 export function calcRawCPU(s) {
+  const LT = ltFor(s)
   const c = s.components; const cs = s.compSizes; let t = 0
   if (c.sddc_manager) t += LT.sddc_manager.vcpu
   if (c.vcenter)      t += LT.vcenter[cs.vcenter]?.vcpu || 0
@@ -124,6 +254,7 @@ export function calcTotalCPU(s) {
 }
 
 export function calcRawRAM(s) {
+  const LT = ltFor(s)
   const c = s.components; const cs = s.compSizes; let t = 0
   if (c.sddc_manager) t += LT.sddc_manager.ram
   if (c.vcenter)      t += LT.vcenter[cs.vcenter]?.ram || 0
@@ -158,6 +289,7 @@ export function calcTotalRAM(s) {
 }
 
 export function calcRawDisk(s) {
+  const LT = ltFor(s)
   const c = s.components; const cs = s.compSizes; let t = 0
   if (c.sddc_manager) t += LT.sddc_manager.disk
   if (c.vcenter)      t += LT.vcenter_disk_tiers[cs.vcenter]?.[cs.vcenterStorage] ?? LT.vcenter[cs.vcenter]?.disk ?? 0
@@ -240,6 +372,7 @@ export function calcDiskPerHost(s) {
 }
 
 export function sizingBreakdown(s) {
+  const LT = ltFor(s)
   const c = s.components; const cs = s.compSizes
   const rows = [
     { name:'SDDC Manager',      excluded:!c.sddc_manager, vcpu:LT.sddc_manager.vcpu, ram:LT.sddc_manager.ram, disk:LT.sddc_manager.disk },

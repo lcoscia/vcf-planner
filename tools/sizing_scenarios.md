@@ -157,3 +157,30 @@ All other components excluded.
 - Disk chain: R17 = 14943+1020 = 15963, R18 = ROUNDUP(15963×1.5) = 23945,
   R19 = ROUNDUP(23945×1.3) = 31129, R20 = ROUNDUP(31129×1.1) = 34242,
   R21 = ROUNDUP(34242/(4-1)) = 11414.
+
+## Scenario 8 — 9.1.1 VCF Services Runtime worker-node formula (`mcp/test/scenarios.test.js`)
+
+9.1.1 replaced the flat per-size `vcfms_worker_node`/`vcfms_extra_disk` lookup with a
+capacity-driven formula (`vcfmsAggregate911()` in `core/sizing.js`, tables in
+`core/data.js`'s `VCFMS_911`) — see that file's comments for the full transcription.
+This scenario (`workbookVersion: '9.1.1'`, First Instance / High Availability /
+Medium, Log Management and Real-time Metrics both Excluded) is the **only** 9.1.1
+combo directly verified against a real cached value in
+`vcf-9.1.1-planning-and-preparation-workbook.xlsx` (`Management Domain Sizing`!J22:M23,
+v1.9.1.101):
+
+| Metric | Value |
+|---|---|
+| `vcfmsAggregate(s).ctrlNodes` | 3 |
+| `vcfmsAggregate(s).workerNodes` | 2 (9.1.0's formula would give 3 for the same inputs) |
+| `vcfmsAggregate(s).vcpu` | 36 (control 3×4 + worker 2×12) |
+| `vcfmsAggregate(s).ram` | 78 (control 3×10 + worker 2×24) |
+| `vcfmsAggregate(s).disk` | 3600 (control 3×100 + worker flat 3300) |
+
+**Every other `(Instance Model × Availability × Size)` combination, and every combo
+with Log Management / Real-time Metrics enabled, is formula-derived from the same
+live Excel formula (read via openpyxl with `data_only=False`) but has NOT been
+independently re-verified against a live Excel recalculation** — re-run this
+calibration (open the real workbook in Excel, toggle each combo, read
+`Management Domain Sizing`!J22:M23) before trusting those numbers in a customer
+delivery.

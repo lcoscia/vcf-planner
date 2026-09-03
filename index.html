@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.22</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.23</div>
     </div>
   </div>
   <!-- Actions -->
@@ -512,6 +512,16 @@
           <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-800">
             <span style="color:#C99700;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg></span> This sizing calculator is standalone. Results inform hardware selection but do not feed other form sections automatically.
           </div>
+          <div class="bg-white rounded-lg shadow border border-gray-100 p-4 mb-6 flex items-center justify-between">
+            <label class="text-sm font-medium text-gray-700">
+              Workbook Version
+              <span class="block text-xs text-gray-400">Broadcom changed several sizing constants (and the VCF Services Runtime worker-node formula) in 9.1.1 — switch to match the workbook you're planning against.</span>
+            </label>
+            <select x-model="sizing.workbookVersion" @change="syncSizingVersionTiers()" class="w-40">
+              <option value="9.1.0">v9.1.0</option>
+              <option value="9.1.1">v9.1.1</option>
+            </select>
+          </div>
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Inputs left -->
             <div class="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
@@ -630,7 +640,7 @@
                     <div class="flex items-center gap-2">
                       <button @click="toggleSizingComp(comp.key)" class="toggle-btn" :class="sizing.components[comp.key]?'toggle-include':'toggle-exclude'" x-text="sizing.components[comp.key]?'Include':'Exclude'"></button>
                       <select x-show="sizing.components[comp.key] && comp.sizes" x-model="sizing.compSizes[comp.key]" class="w-24 text-xs">
-                        <template x-for="sz in (comp.sizes||[])" :key="sz"><option x-text="sz"></option></template>
+                        <template x-for="sz in sizingSizesFor(comp)" :key="sz"><option x-text="sz"></option></template>
                       </select>
                     </div>
                   </div>
@@ -1426,7 +1436,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.22</span>
+              <span>v1.1.23</span>
               <span>·</span>
               <span>Updated September 3, 2026</span>
               <span>·</span>
@@ -1586,6 +1596,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.23<br><span class="text-gray-300">2026-09-03</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Made the Management Domain Sizing calculator workbook-version-aware (9.1.0 vs 9.1.1)</p>
+            <p>The built-in sizing calculator always used 9.1.0-calibrated constants, even though Broadcom changed several sizing tables in the 9.1.1 workbook — SSP retiered from a single "Include" tier to Medium/Large/XLarge (with a cheaper Licensing Hub), Cloud Proxy's Medium/Large merged into one "Standard" tier, VCF Operations for Networks gained XL/XXL tiers, and — most significantly — the VCF Services Runtime worker-node formula was replaced entirely: 9.1.0 sized worker nodes from a flat per-size table, 9.1.1 derives node count from a capacity model (a fixed per-instance platform-services baseline plus whichever of Log Management / Real-time Metrics are enabled, independently rounded for RAM and CPU, then taking the larger of the two). Added a new <strong>Workbook Version</strong> selector on the Sizing page; <code class="bg-gray-100 px-1 rounded text-xs">core/data.js</code> now keeps version-keyed lookup tables (<code class="bg-gray-100 px-1 rounded text-xs">LT_TABLES['9.1.0']</code> / <code class="bg-gray-100 px-1 rounded text-xs">['9.1.1']</code>) and <code class="bg-gray-100 px-1 rounded text-xs">core/sizing.js</code> picks the right one from it, transcribed and cross-checked directly against the real 9.1.1 workbook's live Excel formulas (not just cached values). <code class="bg-gray-100 px-1 rounded text-xs">tools/check_lt_constants.py</code> now verifies both workbook versions.</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.22<br><span class="text-gray-300">2026-09-03</span></span>
           <div class="text-gray-600">
@@ -2709,6 +2726,7 @@ function vcfPlanner() {
     showExcelImportReport: false,
     form: {},
     sizing: {
+      workbookVersion: '9.1.0',
       hostCores: 36,
       hostRAM: 512,
       cpuOverSub: '1',
@@ -2953,6 +2971,34 @@ function vcfPlanner() {
       this.form.principalStorage = this.sizing.storageType
       this.save()
     },
+    // Tier lists that changed shape between workbook versions (SSP gained size tiers,
+    // Cloud Proxy's Medium/Large merged into one 'Standard' tier, VCF Ops for
+    // Networks gained XL/XXL) — everything else keeps the same option list across
+    // versions, so only these 3 keys are branched here.
+    sizingSizesByVersion: {
+      'ssp': { '9.1.0': ['Excluded','Include'], '9.1.1': ['Excluded','Medium','Large','XLarge'] },
+      'cloud_proxy': { '9.1.0': ['Small','Medium','Large'], '9.1.1': ['Small','Standard'] },
+      'vcf_ops_networks': { '9.1.0': ['Small','Medium','Large'], '9.1.1': ['Small','Medium','Large','XL','XXL'] },
+      'vcf_ops_networks_collector': { '9.1.0': ['Small','Medium','Large','Extra-Large','Extra-Extra-Large'], '9.1.1': ['Small','Medium','Large','XL','XXL'] },
+    },
+    sizingSizesFor(comp) {
+      const byVersion = this.sizingSizesByVersion[comp.key]
+      if (!byVersion) return comp.sizes || []
+      return byVersion[this.sizing.workbookVersion] || byVersion['9.1.0']
+    },
+    // Called when the Workbook Version selector changes — resets any compSizes
+    // value that isn't valid in the new version's tier list (e.g. ssp='Include' has
+    // no equivalent under 9.1.1) back to that component's first option, so the
+    // calculator never silently sizes an unmapped tier as 0.
+    syncSizingVersionTiers() {
+      for (const key of Object.keys(this.sizingSizesByVersion)) {
+        const options = this.sizingSizesFor({ key })
+        if (!options.includes(this.sizing.compSizes[key])) {
+          this.sizing.compSizes[key] = options[0]
+        }
+      }
+      this.save()
+    },
     // ─── SIZING CALCULATOR (delegates to ./core/sizing.js — single source of truth) ───
     vcfmsAggregate() { return Core.vcfmsAggregate(this.sizing) },
     logMgmtAggregate() { return Core.logMgmtAggregate(this.sizing) },
@@ -3141,7 +3187,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.22'
+      const appVersion = 'v1.1.23'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',

@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   computeSizing, calcRawCPU, calcRawRAM, calcRawDisk,
-  calcHosts, calcTotalDisk, calcDiskPerHost,
+  calcHosts, calcTotalDisk, calcDiskPerHost, vcfmsAggregate,
 } from '../../core/sizing.js'
 
 // Baseline sizing state mirroring the index.html defaults; each scenario overrides.
@@ -125,4 +125,23 @@ test('Scenario 7 — wldCount 0 excludes both Workload Domain breakdown rows', (
   const rows = computeSizing(s0).breakdown.filter(r => r.name.includes('Workload Domain'))
   assert.equal(rows.length, 2, 'both WLD vCenter and WLD NSX Manager rows are present (just excluded)')
   assert.ok(rows.every(r => r.excluded), 'both Workload Domain rows are excluded when wldCount is 0')
+})
+
+test('Scenario 8 — 9.1.1 VCF Services Runtime uses the new capacity-driven worker-node formula', () => {
+  // The only 9.1.1 combo with real ground truth: verified directly against
+  // 'Management Domain Sizing'!J22:M23 in a real vcf-9.1.1-planning-and-preparation-workbook.xlsx
+  // export (First Instance / High Availability / Medium, Log Management and
+  // Real-time Metrics both Excluded) — control 3×{4,10,100} + worker 2×{12,24},
+  // disk 300+3300. 9.1.0's formula would give 3 worker nodes / 72 vCPU / 144 GB
+  // RAM for the same inputs (see vcfmsAggregate910) — 9.1.1 genuinely differs, not
+  // a bug. Other (Instance Model × Availability × Size) combos are formula-derived
+  // from the same live Excel formula but not independently re-verified — see
+  // core/data.js's VCFMS_911 comment.
+  const s = baseSizing()
+  Object.assign(s, { workbookVersion: '9.1.1', instanceProfileSize: 'Medium', vcfInstanceModel: 'First Instance', clusterModel: 'High Availability (Three-Node)' })
+  Object.assign(s.components, { vcf_svc_runtime: true, vcf_logs: false, realtime_metrics: false })
+  assert.deepEqual(
+    vcfmsAggregate(s),
+    { vcpu: 36, ram: 78, disk: 3600, ctrlNodes: 3, workerNodes: 2 },
+  )
 })
