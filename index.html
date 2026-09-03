@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.23</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.24</div>
     </div>
   </div>
   <!-- Actions -->
@@ -515,7 +515,7 @@
           <div class="bg-white rounded-lg shadow border border-gray-100 p-4 mb-6 flex items-center justify-between">
             <label class="text-sm font-medium text-gray-700">
               Workbook Version
-              <span class="block text-xs text-gray-400">Broadcom changed several sizing constants (and the VCF Services Runtime worker-node formula) in 9.1.1 — switch to match the workbook you're planning against.</span>
+              <span class="block text-xs text-gray-400">Defaults from the "VCF Version" choice on the VCF &amp; VVF Planning page — override here for a what-if comparison. Broadcom changed several sizing constants (and the VCF Services Runtime worker-node formula) in 9.1.1.</span>
             </label>
             <select x-model="sizing.workbookVersion" @change="syncSizingVersionTiers()" class="w-40">
               <option value="9.1.0">v9.1.0</option>
@@ -1436,7 +1436,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.23</span>
+              <span>v1.1.24</span>
               <span>·</span>
               <span>Updated September 3, 2026</span>
               <span>·</span>
@@ -1596,6 +1596,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.24<br><span class="text-gray-300">2026-09-03</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">VCF Version is now selectable up front, and drives the Sizing calculator's default</p>
+            <p>The "VCF Version" field on the VCF &amp; VVF Planning page — the very first field of the very first section, meant to "cascade to control which sections are visible throughout the workbook" — only ever offered a single option, <code class="bg-gray-100 px-1 rounded text-xs">9.1.0.0</code>, even after 9.1.1 support landed elsewhere in the app (Excel import in v1.1.22, Sizing calculator in v1.1.23). Added <code class="bg-gray-100 px-1 rounded text-xs">9.1.1.0</code> as a second option. The Sizing page's own Workbook Version selector (added in v1.1.23) now defaults from this global choice on load and whenever it changes — so picking 9.1.1.0 here is the one early decision that sets the Sizing calculator's tables correctly, without also having to remember to flip its selector separately; the Sizing page's own selector still works as a local override afterwards, consistent with its "standalone, doesn't feed other form sections" design.</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.23<br><span class="text-gray-300">2026-09-03</span></span>
           <div class="text-gray-600">
@@ -2999,6 +3006,18 @@ function vcfPlanner() {
       }
       this.save()
     },
+    // Maps the global "VCF Version" selection (VCF & VVF Planning page,
+    // form.vcfVersion, e.g. '9.1.1.0') onto the Sizing calculator's workbook-version
+    // family key ('9.1.0' | '9.1.1'). Called on load and whenever form.vcfVersion
+    // changes (see the init() $watch) so the version you pick at the very start of
+    // the workbook is what the calculator uses by default — the Sizing page's own
+    // selector can still override it locally afterwards (that override is not
+    // persisted back into form.vcfVersion, matching the page's "standalone,
+    // doesn't feed other form sections" design).
+    syncSizingWorkbookVersion() {
+      this.sizing.workbookVersion = (this.form.vcfVersion || '').startsWith('9.1.1') ? '9.1.1' : '9.1.0'
+      this.syncSizingVersionTiers()
+    },
     // ─── SIZING CALCULATOR (delegates to ./core/sizing.js — single source of truth) ───
     vcfmsAggregate() { return Core.vcfmsAggregate(this.sizing) },
     logMgmtAggregate() { return Core.logMgmtAggregate(this.sizing) },
@@ -3187,7 +3206,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.23'
+      const appVersion = 'v1.1.24'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
@@ -3734,6 +3753,11 @@ function vcfPlanner() {
       this.syncInstanceProfileSize()
       // Reconcile sizing storage type with a previously-saved Principal Storage Type
       if (this.form.principalStorage) this.sizing.storageType = this.form.principalStorage
+      // Reconcile the sizing calculator's workbook version with the global VCF
+      // Version selection (VCF & VVF Planning page) — that's the "choose the
+      // version up front" entry point; the Sizing page's own selector still works
+      // as a local override afterwards (kept in sync going forward via $watch below).
+      this.syncSizingWorkbookVersion()
       // Restore dark mode preference
       if (localStorage.getItem('vcf-dark') === '1') this.darkMode = true
 
@@ -3765,6 +3789,11 @@ function vcfPlanner() {
           e.preventDefault(); this.navigate(visiblePages[idx-1].id)
         }
       })
+
+      // Keep the Sizing calculator's workbook version in step with the global VCF
+      // Version selection whenever it changes (e.g. user picks 9.1.1.0 on the VCF &
+      // VVF Planning page after already visiting Sizing).
+      this.$watch('form.vcfVersion', () => this.syncSizingWorkbookVersion())
 
       // Watch form changes for auto-open on navigate
       this.$watch('currentPage', (newPage) => {

@@ -131,7 +131,7 @@ export const ALL_PAGES = [
         title:'Deployment Selections',
         description:'These selections cascade to control which sections are visible throughout the workbook.',
         fields:[
-          { key:'vcfVersion',      label:'VCF Version',         type:'select', options:['9.1.0.0'], sample:'9.1.0.0', required:true, notes:'VCF release version' },
+          { key:'vcfVersion',      label:'VCF Version',         type:'select', options:['9.1.0.0','9.1.1.0'], sample:'9.1.0.0', required:true, notes:'VCF release version — also drives the Management Domain Sizing calculator\'s and Excel-import\'s workbook-version-specific constants (9.1.1 changed several sizing tables and the VCF Services Runtime worker-node formula).' },
           { key:'deploymentType',  label:'Product Type',        type:'select',
             options:['VMware Cloud Foundation','VMware vSphere Foundation'],
             sample:'VMware Cloud Foundation', required:true,
