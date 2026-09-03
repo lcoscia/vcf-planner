@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.21</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.22</div>
     </div>
   </div>
   <!-- Actions -->
@@ -323,6 +323,10 @@
     <h2 class="text-lg font-bold text-gray-800 mb-1">Excel Import Report</h2>
     <p class="text-xs text-gray-500 mb-4" x-show="excelImportReport && excelImportReport.detectedVersion">
       Detected workbook version: <span class="font-semibold" x-text="excelImportReport && excelImportReport.detectedVersion"></span>
+      — using the <span class="font-semibold" x-text="excelImportReport && excelImportReport.mapVersion"></span> field map
+    </p>
+    <p class="text-xs text-orange-600 mb-4" x-show="excelImportReport && !excelImportReport.detectedVersion">
+      Couldn't determine the workbook version (no "Version History" sheet found) — assumed the <span class="font-semibold" x-text="excelImportReport && excelImportReport.mapVersion"></span> field layout. Review the results below carefully.
     </p>
     <template x-if="excelImportReport">
       <div class="space-y-4">
@@ -1422,9 +1426,9 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.21</span>
+              <span>v1.1.22</span>
               <span>·</span>
-              <span>Updated July 23, 2026</span>
+              <span>Updated September 3, 2026</span>
               <span>·</span>
               <span>Single-file · No server · No build step</span>
             </div>
@@ -1582,6 +1586,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.22<br><span class="text-gray-300">2026-09-03</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Added support for the VCF 9.1.1 Planning & Preparation Workbook</p>
+            <p>Excel import only understood the 9.1.0 workbook's cell layout — dropping in a 9.1.1 export (`v1.9.1.101`) silently imported wrong or blank values, because VMware re-flowed the "Deploy Management Domain" sheet (new IPv6 gateway rows, per-host FQDN rows, a "VCF Automation" section, and more), shifting every mapped field by a different amount rather than a constant offset. `core/excel-import.js` now keeps a separate, independently-calibrated cell map per workbook version family (9.1.0 vs 9.1.1) and picks the right one automatically from the release number already read off the workbook's own "Version History" sheet — no version picker needed. The Excel Import Report now also shows which field map was used, so a misdetected version is visible immediately rather than producing a silent bad import.</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.21<br><span class="text-gray-300">2026-08-31</span></span>
           <div class="text-gray-600">
@@ -3130,7 +3141,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.21'
+      const appVersion = 'v1.1.22'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',

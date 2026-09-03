@@ -1,4 +1,4 @@
-// Excel workbook import — maps cells from the official Broadcom "VCF 9.1 Planning &
+// Excel workbook import — maps cells from the official Broadcom "VCF Planning &
 // Preparation Workbook" onto our `form` state keys (as declared in ALL_PAGES,
 // core/reference.js). Pure ES module, no DOM/Alpine/XLSX coupling — the caller is
 // expected to parse the .xlsx file (e.g. with the SheetJS `xlsx` package) and pass in
@@ -7,24 +7,64 @@
 // (`worksheet['D12'] === { v: <value>, t: <type>, f?: <formula string> }`).
 //
 // ────────────────────────────────────────────────────────────────────────────
-// CALIBRATION STATUS (2026-07-13): every `cell:` address below has been verified
-// directly against a real "vcf-9.1-planning-and-preparation-workbook-25june2026.xlsx"
-// export (label in the adjacent column + sample value both checked, see the audit
-// notes in git history) — this replaces an earlier, uncalibrated draft that guessed
-// coordinates from the web form's field order and was confirmed to write garbage
-// values into the form (e.g. a "Final Result" summary-table cell landing on
-// `supervisorCidr`). Anything not listed here is deliberately NOT mapped rather than
-// guessed — see the "NOT MAPPED" notes below each sheet.
+// CALIBRATION STATUS (2026-09-03): the workbook's row layout is NOT stable across
+// releases — VMware inserts rows mid-sheet as fields are added (confirmed by diffing
+// a real 9.1.0 export against a real 9.1.1 export: the same field can land dozens of
+// rows apart, and the drift isn't a constant offset). So `IMPORT_MAPS` below is keyed
+// by workbook version family ('9.1.0' | '9.1.1'), each with its own `cell:` addresses,
+// independently verified label-by-label against:
+//   - 9.1.0: a real "vcf-9.1-planning-and-preparation-workbook-25june2026.xlsx" export
+//   - 9.1.1: a real "vcf-9.1.1-planning-and-preparation-workbook.xlsx" export (v1.9.1.101)
+// 'Configure Management Domain' has an identical row layout in both versions, so it's
+// one shared entry list reused by both map versions. Anything not listed here is
+// deliberately NOT mapped rather than guessed — see the "NOT MAPPED" notes below each
+// sheet. applyExcelWorkbook() picks the map version via resolveMapVersion(), which
+// reads the release number out of the 'Version History' sheet (see below).
 //
 // Long-term robustness note: the workbook exposes hundreds of Excel Named Ranges
 // (e.g. `input_mgmt_vc_fqdn`) that VMware's own `VCF.JSONGenerator` PowerShell module
 // reads instead of fixed A1 coordinates — named ranges survive row/column insertions
-// across workbook revisions, fixed cell addresses do not. Migrating EXCEL_IMPORT_MAP
-// to reference names is the recommended next step (tracked separately); until then,
-// re-run the calibration below against any new workbook revision before trusting it.
+// across workbook revisions, fixed cell addresses do not. Migrating IMPORT_MAPS to
+// reference names is the recommended next step (tracked separately); until then,
+// re-run the calibration below (per version family) against any new workbook
+// revision before trusting it.
 // ────────────────────────────────────────────────────────────────────────────
 
-// EXCEL_IMPORT_MAP: sheet name (matches the workbook tab name) -> list of entries.
+// Shared across every workbook version — 'Configure Management Domain' has an
+// identical row layout in both the 9.1.0 and 9.1.1 exports checked so far.
+const CONFIGURE_MANAGEMENT_DOMAIN_ENTRIES = [
+  // SFTP Backup Configuration
+  { key: 'sftpHost', cell: 'D22', type: 'text' },
+  { key: 'sftpPort', cell: 'D23', type: 'number' },
+  { key: 'sftpPath', cell: 'D27', type: 'text' },
+
+  // Certificate Authority
+  { key: 'caFqdn', cell: 'D34', type: 'text' },
+  { key: 'caAdminUser', cell: 'D35', type: 'text' },
+  { key: 'caTemplate', cell: 'D46', type: 'text' },
+  { key: 'caOrg', cell: 'D60', type: 'text' },      // workbook label: "Organization"
+  { key: 'caOrgUnit', cell: 'D61', type: 'text' },  // workbook label: "Organizational Unit"
+  { key: 'caCountry', cell: 'D62', type: 'text' },
+  { key: 'caState', cell: 'D63', type: 'text' },
+  { key: 'caLocality', cell: 'D64', type: 'text' },
+  { key: 'certKeySize', cell: 'D66', type: 'select' },
+
+  // NOT MAPPED — the previous draft guessed coordinates for sftpBackupInclude,
+  // caType, the NSX Network Connectivity block (nsxConnectivity,
+  // nsxRoutingProtocol, nsxT0Name, nsxT0Asn, nsxUpstreamAsn, nsxUpstreamIp1/2,
+  // nsxExtIpBlock) and the vSphere Supervisor block (supervisorInclude,
+  // supervisorCluster, supervisorStoragePolicy, supervisorContentLib,
+  // supervisorCidr, supervisorEgressCidr, supervisorName, supervisorServiceCidr).
+  // Those guesses were confirmed WRONG: rows 12-17 of this sheet are a
+  // "Select Option / Feature / Final Result" summary table (computed toggle
+  // results, not free-form inputs), and writing its "Final Result" column into
+  // e.g. supervisorCidr produced garbage ("Microsoft", a certsrv URL fragment).
+  // Deliberately left unmapped until the real input cells for these sections are
+  // located and verified the same way as the fields above — do not re-add
+  // guessed coordinates here.
+]
+
+// IMPORT_MAPS: workbook version family -> { sheet name -> list of entries }.
 // Two entry shapes:
 //   { key, cell, type }                      — one workbook cell -> one form.* key.
 //   { gatewayKey, cidrKey, cell, type:'gatewayCidr' } — the workbook stores a single
@@ -32,8 +72,9 @@
 //     two separate keys (`${prefix}Gateway` = the gateway IP itself, `${prefix}Cidr`
 //     = the network address in CIDR notation, e.g. "10.11.11.0/24") — see
 //     splitGatewayCidr() below for how the network address is derived.
-export const EXCEL_IMPORT_MAP = {
-  'Deploy Management Domain': [
+export const IMPORT_MAPS = {
+  '9.1.0': {
+    'Deploy Management Domain': [
     // DNS / NTP
     { key: 'dnsServer1', cell: 'L72', type: 'ip' },
     { key: 'dnsServer2', cell: 'L73', type: 'ip' },
@@ -99,45 +140,90 @@ export const EXCEL_IMPORT_MAP = {
     // { key, cell } entry per host. Same applies to NSX Edge nodes / uplink NIC
     // lists (makeUplinkFields) and per-portgroup blocks (makePortGroupFields) —
     // left out here on purpose, revisit once the row-scan helper exists.
-  ],
+    ],
 
-  'Configure Management Domain': [
-    // SFTP Backup Configuration
-    { key: 'sftpHost', cell: 'D22', type: 'text' },
-    { key: 'sftpPort', cell: 'D23', type: 'number' },
-    { key: 'sftpPath', cell: 'D27', type: 'text' },
+    'Configure Management Domain': CONFIGURE_MANAGEMENT_DOMAIN_ENTRIES,
+  },
 
-    // Certificate Authority
-    { key: 'caFqdn', cell: 'D34', type: 'text' },
-    { key: 'caAdminUser', cell: 'D35', type: 'text' },
-    { key: 'caTemplate', cell: 'D46', type: 'text' },
-    { key: 'caOrg', cell: 'D60', type: 'text' },      // workbook label: "Organization"
-    { key: 'caOrgUnit', cell: 'D61', type: 'text' },  // workbook label: "Organizational Unit"
-    { key: 'caCountry', cell: 'D62', type: 'text' },
-    { key: 'caState', cell: 'D63', type: 'text' },
-    { key: 'caLocality', cell: 'D64', type: 'text' },
-    { key: 'certKeySize', cell: 'D66', type: 'select' },
+  // 9.1.1 (v1.9.1.101, "Initial Release") re-flowed 'Deploy Management Domain':
+  // new IPv6 gateway rows, per-host FQDN rows, a new "VCF Automation" section, and
+  // NFS / VCF Management Network blocks were inserted at various points, shifting
+  // every field below by a different amount — verified label-by-label against a
+  // real export, same method as the 9.1.0 map above.
+  '9.1.1': {
+    'Deploy Management Domain': [
+      // DNS / NTP
+      { key: 'dnsServer1', cell: 'L73', type: 'ip' },
+      { key: 'dnsServer2', cell: 'L74', type: 'ip' },
+      { key: 'ntpServer1', cell: 'L76', type: 'text' },
+      { key: 'ntpServer2', cell: 'L77', type: 'text' },
 
-    // NOT MAPPED — the previous draft guessed coordinates for sftpBackupInclude,
-    // caType, the NSX Network Connectivity block (nsxConnectivity,
-    // nsxRoutingProtocol, nsxT0Name, nsxT0Asn, nsxUpstreamAsn, nsxUpstreamIp1/2,
-    // nsxExtIpBlock) and the vSphere Supervisor block (supervisorInclude,
-    // supervisorCluster, supervisorStoragePolicy, supervisorContentLib,
-    // supervisorCidr, supervisorEgressCidr, supervisorName, supervisorServiceCidr).
-    // Those guesses were confirmed WRONG: rows 12-17 of this sheet are a
-    // "Select Option / Feature / Final Result" summary table (computed toggle
-    // results, not free-form inputs), and writing its "Final Result" column into
-    // e.g. supervisorCidr produced garbage ("Microsoft", a certsrv URL fragment).
-    // Deliberately left unmapped until the real input cells for these sections are
-    // located and verified the same way as the fields above — do not re-add
-    // guessed coordinates here.
-  ],
+      // Networks — Management / vMotion / vSAN / Overlay (VLAN IDs; gateway+CIDR are
+      // a single combined workbook cell, see the gatewayCidr entries below)
+      { key: 'esxMgmtVlan', cell: 'L107', type: 'number' },
+      { gatewayKey: 'esxMgmtGateway', cidrKey: 'esxMgmtCidr', cell: 'L109', type: 'gatewayCidr' },
+      { key: 'vmMgmtVlan', cell: 'L112', type: 'number' },
+      { gatewayKey: 'vmMgmtGateway', cidrKey: 'vmMgmtCidr', cell: 'L114', type: 'gatewayCidr' },
+      { key: 'vmotionVlan', cell: 'L130', type: 'number' },
+      { key: 'vsan1Vlan', cell: 'L138', type: 'number' },
+      { key: 'overlayVlan', cell: 'L152', type: 'number' },
+
+      // vCenter Server
+      { key: 'vcMgmtFqdn', cell: 'L196', type: 'text' },
+      { key: 'vcDatacenter', cell: 'L197', type: 'text' },
+      { key: 'vcCluster', cell: 'L198', type: 'text' },
+      { key: 'vcSsoDomain', cell: 'L199', type: 'text' },
+      { key: 'vcDatastore', cell: 'L207', type: 'text' },
+      { key: 'vcMgmtSize', cell: 'L325', type: 'select' },
+
+      // Distributed Switch Profile
+      { key: 'dvsName', cell: 'L223', type: 'text' },
+      { key: 'dvsMtu', cell: 'L224', type: 'number' },
+
+      // NSX Manager Cluster
+      { key: 'nsxVipFqdn', cell: 'L295', type: 'text' },
+      { key: 'nsxMgr1Fqdn', cell: 'L296', type: 'text' },
+      { key: 'nsxMgr2Fqdn', cell: 'L297', type: 'text' },
+      { key: 'nsxMgr3Fqdn', cell: 'L298', type: 'text' },
+      { key: 'nsxMgrSize', cell: 'L328', type: 'select' },
+
+      // SDDC Manager
+      { key: 'sddcLocation', cell: 'L311', type: 'select' },
+      { key: 'vcfSddcFqdn', cell: 'L312', type: 'text' },
+
+      // Reference IP Address block
+      { key: 'vcfSddcIp', cell: 'L385', type: 'ip' },
+      { key: 'vcMgmtIp', cell: 'L386', type: 'ip' },
+      { key: 'nsxVipIp', cell: 'L388', type: 'ip' },
+      { key: 'nsxMgr1Ip', cell: 'L389', type: 'ip' },
+      { key: 'nsxMgr2Ip', cell: 'L390', type: 'ip' },
+      { key: 'nsxMgr3Ip', cell: 'L391', type: 'ip' },
+
+      // NOT MAPPED — same reasoning as the 9.1.0 map: no corresponding form field
+      // exists yet for domainName/subDomainName, sddcHostname, evcMode. 9.1.1 also
+      // adds a handful of genuinely new sections (VCF Automation FQDN/passwords,
+      // IPv6 gateway/range fields, per-host FQDN rows, NFS Network, VCF Management
+      // Network) that have no form field counterpart at all — left unmapped, same
+      // as the pre-existing per-host/uplink/portgroup TODO below.
+      //
+      // TODO: dynamic per-host arrays (makeHostFields: m01Host1Fqdn..m01Host16Ip) are
+      // not mapped in this first pass — the workbook lays these out as a repeating
+      // table rather than fixed labelled cells, so they need a row-scanning strategy
+      // (iterate down a column until an empty row is hit) instead of a static
+      // { key, cell } entry per host. Same applies to NSX Edge nodes / uplink NIC
+      // lists (makeUplinkFields) and per-portgroup blocks (makePortGroupFields) —
+      // left out here on purpose, revisit once the row-scan helper exists.
+    ],
+
+    'Configure Management Domain': CONFIGURE_MANAGEMENT_DOMAIN_ENTRIES,
+  },
 }
 
 // getMappedSheetNames() — small helper for UI/debug surfaces (e.g. "this importer
-// currently understands N of the workbook's 27 sheets").
+// currently understands N of the workbook's 27 sheets"). Sheet names are the same
+// across every version family, so any one map is representative.
 export function getMappedSheetNames() {
-  return Object.keys(EXCEL_IMPORT_MAP)
+  return Object.keys(IMPORT_MAPS['9.1.0'])
 }
 
 // Normalizes a raw cell value into the string the form expects. Trims and collapses
@@ -200,13 +286,37 @@ function detectWorkbookVersion(workbook) {
   return null
 }
 
+// resolveMapVersion(detectedVersion) — classifies a detectWorkbookVersion() string
+// (e.g. "v1.9.1.101 (August-28-2026)") into the IMPORT_MAPS key whose row layout it
+// matches. Broadcom's numbering keeps 9.1.0 releases in the v1.9.1.0xx range and
+// started 9.1.1 at v1.9.1.101 — so the trailing numeric segment reliably tells the
+// two families apart without hardcoding exact version strings (a future v1.9.1.102
+// etc. still resolves correctly). Returns null if it can't parse a version at all
+// (missing/unrecognized Version History sheet) — callers should fall back to a
+// default map version in that case, not guess.
+function resolveMapVersion(detectedVersion) {
+  if (!detectedVersion) return null
+  const m = /^v(\d+(?:\.\d+)*)/.exec(detectedVersion)
+  if (!m) return null
+  const segments = m[1].split('.').map(n => parseInt(n, 10))
+  const last = segments[segments.length - 1]
+  if (Number.isNaN(last)) return null
+  return last >= 100 ? '9.1.1' : '9.1.0'
+}
+
 // applyExcelWorkbook(workbook, form)
 // workbook: SheetJS-shaped { SheetNames: string[], Sheets: { [name]: WorkSheet } }.
 // form: plain reactive object, MUTATED in place — a matched, non-empty cell wins,
 // but only ever a real value overwrites an existing form field (never blanks it out).
 export function applyExcelWorkbook(workbook, form) {
+  const detectedVersion = detectWorkbookVersion(workbook)
+  // Default to '9.1.0' (the longest-calibrated map) when the version can't be
+  // determined — preserves pre-existing behavior for older/unversioned files.
+  const mapVersion = resolveMapVersion(detectedVersion) || '9.1.0'
+
   const report = {
-    detectedVersion: detectWorkbookVersion(workbook),
+    detectedVersion,
+    mapVersion,
     applied: [],
     skipped: [],
     ambiguous: [],
@@ -215,7 +325,7 @@ export function applyExcelWorkbook(workbook, form) {
   const sheetNames = (workbook && workbook.SheetNames) || []
   const sheets = (workbook && workbook.Sheets) || {}
 
-  for (const [sheetName, entries] of Object.entries(EXCEL_IMPORT_MAP)) {
+  for (const [sheetName, entries] of Object.entries(IMPORT_MAPS[mapVersion])) {
     const sheetPresent = sheetNames.includes(sheetName)
     const worksheet = sheetPresent ? sheets[sheetName] : undefined
 
