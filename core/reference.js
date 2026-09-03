@@ -733,6 +733,11 @@ export const ALL_PAGES = [
           { key:'deferredCustomProxyNetwork', label:'Customize proxy portgroup and networking during install', type:'toggle', options:['Selected','Unselected'], sample:'Unselected' },
           { key:'deferredCustomSizing',       label:'Customize appliance sizing during install',               type:'toggle', options:['Selected','Unselected'], sample:'Unselected',
             notes:'Use VCF.JSONGenerator to generate the JSON file once PnP is complete.', docLink:'https://github.com/vmware/powershell-module-for-vmware-cloud-foundation-jsongenerator', docLabel:'VCF JSON Generator (GitHub)' },
+          // New to the 9.1.1 "Deploy Fleet Management Day-N" sheet's "Scale options"
+          // section (verified against the real workbook export — no equivalent row
+          // exists anywhere in 9.1.0's sheet)
+          { key:'deferredAutogenPassword', label:'Autogenerate Password', type:'toggle', options:['Selected','Unselected'], sample:'Unselected',
+            showWhen:f=>f.vcfOpsAutoMode!=='Exclude'&&f.vcfVersion==='9.1.1.0' },
         ]
       },
       {
@@ -904,6 +909,12 @@ export const ALL_PAGES = [
           { key:'wldType',       label:'Domain Type',             type:'select', options:['Workload Domain','MGMT Workload Domain'], sample:'Workload Domain', showWhen:f=>f.wldInclude!=='Exclude' },
           { key:'wldStorageType',label:'Principal Storage',        type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/design/vmware-cloud-foundation-concepts/storage-models.html', docLabel:'VCF Storage Models (TechDocs)', options:['vSAN-ESA','vSAN-OSA','vSAN Compute Cluster','vSAN Storage Cluster','VMFS on Fibre Channel (FC)','NFSv3'], sample:'vSAN-ESA', showWhen:f=>f.wldInclude!=='Exclude' },
           { key:'wldVsanFtt',    label:'vSAN FTT',                type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/vsan-deployment-administration-and-monitoring/vsan-planning-and-deployment/designing-and-sizing-a-virtual-san-cluster/design-considerations-for-a-virtual-san-cluster.html', docLabel:'vSAN Cluster Design Considerations (TechDocs)', options:['1','2','3'], sample:'1', showWhen:f=>f.wldInclude!=='Exclude'&&f.wldStorageType&&f.wldStorageType.startsWith('vSAN') },
+          // Both new to the 9.1.1 "Deploy Workload Domain" sheet (verified against the
+          // real workbook export — absent from 9.1.0's sheet entirely, not just reworded)
+          { key:'wldVsanSkipHclPrecheck',  label:'Skip HCL Compatibility Disk Pre-Check', type:'select', options:['Selected','Unselected'], sample:'Unselected',
+            showWhen:f=>f.wldInclude!=='Exclude'&&f.wldStorageType&&f.wldStorageType.startsWith('vSAN')&&f.vcfVersion==='9.1.1.0' },
+          { key:'wldVsanAllowHclAutoclaim',label:'Allow Auto-Claim of HCL-Incompatible Disks', type:'select', options:['Selected','Unselected'], sample:'Unselected',
+            showWhen:f=>f.wldInclude!=='Exclude'&&f.wldStorageType&&f.wldStorageType.startsWith('vSAN')&&f.vcfVersion==='9.1.1.0' },
         ]
       },
       {
@@ -1022,6 +1033,12 @@ export const ALL_PAGES = [
           { key:'clusterHostCount', label:'Number of Hosts',            type:'number', sample:'4', showWhen:f=>f.clusterInclude==='Include' },
           { key:'clusterStorage',   label:'Principal Storage',          type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/design/vmware-cloud-foundation-concepts/storage-models.html', docLabel:'VCF Storage Models (TechDocs)', options:['vSAN-ESA','vSAN-OSA','vSAN Compute Cluster','vSAN Storage Cluster','VMFS on Fibre Channel (FC)','NFSv3'], sample:'vSAN-ESA', showWhen:f=>f.clusterInclude==='Include' },
           { key:'clusterVsanFtt',   label:'vSAN FTT',                  type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/vsan-deployment-administration-and-monitoring/vsan-planning-and-deployment/designing-and-sizing-a-virtual-san-cluster/design-considerations-for-a-virtual-san-cluster.html', docLabel:'vSAN Cluster Design Considerations (TechDocs)', options:['1','2','3'], sample:'1', showWhen:f=>f.clusterInclude==='Include'&&f.clusterStorage&&f.clusterStorage.startsWith('vSAN') },
+          // Both new to the 9.1.1 "Deploy Cluster" sheet (verified against the real
+          // workbook export — absent from 9.1.0's sheet entirely, not just reworded)
+          { key:'clusterVsanSkipHclPrecheck',  label:'Skip HCL Compatibility Disk Pre-Check', type:'select', options:['Selected','Unselected'], sample:'Unselected',
+            showWhen:f=>f.clusterInclude==='Include'&&f.clusterStorage&&f.clusterStorage.startsWith('vSAN')&&f.vcfVersion==='9.1.1.0' },
+          { key:'clusterVsanAllowHclAutoclaim',label:'Allow Auto-Claim of HCL-Incompatible Disks', type:'select', options:['Selected','Unselected'], sample:'Unselected',
+            showWhen:f=>f.clusterInclude==='Include'&&f.clusterStorage&&f.clusterStorage.startsWith('vSAN')&&f.vcfVersion==='9.1.1.0' },
         ]
       },
       {

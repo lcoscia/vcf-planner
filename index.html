@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.25</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.26</div>
     </div>
   </div>
   <!-- Actions -->
@@ -1442,7 +1442,7 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.25</span>
+              <span>v1.1.26</span>
               <span>·</span>
               <span>Updated September 3, 2026</span>
               <span>·</span>
@@ -1602,6 +1602,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.26<br><span class="text-gray-300">2026-09-03</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Added 3 fields new to the 9.1.1 workbook: HCL pre-check toggles + Autogenerate Password</p>
+            <p>Continuing the sheet-by-sheet 9.1.0/9.1.1 audit turned up 3 fields with no row at all in the 9.1.0 workbook, confirmed genuinely new (not reworded) by checking both sheets' exact row content: <strong>Skip HCL Compatibility Disk Pre-Check</strong> and <strong>Allow Auto-Claim of HCL-Incompatible Disks</strong> (both appear in "Deploy Cluster" and "Deploy Workload Domain", next to the vSAN storage type selector), and <strong>Autogenerate Password</strong> (in "Deploy Fleet Management Day-N"'s Scale Options section — distinct from the existing "Customize appliance password during install" deferred-component toggle, which is unrelated and present in both versions). Added to <code class="bg-gray-100 px-1 rounded text-xs">core/reference.js</code>'s <code class="bg-gray-100 px-1 rounded text-xs">deploy-wld</code>, <code class="bg-gray-100 px-1 rounded text-xs">deploy-cluster</code> and <code class="bg-gray-100 px-1 rounded text-xs">fleet-day-n</code> pages, each gated with <code class="bg-gray-100 px-1 rounded text-xs">showWhen: f=&gt;...&amp;&amp;f.vcfVersion==='9.1.1.0'</code> so they only appear when the 9.1.1.0 VCF Version is selected — there's no equivalent input to fill in under 9.1.0.</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.25<br><span class="text-gray-300">2026-09-03</span></span>
           <div class="text-gray-600">
@@ -3229,7 +3236,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.25'
+      const appVersion = 'v1.1.26'
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
