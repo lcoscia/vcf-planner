@@ -274,7 +274,7 @@
         VCF 9.1 Planning &amp; Preparation
         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);" title="This tool is in active development — verify all values before production use">BETA</span>
       </div>
-      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · v1.1.26</div>
+      <div class="text-[11px]" style="color:rgba(255,255,255,.6);">ITQ delivery tool for VMware Cloud Foundation · <span x-text="appVersion"></span></div>
     </div>
   </div>
   <!-- Actions -->
@@ -441,7 +441,7 @@
       <div class="p-8 text-white">
         <div class="text-5xl font-bold mb-1">9.1</div>
         <div class="text-2xl font-semibold mb-2">VMware Cloud Foundation</div>
-        <div class="text-sm opacity-70">Planning & Preparation Workbook · v1.1.12 · Updated July 13, 2026</div>
+        <div class="text-sm opacity-70">Planning & Preparation Workbook · <span x-text="appVersion"></span> · Updated <span x-text="appUpdated"></span></div>
       </div>
     </div>
     <div class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2" style="background:#FFFBEB; border-color:#FDE68A; color:#92400E;">
@@ -1442,9 +1442,9 @@
             <div class="text-sm opacity-80 mb-3">Created by <span class="font-semibold">Leonardo Coscia</span> · MCP server, core refactor &amp; ITQ brand redesign by <span class="font-semibold">Florian Casse</span> — ITQ</div>
             <div class="flex items-center gap-3 text-sm opacity-60">
               <span class="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none" style="background:var(--brand-beta-bg); color:var(--brand-beta-fg);">BETA</span>
-              <span>v1.1.26</span>
+              <span x-text="appVersion"></span>
               <span>·</span>
-              <span>Updated September 3, 2026</span>
+              <span>Updated <span x-text="appUpdated"></span></span>
               <span>·</span>
               <span>Single-file · No server · No build step</span>
             </div>
@@ -1602,6 +1602,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.27<br><span class="text-gray-300">2026-09-04</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Fixed stale version/date on the Welcome page cartouche, made it a single source of truth</p>
+            <p>The Welcome page's hero banner had been stuck at "v1.1.12 · Updated July 13, 2026" since before this workbook-version-tracking work started — every prior release bumped the topbar and About-page version strings but missed this one, because all three were separate hardcoded literals with no shared source. Introduced reactive <code class="bg-gray-100 px-1 rounded text-xs">appVersion</code> / <code class="bg-gray-100 px-1 rounded text-xs">appUpdated</code> fields on the Alpine root state and bound all three "current version" displays (topbar, Welcome cartouche, About page hero) to them via <code class="bg-gray-100 px-1 rounded text-xs">x-text</code> — a version bump now only needs updating one place instead of three (plus whichever Version History entry documents that release, which correctly stays a frozen literal).</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.26<br><span class="text-gray-300">2026-09-03</span></span>
           <div class="text-gray-600">
@@ -2746,6 +2753,14 @@ function vcfPlanner() {
     portsFilter: { search:'', products:[], directions:[], visibleCount:100, showResolved:false, groupBy:'component' },
     saveIndicator: false,
     darkMode: false,
+    // Single source of truth for the app's version/last-updated display — bind via
+    // x-text everywhere a "current version" badge is shown (topbar, Welcome page
+    // cartouche, About page hero) instead of hardcoding the string in each spot,
+    // so a version bump only needs updating here. The Version History list further
+    // down intentionally keeps each past entry's version number as a literal —
+    // those are frozen historical records, not "current version" indicators.
+    appVersion: 'v1.1.27',
+    appUpdated: 'September 4, 2026',
     copyFeedback: '',
     pwVisible: {},
     excelImporting: false,
@@ -3236,7 +3251,7 @@ function vcfPlanner() {
     openFeedback() {
       const page = this.allPages.find(p => p.id === this.currentPage)
       const pageTitle = this.currentPage === 'welcome' ? 'Welcome' : (page ? page.title : this.currentPage)
-      const appVersion = 'v1.1.26'
+      const appVersion = this.appVersion
       const title = '[Feedback] '
       const body = [
         '## Problem / missing feature',
