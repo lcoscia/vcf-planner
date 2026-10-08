@@ -126,6 +126,7 @@ A few details in the sizing calculator are intentional web-side additions or sim
 |---|---|
 | **Import ▾** — Import JSON | Load a previously exported JSON file |
 | **Import ▾** — Import VCF Installer JSON | Best-effort import of a VCF Installer `SddcSpec` JSON back into the form |
+| **Import ▾** — Import VCF Network Planner JSON | Pre-fills the form from a [VCF Network Planner](https://github.com/lcoscia) project export (`vcf9_plan_*.json`): topology (single-site / vSAN stretched / vMSC), host counts, VLANs/subnets/gateways/ranges, host and appliance FQDNs/IPs, Management Services & VCF Automation ranges — post-import report lists what was applied, skipped and derived. A Network Planner file picked via *Import JSON* is detected and routed here automatically. Mapping: see [Network Planner import mapping](#network-planner-import-mapping) |
 | **Import ▾** — Import Excel Workbook | Parses an official Broadcom `.xlsx` workbook file **entirely client-side** (SheetJS, loaded via CDN with SRI) and pre-fills the form from the recognized cells; shows a post-import report (applied / ignored / ambiguous fields) — see [Privacy & Data Handling](#privacy--data-handling) and [Development](#development) |
 | **Export ▾** — Export JSON | Export current form state as JSON |
 | **Export ▾** — Export Markdown | Export As-Built report as Markdown |
@@ -233,6 +234,57 @@ To add a new page, add an entry to `ALL_PAGES` (`core/reference.js`) and a corre
 
 The Import Excel Workbook feature's cell→field mapping lives in `core/excel-import.js`, in an `IMPORT_MAPS` structure keyed by workbook version family (`'9.1.0'` | `'9.1.1'`), each a sheet name + cell reference → form field `key` map (mirroring the `ALL_PAGES` field keys from `core/reference.js`). The row layout of the "Deploy Management Domain" sheet is **not stable across releases** — VMware inserts rows as fields are added, and the drift isn't a constant offset — so each version family has its own independently-calibrated cell map, verified label-by-label against a real export of that version. "Configure Management Domain" has an identical layout in both versions checked so far, so it's one shared entry list. `applyExcelWorkbook()` picks the map automatically from the release number already read off the workbook's own "Version History" sheet (`v1.9.1.0xx` → 9.1.0, `v1.9.1.1xx` → 9.1.1), defaulting to the 9.1.0 map if the version can't be determined. As of v1.1.12 (and re-verified for the 9.1.1 map added in v1.1.22), every entry has been verified directly against a real workbook export (label + sample value checked per cell) — but only for the "Deploy Management Domain" and "Configure Management Domain" sheets, and only for the subset of fields listed there (see the "NOT MAPPED" / TODO comments in the file for what's deliberately excluded: SFTP/CA toggles, NSX connectivity, vSphere Supervisor, per-host/per-uplink/per-portgroup repeating tables, and a few fields with no workbook equivalent — including 9.1.1-only additions like VCF Automation and IPv6 fields, which have no form field yet). To extend coverage or re-validate after a new workbook revision, place a real copy of the relevant `vcf-9.1*-planning-and-preparation-workbook*.xlsx` next to `index.html` (same gitignored location already used by `tools/check_lt_constants.py`), run an import through the UI, and compare the post-import report's applied/skipped/ambiguous fields (and the reported field map version) against the workbook's actual cell contents before adjusting `IMPORT_MAPS` — never guess a coordinate from the form's field order alone, that's exactly what produced the wrong-column bug fixed in v1.1.12.
 
+### FQDN auto-proposal
+
+`core/fqdn.js` (`proposeFqdns` / `applyFqdnProposals`) builds every FQDN from **Region / Site Code** (`deploymentRegion`, falls back to `primarySiteName`), **Instance Name** (`deploymentInstance`, default `m01`) and **DNS Domain Name** (`domainName`; child zone = `subDomainName` or `<site>.<domain>`), following the workbook sample naming (25-Jun-2026 revision):
+
+| Scope | Pattern | Example |
+|---|---|---|
+| Instance components | `<site>-<instance>-<role>NN.<site>.<domain>` | `sfo-m01-vc01`, `sfo-m01-nsx01a/b/c` + VIP `sfo-m01-nsx01`, edges `sfo-m01-en01` |
+| Instance services | `<site>-<role>NN.<site>.<domain>` | SDDC Manager `sfo-vcf01`, `sfo-ic01`, `sfo-sr01`, collector `sfo-cp01` |
+| Fleet components | `flt-<role>NN.<domain>` | `flt-ops01a/b/c`, `flt-fc01`, `flt-lc01`, `flt-idb01`, `flt-logs01`, `flt-auto01`, `flt-vcfa-sr01` |
+| ESXi hosts | `<site>0<az>-<instance>-r01-esxNN.<site>.<domain>` | AZ1 `sfo01-m01-r01-esx01`, AZ2 `sfo02-m01-r01-esx01` |
+
+It runs on every save (toggle *Auto-propose FQDNs* on the Planning page): it fills empty, visible FQDN fields and fields still holding a previous proposal (tracked in `form._fqdnAuto`), so proposals follow later Site Code / Domain / host-count changes — a value you typed is never overwritten. The number of ESXi FQDNs proposed (and of host rows shown) follows *Management Cluster — Number of Hosts* (+ *Number of Hosts in AZ2* for vSAN stretched / vMSC).
+
+### Network Planner import mapping
+
+`core/np-import.js` — `isNetworkPlannerExport(d)` / `applyNetworkPlannerJson(d, form)`. Only non-empty Network Planner (NP) values are applied.
+
+| NP JSON | P&P field(s) |
+|---|---|
+| `project.vcfVersion` 9.1 / 9.1.1 | `vcfVersion` 9.1.0.0 / 9.1.1.0 (9.0 skipped) |
+| `project.scenario` (`vvf*`) | `deploymentType`, `deploymentMode` (if empty) |
+| `project.fqdnSuffix` (e.g. `sfo.rainpole.io`) | `subDomainName`; `domainName` = suffix minus 1st label, `deploymentRegion` = 1st label (only if empty — reported as derived) |
+| `project.fqdnPrefix` `sfo-m01` | `deploymentRegion` / `deploymentInstance` (only if empty) |
+| `managementDomain.topologyMode` `vsan-stretched` / `stretched` (vMSC) / `single-site` | `deploymentScale` (vSAN stretched / vMSC / Standard) + `vsanStretchInclude` |
+| `managementDomain.hostCount` or `az1HostCount`, `az2HostCount` | `mgmtHostCount`, `mgmtAz2HostCount` |
+| `managementDomain.storageType` | `principalStorage` |
+| `managementDomain.nsxManagerMode`, `nsxEdgeDeployed` | `nsxMgrCount`, `nsxEdgeInclude` |
+| `managementDomain.fleetPlacement` (dedicated) | `vcfMgmtInclude` |
+| `managementDomain.vcfOperations.mode` / `.cloudProxyEnabled` | `vcfOpsHaMode` / `vcfOpsCollectorInclude` |
+| `managementDomain.vcfOperationsForLogs.enabled`, `logMgmtExtraReplicas` | `vcfLogsInclude`, `vcfLogsReplicaCount` (= 1 + extra) |
+| `vcfOperationsForNetworks.enabled`, `vcfIdentityBroker` (appliance), `aviDeployed` | `vcfNetOpsInclude`, `idBrokerInclude`, `aviInclude` |
+| `managementDomain.svcRuntimeRangeStart/End` | `vcfSvcRangeStart` / `vcfSvcRangeEnd` |
+| `managementDomain.vcfaRangeStart..End` | `vcfAutoIpPool1..5` |
+| `vlans[]` Mgmt: `ESXi Management[ — AZ1]`, `Management VM Network`, `VCF Management Services Runtime`, `vMotion`, `vSAN`, `NSX Host TEP`, `NFS Storage` | `esxMgmt*`, `vmMgmt*`, `vcfMgmt*`, `vmotion*`, `vsan1*`, `overlay*`, `nfs*` (`vlanId`→`Vlan`, `gateway`, `cidr`, `rangeStart/End`→`IpStart/IpEnd`, `recommendedMTU`→`Mtu` if empty) |
+| `vlans[]` `… — AZ2` | `az2EsxMgmt*`, `az2Vmotion*`, `az2Vsan*`, `az2OverlayVlan` |
+| `vlans[]` `NSX Edge TEP`, `NSX Edge Uplink 1/2` | `edgeTepVlan/IpStart/IpEnd`, `nsxEdgeUplink{n}Vlan` + `edge{1,2}UplinkVlan{n}` |
+| `vlans[]` first WLD | `wldEsxMgmt*`, `wldVmMgmt*`, `wldVmotion*`, `wldVsan*`, `wldOverlay*`, `wldNfs*` |
+| `hosts[]` Mgmt (`AZ1`/single, and `AZ2` under vMSC — global numbering) | `m01Host{i}Fqdn/Ip` |
+| `hosts[]` Mgmt `AZ2` (vSAN stretched) | `az2Host{i - az1}Fqdn/Ip` |
+| `hosts[]` first WLD | `w01Host{i}Fqdn/Ip` |
+| `appliances[]` `sddc-manager-01`, `vcenter-mgmt-01`, `nsx-manager-mgmt-0N`, `nsx-edge-mgmt-0N` (≤2) | `vcfSddcFqdn/Ip` (+ `sddcHostname`), `vcMgmtFqdn/Ip`, `nsxMgr{N}Fqdn/Ip`, `nsxEdge{N}Fqdn/Ip` |
+| `appliances[]` `vcf-ops-01/02/03`, `vcf-ops-cloud-proxy-01` | `vcfOpsPrimary*`, `vcfOpsReplica*`, `vcfOpsData*`, `vcfOpsCollector*` |
+| `appliances[]` `fleet-01`, `mgmt-instance-01`, `vcf-svc-runtime`, `vcf-license-server-01`, `vcf-identity-broker-01` | `fleetComponents*`, `instanceComponents*`, `vcfSvcRuntime*`, `licenseServer*`, `idBroker*` |
+| `appliances[]` `vcf-automation-01` (if no VIP), `vcf-automation-svcruntime-01` | `vcfAuto*`, `vcfAutoSvcRuntime*` |
+| `appliances[]` `vcf-nets-platform-01` / `vcf-nets-collector-01` | `vcfNetOpsFqdn` + `vcfNetOpsIp`/`vcfNetOpsPlatformIpv4` / `vcfNetOpsCollectorIpv4` |
+| `appliances[]` `vsan-witness-mgmt`, `avi-controller-0N`, `vcenter-wld-01-01` | `vsanWitnessHost/Ip`, `aviCtrl{N}*`, `wldVc*` |
+| `vips[]` `NSX Manager VIP`, `VCF Operations VIP`, `VCF Log Management VIP`, `VCF Automation VIP`, `AVI Controller Cluster VIP`, `WLD-01 NSX Manager VIP` | `nsxVip*`, `vcfOpsLb*`, `vcfLogsFqdn/Ip`, `vcfAuto*`, `aviCluster*`, `wldNsxVip*` |
+| `workloadDomains[0]` | `wldInclude`, `wldName` (if empty), `wldStorageType` |
+
+Not in a NP export (to fill in P&P): DNS/NTP servers, passwords, VDS/portgroups, BGP, witness DNS/NTP, vCenter inventory names. NP values with no P&P equivalent (reported as skipped): stretched-per-network choices under vSAN stretched, witness VLAN, edge TEP/uplink subnets, edges 3+, workload domains 2+, VPC external VLAN, VKS/SSP networks, Real-time Metrics (a sizing component here).
+
 ### Verification
 
 The sizing calculator's lookup tables (`const LT`) and `SUBNET_MASKS` (now in `core/data.js`) are checked
@@ -269,6 +321,7 @@ node --test mcp/test/scenarios.test.js
 
 ## Changelog
 
+- **v1.2.0** (2026-10-08) — Field feedback (Philippe Chéron, 29/09): **FQDN auto-proposal** from Region / Site Code + Instance + DNS Domain Name, workbook naming (`core/fqdn.js`), never overwrites typed values; **Deployment Scale** gains *vSAN stretched* and *vMSC (stretch all L2, KB 417356)*, plus *Number of Hosts* (and AZ2) driving the host rows shown and the ESXi FQDNs proposed; **Deploy Management Domain samples & DEMO realigned on the 25-Jun-2026 workbook** (ESX Mgmt 1111 / VM Mgmt 1110 were swapped, VCF Mgmt 1199, vMotion 1112, vSAN 1113, Host TEP 1114, Edge TEP 1119, uplinks 1117/1118, NSX VIP .71 / nodes .72-.74, vCenter .70, SDDC Manager `sfo-vcf01` .13, hosts `sfo01-m01-r01-esxNN` on 10.11.11.101+, DNS .4/.5, NTP ntp0/ntp1, VDS `vds01`, AZ2 overlay 1214, BGP ASNs 65101/65111); **Log Management** now asks what the 9.1 workbook asks (Installation Type, 1 FQDN, Node Size, Number Of Replicas 1-19 with per-size minimum, Cluster VIP IP) — per-replica FQDN/IP and HA mode removed; **VCF Management Services** gets the workbook *IP Range From / To* (`vcfSvcRangeStart/End`, exported as `vspClusterSpec.ipv4Pool`) separate from the runtime FQDN's own IP, a range-size check (12 / VVF 10 + 6 Log Mgmt + 2/extra replica + 6 RTM, 30 recommended), the overlapping "Additional IP #1-3" removed, and VCFA/IdB/Ops samples aligned (`flt-auto01`, `flt-vcfa-sr01`, `flt-idb01`, `flt-ops01a`, VCFA range = 4 active + 1 spare); saved/imported plans are migrated automatically; **Import VCF Network Planner JSON** (`core/np-import.js`, mapping documented above); VCF Installer import now restores `vspClusterSpec`. Minor version bump because of the new import format and the migrated field keys.
 - **v1.1.28** (2026-09-04) — Removed the Welcome page's stale "Version History" mini-table: it duplicated the About page's actively-maintained changelog with 2 old, unrelated workbook-revision entries under the same heading — confusing. The About page remains the single source of truth for release notes.
 - **v1.1.27** (2026-09-04) — Fixed stale version/date on the Welcome page cartouche, made it a single source of truth: the Welcome page's hero banner had been stuck at "v1.1.12 · Updated July 13, 2026" since before this workbook-version-tracking work started — the topbar/About-page strings got bumped each release but this one didn't, since all three were separate hardcoded literals. Introduced reactive `appVersion`/`appUpdated` fields on the Alpine root state, bound via `x-text` in all three spots — a version bump now only needs updating one place.
 - **v1.1.26** (2026-09-03) — Added 3 fields new to the 9.1.1 workbook: HCL pre-check toggles + Autogenerate Password: confirmed genuinely new (not reworded) by checking both sheets' exact row content — `Skip HCL Compatibility Disk Pre-Check` and `Allow Auto-Claim of HCL-Incompatible Disks` (in "Deploy Cluster" and "Deploy Workload Domain", next to the vSAN storage type selector), and `Autogenerate Password` (in "Deploy Fleet Management Day-N"'s Scale Options section). Added to `core/reference.js`'s `deploy-wld`, `deploy-cluster` and `fleet-day-n` pages, each gated to only show when VCF Version 9.1.1.0 is selected.
