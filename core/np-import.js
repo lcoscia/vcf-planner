@@ -51,7 +51,7 @@ const APPLIANCES = {
   'vcf-ops-01':                 ['vcfOpsPrimaryFqdn', 'vcfOpsPrimaryIp'],
   'vcf-ops-02':                 ['vcfOpsReplicaFqdn', 'vcfOpsReplicaIp'],
   'vcf-ops-03':                 ['vcfOpsDataFqdn', 'vcfOpsDataIp'],
-  'vcf-ops-cloud-proxy-01':     ['vcfOpsCollectorFqdn', 'vcfOpsCollectorIp'],
+  'vcf-ops-cloud-proxy-01':     ['vcfOpsCollectorFqdn', 'vcfOpsCollectorIp'],   // single Cloud Proxy (Collector) entry in P&P
   'vcf-ops-rc-01':              ['vcfOpsCollectorFqdn', 'vcfOpsCollectorIp'],
   'fleet-01':                   ['fleetComponentsFqdn', 'fleetComponentsIp'],
   'mgmt-instance-01':           ['instanceComponentsFqdn', 'instanceComponentsIp'],
@@ -77,8 +77,6 @@ const VIPS = {
   'WLD-01 NSX Manager VIP':     ['wldNsxVipFqdn', 'wldNsxVipIp'],
 }
 
-const ipToN = ip => { const p = String(ip||'').split('.').map(Number); return p.length===4 && p.every(x=>Number.isInteger(x)&&x>=0&&x<=255) ? ((p[0]*256+p[1])*256+p[2])*256+p[3] : null }
-const nToIp = n => [24,16,8,0].map(s => (n >>> s) & 255).join('.')
 
 export function applyNetworkPlannerJson(d, form) {
   const report = { source:'VCF Network Planner JSON', applied:[], skipped:[], ambiguous:[] }
@@ -167,12 +165,8 @@ export function applyNetworkPlannerJson(d, form) {
   // ── Management Services / VCF Automation ranges ──
   set('vcfSvcRangeStart', mgmt.svcRuntimeRangeStart, 'managementDomain.svcRuntimeRangeStart')
   set('vcfSvcRangeEnd', mgmt.svcRuntimeRangeEnd, 'managementDomain.svcRuntimeRangeEnd')
-  const a = ipToN(mgmt.vcfaRangeStart), b = ipToN(mgmt.vcfaRangeEnd)
-  if (a !== null) {
-    const last = b !== null && b >= a ? Math.min(b, a + 4) : a + 4
-    for (let i = 0; i <= last - a; i++) set(`vcfAutoIpPool${i + 1}`, nToIp(a + i), i ? 'managementDomain.vcfaRange' : 'managementDomain.vcfaRangeStart')
-    if (b !== null && b - a + 1 !== 5) report.ambiguous.push({ key:'vcfAutoIpPool1', sheet:'NP', cell:'managementDomain.vcfaRangeEnd', rawValue:`${mgmt.vcfaRangeStart}–${mgmt.vcfaRangeEnd}`, reason:'NP VCF Automation range is not exactly 5 IPs — first 5 addresses imported' })
-  }
+  set('vcfAutoRangeStart', mgmt.vcfaRangeStart, 'managementDomain.vcfaRangeStart')
+  set('vcfAutoRangeEnd', mgmt.vcfaRangeEnd, 'managementDomain.vcfaRangeEnd')
 
   // ── VLANs ──
   const wlds = Array.isArray(d.workloadDomains) ? d.workloadDomains : []

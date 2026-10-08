@@ -36,7 +36,6 @@ export function proposeFqdns(f, auto = f._fqdnAuto || {}) {
     vcfOpsPrimaryFqdn: flt('flt-ops01a'), vcfOpsReplicaFqdn: flt('flt-ops01b'), vcfOpsDataFqdn: flt('flt-ops01c'),
     vcfOpsLbFqdn: flt('flt-ops01'),
     vcfOpsCollectorFqdn: ins(`${site}-cp01`),
-    cloudProxyFqdn: ins(`${p}-cpxy01`),
     fleetComponentsFqdn: flt('flt-fc01'),
     instanceComponentsFqdn: ins(`${site}-ic01`),
     vcfSvcRuntimeFqdn: ins(`${site}-sr01`),

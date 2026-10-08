@@ -17,6 +17,8 @@ function makeNetFields(prefix, label, defVlan, defGw, defCidr, defMtu, hasPool) 
   return f
 }
 
+const ipToN = ip => { const p=String(ip||'').split('.').map(Number); return p.length===4 && p.every(x=>Number.isInteger(x)&&x>=0&&x<=255) ? ((p[0]*256+p[1])*256+p[2])*256+p[3] : null }
+
 function withShowWhen(fields, fn) {
   return fields.map(f => ({ ...f, showWhen: fn }))
 }
@@ -372,9 +374,41 @@ export const ALL_PAGES = [
           // NFS K141 = 1115, Host Overlay K147 = 1114.
           ...makeNetFields('esxMgmt',   'ESX Management',    1111, '10.11.11.1', '10.11.11.0/24', 1500, false),
           ...makeNetFields('vmMgmt',    'VM Management',     1110, '10.11.10.1', '10.11.10.0/24', 1500, false),
-          { key:'vcfMgmtInclude', label:'Dedicated VCF Management Network', type:'toggle', options:['Include','Exclude'], sample:'Exclude',
-            notes:'Optional — the workbook masks these inputs out unless you use a separate and dedicated network for VCF Management components. Excluded: the management components land on the VM Management network.' },
+          { key:'vcfMgmtInclude', label:'Dedicated VCF Management Network (your choice)', type:'toggle', options:['Include','Exclude'], sample:'Exclude',
+            notes:'Your design choice — the planner does not impose one. Include: VCF Management components (VCF Operations, Management Services runtime, VCF Automation…) get their own network (VLAN / gateway below). Exclude: they land on the VM Management network. Note: the Broadcom workbook samples use a dedicated VCF Management network (Deploy Management Domain L46 "Use a separate dedicated network" — VLAN 1199, 10.11.99.0/24, K112/K114), which is why the VCF Operations / Management Services sample IPs are 10.11.99.x.' },
           ...makeNetFields('vcfMgmt',   'VCF Management',    1199, '10.11.99.1', '10.11.99.0/24', 1500, false).map(fld => ({ ...fld, showWhen:f=>f.vcfMgmtInclude==='Include' })),
+        ]
+      },
+      {
+        title:'VCF Management Services & VCF Automation IP Ranges',
+        description:'Workbook "Deploy Management Domain" J116–J118 (VCF Management Services IP Range) and J121–J123 (VCF Automation IP Range), on the VCF Management network (or the VM Management network when no dedicated VCF Management network is used). The FQDNs of these services (and their own IPs) are on Fleet Management Day-N → VCF Management Services / VCF Automation.',
+        fields:[
+          { key:'vcfSvcRangeStart', label:'VCF Management Services IP Range — From', type:'ip', sample:'10.11.99.31', required:true,
+            notes:'Workbook K117 "Range From". First address of the VCF services runtime node range. Exported as vspClusterSpec.ipv4Pool in the VCF Installer JSON.' },
+          { key:'vcfSvcRangeEnd',   label:'VCF Management Services IP Range — To',   type:'ip', sample:'10.11.99.45', required:true,
+            notes:'Workbook K118 "Range To". Minimum 12 IPs for the current scope or 30 IPs to allow for more components and auto-scaling (workbook M117; VVF: 10).' },
+          { key:'_vcfSvcRangeCheck', label:'Management Services range size check', type:'readonly',
+            calc:(f, sizing)=>{
+              const a=ipToN(f.vcfSvcRangeStart), b=ipToN(f.vcfSvcRangeEnd)
+              const logs = f.vcfLogsInclude==='Include' ? 6 + 2*Math.max(0, parseInt(f.vcfLogsReplicaCount||'1',10)-1) : 0
+              const rtm = sizing && sizing.components && sizing.components.realtime_metrics ? 6 : 0
+              const base = f.deploymentType==='VMware vSphere Foundation' ? 10 : 12
+              const need = base + logs + rtm
+              const detail = `${base} base${logs?` + ${logs} Log Management`:''}${rtm?' + 6 Real-time Metrics':''}`
+              if (a===null || b===null) return `Required: ${need} IPs (${detail}); 30 recommended`
+              const size = b - a + 1
+              if (size <= 0) return '⚠ Range To is before Range From'
+              return size < need ? `⚠ ${size} IPs in range — ${need} required (${detail})` : `OK — ${size} IPs in range (${need} required${size<30?', 30 recommended':''})`
+            } },
+          { key:'vcfAutoRangeStart', label:'VCF Automation IP Range — From', type:'ip', sample:'10.11.99.46',
+            showWhen:f=>f.deploymentType!=='VMware vSphere Foundation',
+            notes:'Workbook K122. IP range for the nodes of the VCF services runtime for VCF Automation — leave empty if VCF Automation is not deployed.' },
+          { key:'vcfAutoRangeEnd',   label:'VCF Automation IP Range — To',   type:'ip', sample:'10.11.99.50',
+            showWhen:f=>f.deploymentType!=='VMware vSphere Foundation',
+            notes:'Workbook K123 — 5 addresses: 4 are used for active nodes, and 1 is used when recreating a node during rolling upgrades (M123).' },
+          { key:'_vcfAutoRangeCheck', label:'VCF Automation range size check', type:'readonly',
+            showWhen:f=>f.deploymentType!=='VMware vSphere Foundation' && !!(f.vcfAutoRangeStart||f.vcfAutoRangeEnd),
+            calc:(f)=>{ const a=ipToN(f.vcfAutoRangeStart), b=ipToN(f.vcfAutoRangeEnd); if (a===null||b===null) return 'Enter both From and To'; const n=b-a+1; return n<=0 ? '⚠ Range To is before Range From' : n<5 ? `⚠ ${n} IPs — 5 required (4 active + 1 spare)` : `OK — ${n} IPs (5 required)` } },
         ]
       },
       {
@@ -433,12 +467,12 @@ export const ALL_PAGES = [
             notes:'Always required — VCF Installer does not auto-generate this password at bring-up time even when "Auto-generate passwords" is selected.' },
           { key:'vcfOpsRootPw',      label:'Root User Password',               type:'password', sample:'VMw@re1!VMw@re1!', required:true,
             notes:'Always required — VCF Installer does not auto-generate this password at bring-up time. Applies to every VCF Operations node (Primary/Replica/Data share one root credential from the appliance template).' },
-          { key:'vcfOpsCollectorInclude', label:'Deploy VCF Operations Remote Collector', type:'toggle', options:['Include','Exclude'], sample:'Include',
-            notes:'Lightweight appliance that collects metrics for VCF Operations from a remote/isolated site and forwards them to the main cluster. Included by default; set to Exclude to skip it.' },
-          { key:'vcfOpsCollectorFqdn', label:'VCF Operations Collector FQDN', type:'text', sample:'sfo-cp01.sfo.rainpole.io', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
-          { key:'vcfOpsCollectorIp',   label:'VCF Operations Collector IP',   type:'ip',   sample:'10.11.10.12', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
-          { key:'vcfOpsCollectorSize', label:'VCF Operations Collector Size', type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
-          { key:'vcfOpsCollectorPw',   label:'VCF Operations Collector Root Password', type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude'&&f.autoGenPw==='Unselected' },
+          { key:'vcfOpsCollectorInclude', label:'Deploy Cloud Proxy (VCF Operations Collector)', type:'toggle', options:['Include','Exclude'], sample:'Include',
+            notes:'Workbook K163 / K377 — the VCF Operations cloud proxy (collector) deployed at bring-up (VCF Installer vcfOperationsCollectorSpec). Since v1.2.0 this is the single Cloud Proxy entry of the planner (the former separate "Cloud Proxy (VCF Operations)" section was merged here). Included by default; set to Exclude to skip it.' },
+          { key:'vcfOpsCollectorFqdn', label:'Cloud Proxy (Collector) FQDN', type:'text', sample:'sfo-cp01.sfo.rainpole.io', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
+          { key:'vcfOpsCollectorIp',   label:'Cloud Proxy (Collector) IP',   type:'ip',   sample:'10.11.10.12', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
+          { key:'vcfOpsCollectorSize', label:'Cloud Proxy (Collector) Size', type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
+          { key:'vcfOpsCollectorPw',   label:'Cloud Proxy (Collector) Root Password', type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude'&&f.autoGenPw==='Unselected' },
         ]
       },
       {
@@ -569,15 +603,6 @@ export const ALL_PAGES = [
         fields:[
           { key:'apiVcenterSize', label:'vCenter Size (API)',       type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium' },
           { key:'apiNsxSize',     label:'NSX Manager Size (API)',   type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small' },
-        ]
-      },
-      {
-        title:'Cloud Proxy (VCF Operations)', amber:true,
-        fields:[
-          { key:'cloudProxyInclude', label:'Deploy Cloud Proxy',        type:'toggle',   options:['Include','Exclude'], sample:'Exclude' },
-          { key:'cloudProxyFqdn',    label:'Cloud Proxy FQDN',          type:'text',     sample:'sfo-m01-cpxy01.sfo.rainpole.io', showWhen:f=>f.cloudProxyInclude==='Include' },
-          { key:'cloudProxyIp',      label:'Cloud Proxy IP',            type:'ip',       sample:'10.11.10.91', showWhen:f=>f.cloudProxyInclude==='Include' },
-          { key:'cloudProxyPw',      label:'Cloud Proxy Root Password', type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.cloudProxyInclude==='Include'&&f.autoGenPw==='Unselected' },
         ]
       },
     ]
@@ -759,7 +784,7 @@ export const ALL_PAGES = [
       },
       {
         title:'VCF Automation',
-        description:'VCF Automation 9.1 requires 1 FQDN for its VIP, 1 FQDN for its dedicated VCF Services Runtime, and an IP range of 5 addresses for its nodes (workbook Deploy Management Domain K122/K123: 4 for active nodes + 1 used when recreating a node during rolling upgrades), separate from the VCF Management Services IP range.',
+        description:'VCF Automation 9.1 requires 1 FQDN for its VIP, 1 FQDN for its dedicated VCF Services Runtime, and an IP range of 5 addresses for its nodes (4 for active nodes + 1 used when recreating a node during rolling upgrades) — that range is entered on Deploy Management Domain, as in the workbook (K122/K123).',
         fields:[
           { key:'vcfAutoFqdn',     label:'VCF Automation FQDN (VIP)', type:'text',   sample:'flt-auto01.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
             notes:'1 FQDN for the VCF Automation VIP. Do not use capital letters in the FQDN (lowercase only).' },
@@ -768,12 +793,8 @@ export const ALL_PAGES = [
           { key:'vcfAutoSvcRuntimeFqdn', label:'VCF Automation — Dedicated VCF Services Runtime FQDN', type:'text', sample:'flt-vcfa-sr01.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
             notes:'1 dedicated VCF Services Runtime FQDN for VCF Automation, separate from the fleet-level "VCF Services Runtime FQDN" under VCF Management Services. Do not use capital letters in the FQDN (lowercase only).' },
           { key:'vcfAutoSvcRuntimeIp',   label:'VCF Automation — Dedicated VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.24', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoIpPool1',  label:'VCF Automation Node IP Pool — Address 1', type:'ip',   sample:'10.11.99.46', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
-            notes:'VCF Automation 9.1 nodes use a dedicated range of 5 IP addresses (this field + the 4 below): 4 addresses are used for active nodes, and 1 is used when recreating a node during rolling upgrades (workbook Deploy Management Domain M123). By default the nodes are deployed on the VM management network; they can alternatively be placed on a dedicated VLAN via the fleet lifecycle API.' },
-          { key:'vcfAutoIpPool2',  label:'VCF Automation Node IP Pool — Address 2', type:'ip',   sample:'10.11.99.47', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoIpPool3',  label:'VCF Automation Node IP Pool — Address 3', type:'ip',   sample:'10.11.99.48', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoIpPool4',  label:'VCF Automation Node IP Pool — Address 4', type:'ip',   sample:'10.11.99.49', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoIpPool5',  label:'VCF Automation Node IP Pool — Address 5 (rolling-upgrade spare)', type:'ip',   sample:'10.11.99.50', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
+          { key:'_vcfAutoRangeRef', label:'VCF Automation IP Range (From – To)', type:'readonly', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
+            calc:(f)=> (f.vcfAutoRangeStart||f.vcfAutoRangeEnd) ? `${f.vcfAutoRangeStart||'?'} – ${f.vcfAutoRangeEnd||'?'}  (set on Deploy Management Domain → VCF Management Services & VCF Automation IP Ranges)` : 'Not set — enter it on Deploy Management Domain → VCF Management Services & VCF Automation IP Ranges (workbook J121–J123)' },
           { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
         ]
       },
@@ -840,7 +861,7 @@ export const ALL_PAGES = [
       },
       {
         title:'VCF Management Services',
-        description:'Workbook "Deploy Management Domain" J116–J118 (IP range From/To) and J167–J170 (FQDNs), IPs per the reference table K366–K372. Fleet Components, Instance Components, Identity Broker and VCF Services Runtime each need 1 FQDN with its own IP address (DNS record) outside the node range. The VCF Management Services IP range (Range From / Range To) hosts the runtime nodes: minimum 12 IPs for the current scope, 30 recommended to allow more components and auto-scaling (VVF: 10). Add 6 IPs for Log Management (+2 per extra replica) and 6 for Real-time Metrics when deployed.',
+        description:'Workbook "Deploy Management Domain" J116–J118 (IP range From/To) and J167–J170 (FQDNs), IPs per the reference table K366–K372. Fleet Components, Instance Components, Identity Broker and VCF Services Runtime each need 1 FQDN with its own IP address (DNS record) outside the node range. The VCF Management Services IP range (Range From / Range To — entered on Deploy Management Domain, as in the workbook) hosts the runtime nodes: minimum 12 IPs for the current scope, 30 recommended to allow more components and auto-scaling (VVF: 10). Add 6 IPs for Log Management (+2 per extra replica) and 6 for Real-time Metrics when deployed.',
         fields:[
           { key:'fleetComponentsFqdn',    label:'Fleet Components FQDN',     type:'text', sample:'flt-fc01.rainpole.io',
             notes:'Workbook K167. 1 FQDN to access the hosted fleet-level components which do not require a separate FQDN, for example, the fleet lifecycle component. Lowercase only.' },
@@ -852,23 +873,8 @@ export const ALL_PAGES = [
             notes:'Workbook K170. 1 FQDN to access the VCF services runtime component to troubleshoot issues, restart components, etc. The hostname from this FQDN is prefixed to the names of its node VMs and related objects. Lowercase only.' },
           { key:'vcfSvcRuntimeIp',        label:'VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.10',
             notes:'Workbook K369 — IP of the VCF Services Runtime FQDN (DNS record), outside the node range below.' },
-          { key:'vcfSvcRangeStart',       label:'VCF Management Services IP Range — From', type:'ip', sample:'10.11.99.31', required:true,
-            notes:'Workbook K117 "Range From". First address of the VCF services runtime node range (VCF Management Network). Exported as vspClusterSpec.ipv4Pool in the VCF Installer JSON.' },
-          { key:'vcfSvcRangeEnd',         label:'VCF Management Services IP Range — To',   type:'ip', sample:'10.11.99.45', required:true,
-            notes:'Workbook K118 "Range To". Minimum 12 IPs for the current scope or 30 IPs to allow for more components and auto-scaling (workbook M117).' },
-          { key:'_vcfSvcRangeCheck', label:'Range size check', type:'readonly',
-            calc:(f, sizing)=>{
-              const toN = ip => { const p=String(ip||'').split('.').map(Number); return p.length===4 && p.every(x=>Number.isInteger(x)&&x>=0&&x<=255) ? ((p[0]*256+p[1])*256+p[2])*256+p[3] : null }
-              const a=toN(f.vcfSvcRangeStart), b=toN(f.vcfSvcRangeEnd)
-              const logs = f.vcfLogsInclude==='Include' ? 6 + 2*Math.max(0, parseInt(f.vcfLogsReplicaCount||'1',10)-1) : 0
-              const rtm = sizing && sizing.components && sizing.components.realtime_metrics ? 6 : 0
-              const base = f.deploymentType==='VMware vSphere Foundation' ? 10 : 12
-              const need = base + logs + rtm
-              if (a===null || b===null) return `Required: ${need} IPs (${base} base${logs?` + ${logs} Log Management`:''}${rtm?' + 6 Real-time Metrics':''}); 30 recommended`
-              const size = b - a + 1
-              if (size <= 0) return '⚠ Range To is before Range From'
-              return size < need ? `⚠ ${size} IPs in range — ${need} required (${base} base${logs?` + ${logs} Log Management`:''}${rtm?' + 6 Real-time Metrics':''})` : `OK — ${size} IPs in range (${need} required${size<30?', 30 recommended':''})`
-            } },
+          { key:'_vcfSvcRangeRef', label:'VCF Management Services IP Range (From – To)', type:'readonly',
+            calc:(f)=> (f.vcfSvcRangeStart||f.vcfSvcRangeEnd) ? `${f.vcfSvcRangeStart||'?'} – ${f.vcfSvcRangeEnd||'?'}  (set on Deploy Management Domain → VCF Management Services & VCF Automation IP Ranges)` : 'Not set — enter it on Deploy Management Domain → VCF Management Services & VCF Automation IP Ranges (workbook J116–J118)' },
           { key:'licenseServerFqdn',      label:'License Server FQDN',       type:'text', sample:'flt-lc01.rainpole.io',
             notes:'1 FQDN, fleet-level and portable, on the VCF Management Network — not allocated from the node range.' },
           { key:'licenseServerIp',        label:'License Server IP',         type:'ip',   sample:'10.11.99.22', notes:'Workbook K370.' },

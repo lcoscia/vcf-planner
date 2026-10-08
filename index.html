@@ -1598,7 +1598,7 @@
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.2.0<br><span class="text-gray-300">2026-10-08</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Field feedback: FQDN auto-proposal, stretched deployment scales, workbook-aligned VLANs, Log Management &amp; Management Services, Network Planner import</p>
-            <p><strong>FQDNs are proposed automatically</strong> from Region / Site Code, Instance Name and DNS Domain Name using the workbook naming (sfo-m01-vc01, flt-ops01a, sfo01-m01-r01-esx01…) — only empty fields are filled, your own values are never overwritten (toggle on the Planning page). <strong>Deployment Scale</strong> now offers vSAN stretched and vMSC (stretch all Layer-2 networks, KB 417356), and a <strong>Number of Hosts</strong> (and AZ2 hosts) drives the host rows and ESXi FQDNs. <strong>Deploy Management Domain samples and the Demo data now match the 25-Jun-2026 workbook</strong>: ESX Management 1111 and VM Management 1110 were swapped, and the other VLANs/subnets/IPs were off too (VCF Mgmt 1199, vMotion 1112, vSAN 1113, Host TEP 1114, Edge TEP 1119, uplinks 1117/1118, NSX VIP .71). <strong>Log Management</strong> asks only what the 9.1 workbook asks (1 FQDN, node size, number of replicas, cluster VIP) — no per-replica rows. <strong>VCF Management Services</strong> gets the IP Range From / To of the workbook, a range-size check, and its own IP per FQDN. New <strong>Import → VCF Network Planner JSON</strong>. Saved plans are migrated automatically.</p>
+            <p><strong>FQDNs are proposed automatically</strong> from Region / Site Code, Instance Name and DNS Domain Name using the workbook naming (sfo-m01-vc01, flt-ops01a, sfo01-m01-r01-esx01…) — only empty fields are filled, your own values are never overwritten (toggle on the Planning page). <strong>Deployment Scale</strong> now offers vSAN stretched and vMSC (stretch all Layer-2 networks, KB 417356), and a <strong>Number of Hosts</strong> (and AZ2 hosts) drives the host rows and ESXi FQDNs. <strong>Deploy Management Domain samples and the Demo data now match the 25-Jun-2026 workbook</strong>: ESX Management 1111 and VM Management 1110 were swapped, and the other VLANs/subnets/IPs were off too (VCF Mgmt 1199, vMotion 1112, vSAN 1113, Host TEP 1114, Edge TEP 1119, uplinks 1117/1118, NSX VIP .71). <strong>Log Management</strong> asks only what the 9.1 workbook asks (1 FQDN, node size, number of replicas, cluster VIP) — no per-replica rows. <strong>VCF Management Services</strong> gets its own IP per FQDN, and the workbook's <strong>IP Range From / To</strong> — together with the <strong>VCF Automation IP Range From / To</strong> — now sits on Deploy Management Domain as in the workbook, with a range-size check (reminders stay visible on Fleet Management Day-N). <strong>Cloud Proxy</strong> and VCF Operations Collector are merged into a single entry (sfo-cp01). The <strong>Dedicated VCF Management Network</strong> remains your choice; its help now explains the workbook samples use a dedicated network. New <strong>Import → VCF Network Planner JSON</strong>. Saved plans are migrated automatically.</p>
           </div>
         </div>
         <div class="flex gap-4">
@@ -2011,7 +2011,7 @@ const PORTS_ENDPOINT_MAP = {
     { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
   ],
   'VCF Operations Cloud Proxy': [
-    { fqdnKey:'cloudProxyFqdn', ipKey:'cloudProxyIp', label:'Cloud Proxy', showWhen:f=>f.cloudProxyInclude==='Include' },
+    { fqdnKey:'vcfOpsCollectorFqdn', ipKey:'vcfOpsCollectorIp', label:'Cloud Proxy (Collector)', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
   ],
   'VCF Operations for Networks Management IP address': [
     { fqdnKey:'vcfNetOpsFqdn', ipKey:'vcfNetOpsIp', label:'VCF Operations for Networks', showWhen:f=>f.vcfNetOpsInclude==='Include' },
@@ -3127,8 +3127,31 @@ function vcfPlanner() {
       if (f.vcfLogsHaMode === 'HA Cluster' && !f.vcfLogsReplicaCount) f.vcfLogsReplicaCount = '3'
       if (!f.vcfLogsIp && f.vcfLogsLbIp) f.vcfLogsIp = f.vcfLogsLbIp
       for (const k of ['vcfLogsHaMode','vcfLogsReplicaFqdn','vcfLogsReplicaIp','vcfLogsLbFqdn','vcfLogsLbIp','mgmtSvcAdditionalIp1','mgmtSvcAdditionalIp2','mgmtSvcAdditionalIp3']) delete f[k]
+      // VCF Automation node IPs: 5 discrete fields → workbook "IP Range From / To"
+      // (Deploy Management Domain K122/K123).
+      const pool = [1,2,3,4,5].map(i => f[`vcfAutoIpPool${i}`]).filter(Boolean)
+      if (pool.length && !f.vcfAutoRangeStart && !f.vcfAutoRangeEnd) { f.vcfAutoRangeStart = pool[0]; f.vcfAutoRangeEnd = pool[pool.length-1] }
+      for (let i = 1; i <= 5; i++) delete f[`vcfAutoIpPool${i}`]
+      // Cloud Proxy: the separate "Cloud Proxy (VCF Operations)" section is merged
+      // into the VCF Operations Collector (workbook sfo-cp01, Installer
+      // vcfOperationsCollectorSpec). One value → kept; both → Collector kept, flagged.
+      const cpUsed = f.cloudProxyInclude === 'Include' && (f.cloudProxyFqdn || f.cloudProxyIp)
+      if (cpUsed || f.cloudProxyFqdn || f.cloudProxyIp) {
+        const colSet = !!(f.vcfOpsCollectorFqdn || f.vcfOpsCollectorIp)
+        if (!colSet) {
+          if (f.cloudProxyFqdn) f.vcfOpsCollectorFqdn = f.cloudProxyFqdn
+          if (f.cloudProxyIp) f.vcfOpsCollectorIp = f.cloudProxyIp
+          if (f.cloudProxyPw && !f.vcfOpsCollectorPw) f.vcfOpsCollectorPw = f.cloudProxyPw
+          if (f.cloudProxyInclude === 'Include') f.vcfOpsCollectorInclude = 'Include'
+        } else if ((f.cloudProxyFqdn && f.cloudProxyFqdn !== f.vcfOpsCollectorFqdn) || (f.cloudProxyIp && f.cloudProxyIp !== f.vcfOpsCollectorIp)) {
+          this.migrationNotes.push(`Cloud Proxy merged into "Cloud Proxy (VCF Operations Collector)": both were filled — kept the Collector (${f.vcfOpsCollectorFqdn||''} ${f.vcfOpsCollectorIp||''}), dropped the former Cloud Proxy entry (${f.cloudProxyFqdn||''} ${f.cloudProxyIp||''}).`)
+        }
+      }
+      for (const k of ['cloudProxyInclude','cloudProxyFqdn','cloudProxyIp','cloudProxyPw']) delete f[k]
+      if (f._fqdnAuto) delete f._fqdnAuto.cloudProxyFqdn
       return f
     },
+    migrationNotes: [],
     save() {
       try {
         this.syncDerivedForm()
@@ -3208,9 +3231,10 @@ function vcfPlanner() {
               event.target.value = ''; return
             }
           }
+          this.migrationNotes = []
           if (d.form) { Object.assign(this.form, this.migrateForm({ ...d.form })); this.applyToggleDefaults(); this.save() }
           if (d.sizing) { Object.assign(this.sizing, d.sizing) }
-          alert('Import successful!')
+          alert('Import successful!' + (this.migrationNotes.length ? '\n\nNote:\n- ' + this.migrationNotes.join('\n- ') : ''))
         } catch(err) {
           alert('Import failed: ' + err.message)
         }
@@ -3561,6 +3585,9 @@ function vcfPlanner() {
         // VCF Management Services (workbook Deploy Management Domain K117/K118, K366-K370)
         fleetComponentsIp: '10.11.99.20', instanceComponentsIp: '10.11.99.11', vcfSvcRuntimeIp: '10.11.99.10',
         vcfSvcRangeStart: '10.11.99.31', vcfSvcRangeEnd: '10.11.99.45', licenseServerIp: '10.11.99.22',
+        vcfAutoRangeStart: '10.11.99.46', vcfAutoRangeEnd: '10.11.99.50',
+        // Cloud Proxy (VCF Operations Collector) — workbook K163 / K377
+        vcfOpsCollectorInclude: 'Include', vcfOpsCollectorFqdn: 'sfo-cp01.sfo.rainpole.io', vcfOpsCollectorIp: '10.11.10.12',
       })
 
       this.applyToggleDefaults()
@@ -3885,6 +3912,7 @@ function vcfPlanner() {
       this.applyToggleDefaults()
       this._lastScale = this.form.deploymentScale || ''
       this.syncDerivedForm()
+      if (this.migrationNotes.length) { const notes = this.migrationNotes.slice(); this.save(); setTimeout(() => alert('Your saved plan was updated to v1.2.0:\n\n- ' + notes.join('\n- ')), 300) }
       // Ensure instance profile size respects the cluster model coupling on load
       this.syncInstanceProfileSize()
       // Reconcile sizing storage type with a previously-saved Principal Storage Type
