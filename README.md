@@ -249,14 +249,19 @@ It runs on every save (toggle *Auto-propose FQDNs* on the Planning page): it fil
 
 ### Network Planner import mapping
 
-`core/np-import.js` — `isNetworkPlannerExport(d)` / `applyNetworkPlannerJson(d, form)`. Only non-empty Network Planner (NP) values are applied.
+`core/np-import.js` — `isNetworkPlannerExport(d)` / `applyNetworkPlannerJson(d, form)`. Only non-empty Network Planner (NP) values are applied. NP v1.31.0+ exports are detected by `meta.tool === 'VCF Network Planner'` (the report title shows `meta.version` / `meta.schema`); older exports (no `meta`) are recognised by their shape and fall back to deriving site / domain from `fqdnSuffix`.
 
 | NP JSON | P&P field(s) |
 |---|---|
 | `project.vcfVersion` 9.1 / 9.1.1 | `vcfVersion` 9.1.0.0 / 9.1.1.0 (9.0 skipped) |
 | `project.scenario` (`vvf*`) | `deploymentType`, `deploymentMode` (if empty) |
-| `project.fqdnSuffix` (e.g. `sfo.rainpole.io`) | `subDomainName`; `domainName` = suffix minus 1st label, `deploymentRegion` = 1st label (only if empty — reported as derived) |
-| `project.fqdnPrefix` `sfo-m01` | `deploymentRegion` / `deploymentInstance` (only if empty) |
+| `meta` `{tool, version, schema, exported}` (NP ≥ v1.31.0) | detection + report title |
+| `project.siteCode` (NP ≥ v1.31.0) | `deploymentRegion` (+ `primarySiteName` if empty) |
+| `project.instanceName` (NP ≥ v1.31.0) | `deploymentInstance` |
+| `project.parentDomain` (NP ≥ v1.31.0) | `domainName` |
+| `project.dnsServers[0..1]` / `project.ntpServers[0..1]` (NP ≥ v1.31.0) | `dnsServer1/2` / `ntpServer1/2` (extra entries reported as skipped) |
+| `project.fqdnSuffix` (e.g. `sfo.rainpole.io`) | `subDomainName` (else `<siteCode>.<parentDomain>`); **fallback for NP < v1.31.0**: `domainName` = suffix minus 1st label, `deploymentRegion` = 1st label (only if empty — reported as derived) |
+| `project.fqdnPrefix` `sfo-m01` (NP < v1.31.0) | `deploymentRegion` / `deploymentInstance` (only if empty and no `siteCode` / `instanceName`) |
 | `managementDomain.topologyMode` `vsan-stretched` / `stretched` (vMSC) / `single-site` | `deploymentScale` (vSAN stretched / vMSC / Standard) + `vsanStretchInclude` |
 | `managementDomain.hostCount` or `az1HostCount`, `az2HostCount` | `mgmtHostCount`, `mgmtAz2HostCount` |
 | `managementDomain.storageType` | `principalStorage` |
@@ -272,7 +277,7 @@ It runs on every save (toggle *Auto-propose FQDNs* on the Planning page): it fil
 | `vlans[]` `NSX Edge TEP`, `NSX Edge Uplink 1/2` | `edgeTepVlan/IpStart/IpEnd`, `nsxEdgeUplink{n}Vlan` + `edge{1,2}UplinkVlan{n}` |
 | `vlans[]` first WLD | `wldEsxMgmt*`, `wldVmMgmt*`, `wldVmotion*`, `wldVsan*`, `wldOverlay*`, `wldNfs*` |
 | `hosts[]` Mgmt (`AZ1`/single, and `AZ2` under vMSC — global numbering) | `m01Host{i}Fqdn/Ip` |
-| `hosts[]` Mgmt `AZ2` (vSAN stretched) | `az2Host{i - az1}Fqdn/Ip` |
+| `hosts[]` Mgmt `AZ2` (vSAN stretched) | `az2Host{azIndex}Fqdn/Ip` (`index − az1` for NP < v1.31.0) |
 | `hosts[]` first WLD | `w01Host{i}Fqdn/Ip` |
 | `appliances[]` `sddc-manager-01`, `vcenter-mgmt-01`, `nsx-manager-mgmt-0N`, `nsx-edge-mgmt-0N` (≤2) | `vcfSddcFqdn/Ip` (+ `sddcHostname`), `vcMgmtFqdn/Ip`, `nsxMgr{N}Fqdn/Ip`, `nsxEdge{N}Fqdn/Ip` |
 | `appliances[]` `vcf-ops-01/02/03`, `vcf-ops-cloud-proxy-01` | `vcfOpsPrimary*`, `vcfOpsReplica*`, `vcfOpsData*`, `vcfOpsCollector*` (Cloud Proxy) |
@@ -283,7 +288,7 @@ It runs on every save (toggle *Auto-propose FQDNs* on the Planning page): it fil
 | `vips[]` `NSX Manager VIP`, `VCF Operations VIP`, `VCF Log Management VIP`, `VCF Automation VIP`, `AVI Controller Cluster VIP`, `WLD-01 NSX Manager VIP` | `nsxVip*`, `vcfOpsLb*`, `vcfLogsFqdn/Ip`, `vcfAuto*`, `aviCluster*`, `wldNsxVip*` |
 | `workloadDomains[0]` | `wldInclude`, `wldName` (if empty), `wldStorageType` |
 
-Not in a NP export (to fill in P&P): DNS/NTP servers, passwords, VDS/portgroups, BGP, witness DNS/NTP, vCenter inventory names. NP values with no P&P equivalent (reported as skipped): stretched-per-network choices under vSAN stretched, witness VLAN, edge TEP/uplink subnets, edges 3+, workload domains 2+, VPC external VLAN, VKS/SSP networks, Real-time Metrics (a sizing component here).
+Not in a NP export (to fill in P&P): DNS/NTP servers (NP < v1.31.0), passwords, VDS/portgroups, BGP, witness DNS/NTP, vCenter inventory names. NP values with no P&P equivalent (reported as skipped): stretched-per-network choices under vSAN stretched, witness VLAN, edge TEP/uplink subnets, edges 3+, workload domains 2+, VPC external VLAN, VKS/SSP networks, Real-time Metrics (a sizing component here).
 
 ### Verification
 

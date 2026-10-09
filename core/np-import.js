@@ -9,9 +9,12 @@
 // ({ applied, skipped, ambiguous } with sheet/cell → here 'NP' / JSON path).
 import { SCALE_VSAN_STRETCHED, SCALE_VMSC } from './reference.js'
 
+// NP v1.31.0+ exports carry meta:{tool:'VCF Network Planner', version, schema:1, exported};
+// older exports are recognised by their shape.
 export function isNetworkPlannerExport(d) {
-  return !!(d && typeof d === 'object' && !d.form && d.project && d.managementDomain
-    && Array.isArray(d.vlans) && Array.isArray(d.appliances))
+  if (!d || typeof d !== 'object' || d.form) return false
+  if (d.meta && d.meta.tool === 'VCF Network Planner') return true
+  return !!(d.project && d.managementDomain && Array.isArray(d.vlans) && Array.isArray(d.appliances))
 }
 
 const STORAGE = { 'vsan-esa':'vSAN-ESA', 'vsan-osa':'vSAN-OSA', 'vmfs':'VMFS on Fibre Channel (FC)', 'nfs':'NFSv3' }
@@ -79,7 +82,14 @@ const VIPS = {
 
 
 export function applyNetworkPlannerJson(d, form) {
-  const report = { source:'VCF Network Planner JSON', applied:[], skipped:[], ambiguous:[] }
+  const meta = (d.meta && typeof d.meta === 'object') ? d.meta : null
+  const report = {
+    source: 'VCF Network Planner JSON' + (meta ? ` (${meta.version || 'unknown version'}, schema ${meta.schema ?? '?'})` : ' (pre-v1.31.0, no meta)'),
+    meta, applied:[], skipped:[], ambiguous:[],
+  }
+  if (meta && Number(meta.schema) > 1) report.ambiguous.push({ key:'—', sheet:'NP', cell:'meta.schema', rawValue:String(meta.schema), reason:'newer NP export schema than this importer knows (1) — unknown fields are ignored, check the result' })
+  d.vlans = Array.isArray(d.vlans) ? d.vlans : []
+  d.appliances = Array.isArray(d.appliances) ? d.appliances : []
   const has = v => v !== undefined && v !== null && String(v).trim() !== ''
   const set = (key, val, path) => {
     if (!key || !has(val)) return false
@@ -107,21 +117,36 @@ export function applyNetworkPlannerJson(d, form) {
   set('deploymentType', isVvf ? 'VMware vSphere Foundation' : 'VMware Cloud Foundation', 'project.scenario')
   if (!has(form.deploymentMode)) set('deploymentMode', isVvf ? 'New VVF Fleet' : 'New VCF Fleet', 'project.deploymentType')
   const suffix = String(project.fqdnSuffix || '').trim().toLowerCase().replace(/^\.+|\.+$/g, '')
-  if (suffix) {
-    set('subDomainName', suffix, 'project.fqdnSuffix')
+  const lc = v => String(v || '').trim().toLowerCase().replace(/^\.+|\.+$/g, '')
+  // NP v1.31.0+: explicit site code / instance / parent domain (workbook FQDN convention)
+  const siteCode = lc(project.siteCode), instanceName = lc(project.instanceName), parentDomain = lc(project.parentDomain)
+  if (siteCode) { set('deploymentRegion', siteCode, 'project.siteCode'); setIfEmpty('primarySiteName', siteCode, 'project.siteCode', 'Primary Site Name filled from the NP site code') }
+  if (instanceName) set('deploymentInstance', instanceName, 'project.instanceName')
+  if (parentDomain) set('domainName', parentDomain, 'project.parentDomain')
+  if (suffix) set('subDomainName', suffix, 'project.fqdnSuffix')
+  else if (siteCode && parentDomain) set('subDomainName', `${siteCode}.${parentDomain}`, 'project.siteCode + project.parentDomain')
+  // Fallback for NP exports older than v1.31.0 (no siteCode / parentDomain): derive from fqdnSuffix
+  if (suffix && (!parentDomain || !siteCode)) {
     const labels = suffix.split('.')
     if (labels.length >= 3) {
-      setIfEmpty('domainName', labels.slice(1).join('.'), 'project.fqdnSuffix', 'DNS Domain Name derived from the NP FQDN suffix by dropping its first label — check it')
-      if (/^[a-z0-9]{2,5}$/.test(labels[0])) setIfEmpty('deploymentRegion', labels[0], 'project.fqdnSuffix', 'Region / Site Code derived from the first label of the NP FQDN suffix — check it')
-    } else {
+      if (!parentDomain) setIfEmpty('domainName', labels.slice(1).join('.'), 'project.fqdnSuffix', 'DNS Domain Name derived from the NP FQDN suffix by dropping its first label — check it')
+      if (!siteCode && /^[a-z0-9]{2,5}$/.test(labels[0])) setIfEmpty('deploymentRegion', labels[0], 'project.fqdnSuffix', 'Region / Site Code derived from the first label of the NP FQDN suffix — check it')
+    } else if (!parentDomain) {
       setIfEmpty('domainName', suffix, 'project.fqdnSuffix', 'NP FQDN suffix has no child zone — used as DNS Domain Name')
     }
   }
-  if (has(project.fqdnPrefix)) {
+  if (has(project.fqdnPrefix) && (!siteCode || !instanceName)) {
     const m = String(project.fqdnPrefix).toLowerCase().match(/^([a-z0-9]{2,5})-([a-z][0-9]{2})$/)
-    if (m) { setIfEmpty('deploymentRegion', m[1], 'project.fqdnPrefix', 'Site code split from the NP FQDN prefix'); setIfEmpty('deploymentInstance', m[2], 'project.fqdnPrefix', 'Instance name split from the NP FQDN prefix') }
+    if (m) { if (!siteCode) setIfEmpty('deploymentRegion', m[1], 'project.fqdnPrefix', 'Site code split from the NP FQDN prefix'); if (!instanceName) setIfEmpty('deploymentInstance', m[2], 'project.fqdnPrefix', 'Instance name split from the NP FQDN prefix') }
     else skip('project.fqdnPrefix', `free-text NP prefix "${project.fqdnPrefix}" has no P&P field (FQDNs are imported as-is)`)
   }
+  // DNS / NTP servers (NP v1.31.0+) — P&P has 2 of each
+  const list = v => (Array.isArray(v) ? v : String(v || '').split(/[\s,;]+/)).map(x => String(x).trim()).filter(Boolean)
+  const dns = list(project.dnsServers), ntp = list(project.ntpServers)
+  dns.slice(0, 2).forEach((x, i) => set(`dnsServer${i + 1}`, x, `project.dnsServers[${i}]`))
+  ntp.slice(0, 2).forEach((x, i) => set(`ntpServer${i + 1}`, x, `project.ntpServers[${i}]`))
+  if (dns.length > 2) skip('project.dnsServers[2..]', `${dns.length - 2} extra DNS server(s) — P&P has 2 DNS fields`)
+  if (ntp.length > 2) skip('project.ntpServers[2..]', `${ntp.length - 2} extra NTP server(s) — P&P has 2 NTP fields`)
 
   // ── Management domain topology ──
   const topo = mgmt.topologyMode || 'single-site'
@@ -201,7 +226,7 @@ export function applyNetworkPlannerJson(d, form) {
     const path = `hosts[${idx}] ${h.domain} #${h.index}${h.az ? ' ' + h.az : ''}`
     let key = null
     if (h.domain === 'Management Domain') {
-      if (topo === 'vsan-stretched' && h.az === 'AZ2') key = `az2Host${h.index - az1Count}`
+      if (topo === 'vsan-stretched' && h.az === 'AZ2') key = `az2Host${Number(h.azIndex) || (h.index - az1Count)}`
       else key = `m01Host${h.index}`
     } else if (wld1 && h.domain === wld1) key = `w01Host${h.index}`
     const n = key && Number(key.match(/(\d+)$/)[1])
@@ -236,6 +261,6 @@ export function applyNetworkPlannerJson(d, form) {
     if (wlds.length > 1) skip('workloadDomains[1..]', `${wlds.length - 1} additional workload domain(s) — P&P plans a single workload domain`)
   }
 
-  report.skipped.push({ key:'—', sheet:'NP', cell:'(not in NP)', reason:'DNS / NTP servers, passwords, VDS / portgroups, BGP, witness DNS/NTP and vCenter inventory names are not part of a Network Planner export — fill them in P&P' })
+  report.skipped.push({ key:'—', sheet:'NP', cell:'(not in NP)', reason:(dns.length || ntp.length ? '' : 'DNS / NTP servers (NP < v1.31.0), ') + 'passwords, VDS / portgroups, BGP, witness DNS/NTP and vCenter inventory names are not part of a Network Planner export — fill them in P&P' })
   return report
 }
