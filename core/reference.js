@@ -17,6 +17,8 @@ function makeNetFields(prefix, label, defVlan, defGw, defCidr, defMtu, hasPool) 
   return f
 }
 
+const ipToN = ip => { const p=String(ip||'').split('.').map(Number); return p.length===4 && p.every(x=>Number.isInteger(x)&&x>=0&&x<=255) ? ((p[0]*256+p[1])*256+p[2])*256+p[3] : null }
+
 function withShowWhen(fields, fn) {
   return fields.map(f => ({ ...f, showWhen: fn }))
 }
@@ -45,16 +47,44 @@ function makePortGroupFields(prefix, label, defPg, opts = {}) {
   return opts.showWhen ? f.map(fld => ({ ...fld, showWhen: opts.showWhen })) : f
 }
 
-function makeHostFields(n, prefix, ipBase, vlanBase) {
+// opts.fqdnFn(i) -> sample FQDN for host i (defaults to the legacy sfo-<prefix>-esxiNN pattern);
+// opts.ipFn(i) -> sample IP; opts.visibleFn(f, i) -> extra visibility gate (host-count driven).
+function makeHostFields(n, prefix, ipBase, vlanBase, opts = {}) {
   const fields = []
   for (let i=1; i<=n; i++) {
     const pad = i<10?`0${i}`:i
+    const vis = opts.visibleFn ? (f => opts.visibleFn(f, i)) : undefined
     fields.push(
-      { key:`${prefix}Host${i}Fqdn`, label:`Host ${i} FQDN`, type:'text', sample:`sfo-${prefix.replace('_','-')}-esxi${pad}.sfo.rainpole.io`, required: i<=4 },
-      { key:`${prefix}Host${i}Ip`,   label:`Host ${i} IP`,   type:'ip',   sample:`${ipBase}.${10+i}`, required: i<=4 },
+      { key:`${prefix}Host${i}Fqdn`, label:`Host ${i} FQDN`, type:'text', sample: opts.fqdnFn ? opts.fqdnFn(i, pad) : `sfo-${prefix.replace('_','-')}-esxi${pad}.sfo.rainpole.io`, required: i<=4, ...(vis?{showWhen:vis}:{}) },
+      { key:`${prefix}Host${i}Ip`,   label:`Host ${i} IP`,   type:'ip',   sample: opts.ipFn ? opts.ipFn(i) : `${ipBase}.${10+i}`, required: i<=4, ...(vis?{showWhen:vis}:{}) },
     )
   }
   return fields
+}
+
+// ─── Deployment topology helpers (VCF & VVF Planning → Deployment Scale) ───
+// "vSAN stretched" and "vMSC" are web-only planning choices (the workbook has no
+// Deployment Scale row — vSAN stretching is an Include/Exclude option on Configure
+// Management Domain B16, vMSC isn't modelled at all). Semantics follow the VCF
+// Network Planner: vMSC = "Stretch all Layer-2 Networks" (KB 417356, VMFS-FC /
+// NFSv3, one VLAN/subnet per network across both AZs, no witness); vSAN stretched =
+// per-AZ host networks + vSAN witness.
+export const SCALE_VSAN_STRETCHED = 'Stretched cluster — vSAN stretched (2 AZ + witness)'
+export const SCALE_VMSC = 'Stretched cluster — vMSC (stretch all L2, VMFS-FC / NFSv3)'
+export function isVsanStretched(f) { return f.deploymentScale === SCALE_VSAN_STRETCHED || f.vsanStretchInclude === 'Include' }
+export function isVmsc(f) { return f.deploymentScale === SCALE_VMSC }
+const _num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) && n > 0 ? Math.min(n, 16) : d }
+// Number of management-cluster host rows (m01HostN) to show: AZ1 hosts, plus AZ2
+// hosts under vMSC (single stretched-L2 host list). 16 (all rows) when unset.
+export function mgmtHostRows(f) {
+  if (!f.mgmtHostCount) return 16
+  const az1 = _num(f.mgmtHostCount, 4)
+  return isVmsc(f) ? Math.min(16, az1 + _num(f.mgmtAz2HostCount, az1)) : az1
+}
+// AZ2 host rows (az2HostN) for a vSAN stretched cluster.
+export function az2HostRows(f) {
+  if (!f.mgmtAz2HostCount && !f.mgmtHostCount) return 16
+  return _num(f.mgmtAz2HostCount, _num(f.mgmtHostCount, 4))
 }
 
 function makeRackFields(rackNum) {
@@ -159,13 +189,22 @@ export const ALL_PAGES = [
           { key:'primarySiteName', label:'Primary Site Name',   type:'text', sample:'sfo', required:true, notes:'Short site identifier, used in all FQDNs' },
           { key:'deploymentScale', label:'Deployment Scale', type:'select',
             optionsFn: f => {
-              if (f.deploymentMode==='New VCF Fleet') return ['Standard (4+ hosts)','Consolidated (3 hosts — lab only)']
-              if (f.deploymentMode==='New VVF Fleet') return ['Standard','Minimal (3 hosts)']
+              if (f.deploymentMode==='New VCF Fleet' || f.deploymentMode==='Additional VCF Instance') return ['Standard (4+ hosts)','Consolidated (3 hosts — lab only)',SCALE_VSAN_STRETCHED,SCALE_VMSC]
+              if (f.deploymentMode==='New VVF Fleet') return ['Standard','Minimal (3 hosts)',SCALE_VSAN_STRETCHED,SCALE_VMSC]
               return ['Standard']
             },
-            sample:'Standard (4+ hosts)', showWhen:f=>!!f.deploymentMode, notes:'Determines minimum host count and component footprint' },
+            sample:'Standard (4+ hosts)', showWhen:f=>!!f.deploymentMode,
+            notes:'Determines minimum host count and component footprint. Web-only planning choice (no such row in the workbook). vSAN stretched: per-AZ host networks + vSAN witness at a third site — turns on Configure Management Domain → vSAN Stretched Cluster. vMSC (vSphere Metro Storage Cluster, KB 417356): VMFS on FC or NFSv3 principal storage, "Stretch all Layer-2 Networks" — same VLAN ID and subnet in both AZs, no witness, no per-AZ networks; Broadcom does not test vMSC (partner-validated storage).' },
+          { key:'mgmtHostCount', label:'Management Cluster — Number of Hosts', type:'number', sample:'4',
+            showWhen:f=>!!f.deploymentMode,
+            notes:'Number of ESXi hosts in the management cluster (AZ1 for a stretched cluster). Drives how many host rows are shown on Deploy Management Domain → Hosts and the ESXi FQDNs proposed from the Region / Site Code and DNS Domain Name. Leave empty to show all 16 rows.' },
+          { key:'mgmtAz2HostCount', label:'Management Cluster — Number of Hosts in AZ2', type:'number', sample:'4',
+            showWhen:f=>isVsanStretched(f)||isVmsc(f),
+            notes:'vSAN stretched: AZ2 hosts are listed under Configure Management Domain → vSAN Stretched Cluster (workbook naming sfo02-m01-r01-esxNN). vMSC: all hosts sit on the same stretched L2 networks, so AZ2 hosts are appended to the management host list (numbering continues after AZ1).' },
           { key:'deploymentRegion', label:'Region / Site Code', type:'text', sample:'sfo',
-            showWhen:f=>!!f.deploymentScale, notes:'2-4 character region code used in all generated FQDNs (e.g. sfo, lax, fra)' },
+            showWhen:f=>!!f.deploymentMode, notes:'2-4 character region code used in all generated FQDNs (e.g. sfo, lax, fra). Together with Instance Name and DNS Domain Name it drives the automatic FQDN proposals (workbook pattern: sfo-m01-vc01.sfo.rainpole.io for instance components, flt-*.rainpole.io for fleet components, sfo01-m01-r01-esx01.sfo.rainpole.io for hosts).' },
+          { key:'fqdnAutoPropose', label:'Auto-propose FQDNs', type:'toggle', options:['Selected','Unselected'], sample:'Selected',
+            notes:'Selected: every empty FQDN field (and every field still holding a previous proposal) is pre-filled from Region / Site Code + Instance Name + DNS Domain Name, following the workbook naming. Values you type yourself are never overwritten. Unselected: no automatic proposals.' },
         ]
       },
       {
@@ -179,6 +218,16 @@ export const ALL_PAGES = [
             calc:(f)=>f.deploymentType==='VMware Cloud Foundation'?'Included':'Excluded (VVF does not include NSX)' },
           { key:'_drVisible',     label:'DR / Recovery Steps',   type:'readonly',
             calc:(f)=>f.deploymentType==='VMware Cloud Foundation'?'Included':'Excluded' },
+          { key:'_topologyResult', label:'Cluster Topology', type:'readonly',
+            calc:(f)=>{
+              if (isVmsc(f)) {
+                const st=f.principalStorage||''
+                const ok = !st || st.includes('FC') || st==='NFSv3'
+                return 'vMSC — Stretch all Layer-2 Networks (KB 417356): same VLAN ID / subnet for every network in both AZs, no witness, no per-AZ networks; hosts AZ1 + AZ2 in one list' + (ok?'':' — ⚠ principal storage must be VMFS on FC or NFSv3 (currently '+st+')')
+              }
+              if (isVsanStretched(f)) return 'vSAN stretched — per-AZ host networks (ESX Mgmt, vMotion, vSAN, Host TEP), VM Management stretched, vSAN witness at a third site (Configure Management Domain → vSAN Stretched Cluster)' + (f.principalStorage && !f.principalStorage.startsWith('vSAN') ? ' — ⚠ principal storage must be vSAN' : '')
+              return 'Single site'
+            } },
         ]
       }
     ]
@@ -287,12 +336,12 @@ export const ALL_PAGES = [
         fields:[
           { key:'domainName',      label:'DNS Domain Name',          type:'text', sample:'rainpole.io', required:true, notes:'Root DNS domain for the environment' },
           { key:'subDomainName',   label:'Child Domain Name',        type:'text', sample:'sfo.rainpole.io', required:true, notes:'Site-specific subdomain' },
-          { key:'vcfSddcFqdn',     label:'SDDC Manager FQDN',        type:'text', sample:'sfo-m01-sddc01.sfo.rainpole.io', required:true },
-          { key:'vcfSddcIp',       label:'SDDC Manager IP',          type:'ip',   sample:'10.11.10.4', required:true },
-          { key:'ntpServer1',      label:'NTP Server 1',             type:'text', sample:'ntp.sfo.rainpole.io', required:true },
-          { key:'ntpServer2',      label:'NTP Server 2 (optional)',  type:'text', sample:'' },
-          { key:'dnsServer1',      label:'DNS Server 1',             type:'ip',   sample:'10.11.0.2', required:true },
-          { key:'dnsServer2',      label:'DNS Server 2 (optional)',  type:'ip',   sample:'10.11.0.3' },
+          { key:'vcfSddcFqdn',     label:'SDDC Manager FQDN',        type:'text', sample:'sfo-vcf01.sfo.rainpole.io', required:true },
+          { key:'vcfSddcIp',       label:'SDDC Manager IP',          type:'ip',   sample:'10.11.10.13', required:true },
+          { key:'ntpServer1',      label:'NTP Server 1',             type:'text', sample:'ntp0.sfo.rainpole.io', required:true },
+          { key:'ntpServer2',      label:'NTP Server 2 (optional)',  type:'text', sample:'ntp1.sfo.rainpole.io' },
+          { key:'dnsServer1',      label:'DNS Server 1',             type:'ip',   sample:'10.11.10.4', required:true },
+          { key:'dnsServer2',      label:'DNS Server 2 (optional)',  type:'ip',   sample:'10.11.10.5' },
           { key:'autoGenPw',       label:'Auto-generate passwords for newly installed appliances', type:'toggle', options:['Selected','Unselected'], sample:'Selected',
             notes:'Workbook default — appliance passwords are system-generated at bring-up and managed via VCF Operations Password Management afterwards. Set to Unselected to specify your own; exceptions that always need a value: the ESXi root password (existing host credential), the SDDC Manager root/admin passwords when it is deployed on the management hosts, the vCenter root and SSO admin passwords, the VSP/Cloud Proxy system user password, the NSX Manager admin/audit/root passwords, and the VCF Operations admin password (VCF Installer does not auto-generate any of these at bring-up).' },
         ]
@@ -305,7 +354,8 @@ export const ALL_PAGES = [
           { key:'esxiRootPw',    label:'ESXi Root Password (all hosts)', type:'password', sample:'VMw@re1!', required:true,
             showWhen:f=>f.esxiRootPwMode!=='Different per host',
             notes:'Existing host credential — never auto-generated. Used for every management cluster host unless "Different per host" is selected above.' },
-          ...makeHostFields(16,'m01','10.11.10','1110'),
+          // Workbook Deploy Management Domain K82:K97 (sfo01-m01-r01-esxNN.sfo.rainpole.io) / K395:K410 (10.11.11.101+, on the ESX Management network)
+          ...makeHostFields(16,'m01','10.11.11','1111', { fqdnFn:(i,pad)=>`sfo01-m01-r01-esx${pad}.sfo.rainpole.io`, ipFn:i=>`10.11.11.${100+i}`, visibleFn:(f,i)=>i<=mgmtHostRows(f) }),
           ...Array.from({length:16}, (_,idx) => {
             const i = idx+1
             return { key:`m01Host${i}Pw`, label:`Host ${i} Root Password`, type:'password', sample:'VMw@re1!', required: i<=4,
@@ -318,27 +368,63 @@ export const ALL_PAGES = [
         fields:[
           // No IP range fields here — the workbook asks the management networks for VLAN / MTU /
           // gateway CIDR only (host IPs are per-host, appliance IPs are discrete fields).
-          ...makeNetFields('esxMgmt',   'ESX Management',    1110, '10.11.10.1', '10.11.10.0/24', 1500, false),
-          ...makeNetFields('vmMgmt',    'VM Management',     1111, '10.11.11.1', '10.11.11.0/24', 1500, false),
-          { key:'vcfMgmtInclude', label:'Dedicated VCF Management Network', type:'toggle', options:['Include','Exclude'], sample:'Exclude',
-            notes:'Optional — the workbook masks these inputs out unless you use a separate and dedicated network for VCF Management components. Excluded: the management components land on the VM Management network.' },
-          ...makeNetFields('vcfMgmt',   'VCF Management',    1112, '10.11.12.1', '10.11.12.0/24', 1500, false).map(fld => ({ ...fld, showWhen:f=>f.vcfMgmtInclude==='Include' })),
+          // Samples = workbook "Deploy Management Domain" K Sample column (25-Jun-2026 rev.):
+          // ESX Mgmt K102/K104 = 1111 · 10.11.11.1/24, VM Mgmt K107/K109 = 1110 · 10.11.10.1/24,
+          // VCF Mgmt K112/K114 = 1199 · 10.11.99.1/24, vMotion K125 = 1112, vSAN K133 = 1113,
+          // NFS K141 = 1115, Host Overlay K147 = 1114.
+          ...makeNetFields('esxMgmt',   'ESX Management',    1111, '10.11.11.1', '10.11.11.0/24', 1500, false),
+          ...makeNetFields('vmMgmt',    'VM Management',     1110, '10.11.10.1', '10.11.10.0/24', 1500, false),
+          { key:'vcfMgmtInclude', label:'Dedicated VCF Management Network (your choice)', type:'toggle', options:['Include','Exclude'], sample:'Exclude',
+            notes:'Your design choice — the planner does not impose one. Include: VCF Management components (VCF Operations, Management Services runtime, VCF Automation…) get their own network (VLAN / gateway below). Exclude: they land on the VM Management network. Note: the Broadcom workbook samples use a dedicated VCF Management network (Deploy Management Domain L46 "Use a separate dedicated network" — VLAN 1199, 10.11.99.0/24, K112/K114), which is why the VCF Operations / Management Services sample IPs are 10.11.99.x.' },
+          ...makeNetFields('vcfMgmt',   'VCF Management',    1199, '10.11.99.1', '10.11.99.0/24', 1500, false).map(fld => ({ ...fld, showWhen:f=>f.vcfMgmtInclude==='Include' })),
+        ]
+      },
+      {
+        title:'VCF Management Services & VCF Automation IP Ranges',
+        description:'Workbook "Deploy Management Domain" J116–J118 (VCF Management Services IP Range) and J121–J123 (VCF Automation IP Range), on the VCF Management network (or the VM Management network when no dedicated VCF Management network is used). The FQDNs of these services (and their own IPs) are on Fleet Management Day-N → VCF Management Services / VCF Automation.',
+        fields:[
+          { key:'vcfSvcRangeStart', label:'VCF Management Services IP Range — From', type:'ip', sample:'10.11.99.31', required:true,
+            notes:'Workbook K117 "Range From". First address of the VCF services runtime node range. Exported as vspClusterSpec.ipv4Pool in the VCF Installer JSON.' },
+          { key:'vcfSvcRangeEnd',   label:'VCF Management Services IP Range — To',   type:'ip', sample:'10.11.99.45', required:true,
+            notes:'Workbook K118 "Range To". Minimum 12 IPs for the current scope or 30 IPs to allow for more components and auto-scaling (workbook M117; VVF: 10).' },
+          { key:'_vcfSvcRangeCheck', label:'Management Services range size check', type:'readonly',
+            calc:(f, sizing)=>{
+              const a=ipToN(f.vcfSvcRangeStart), b=ipToN(f.vcfSvcRangeEnd)
+              const logs = f.vcfLogsInclude==='Include' ? 6 + 2*Math.max(0, parseInt(f.vcfLogsReplicaCount||'1',10)-1) : 0
+              const rtm = sizing && sizing.components && sizing.components.realtime_metrics ? 6 : 0
+              const base = f.deploymentType==='VMware vSphere Foundation' ? 10 : 12
+              const need = base + logs + rtm
+              const detail = `${base} base${logs?` + ${logs} Log Management`:''}${rtm?' + 6 Real-time Metrics':''}`
+              if (a===null || b===null) return `Required: ${need} IPs (${detail}); 30 recommended`
+              const size = b - a + 1
+              if (size <= 0) return '⚠ Range To is before Range From'
+              return size < need ? `⚠ ${size} IPs in range — ${need} required (${detail})` : `OK — ${size} IPs in range (${need} required${size<30?', 30 recommended':''})`
+            } },
+          { key:'vcfAutoRangeStart', label:'VCF Automation IP Range — From', type:'ip', sample:'10.11.99.46',
+            showWhen:f=>f.deploymentType!=='VMware vSphere Foundation',
+            notes:'Workbook K122. IP range for the nodes of the VCF services runtime for VCF Automation — leave empty if VCF Automation is not deployed.' },
+          { key:'vcfAutoRangeEnd',   label:'VCF Automation IP Range — To',   type:'ip', sample:'10.11.99.50',
+            showWhen:f=>f.deploymentType!=='VMware vSphere Foundation',
+            notes:'Workbook K123 — 5 addresses: 4 are used for active nodes, and 1 is used when recreating a node during rolling upgrades (M123).' },
+          { key:'_vcfAutoRangeCheck', label:'VCF Automation range size check', type:'readonly',
+            showWhen:f=>f.deploymentType!=='VMware vSphere Foundation' && !!(f.vcfAutoRangeStart||f.vcfAutoRangeEnd),
+            calc:(f)=>{ const a=ipToN(f.vcfAutoRangeStart), b=ipToN(f.vcfAutoRangeEnd); if (a===null||b===null) return 'Enter both From and To'; const n=b-a+1; return n<=0 ? '⚠ Range To is before Range From' : n<5 ? `⚠ ${n} IPs — 5 required (4 active + 1 spare)` : `OK — ${n} IPs (5 required)` } },
         ]
       },
       {
         title:'Networks — vMotion, vSAN & Overlay',
         fields:[
-          ...makeNetFields('vmotion',   'vMotion',   1113, '10.11.13.1', '10.11.13.0/24', 9000, true),
-          ...withShowWhen(makeNetFields('vsan1', 'vSAN', 1114, '10.11.14.1', '10.11.14.0/24', 9000, true),
+          ...makeNetFields('vmotion',   'vMotion',   1112, '10.11.12.1', '10.11.12.0/24', 9000, true),
+          ...withShowWhen(makeNetFields('vsan1', 'vSAN', 1113, '10.11.13.1', '10.11.13.0/24', 9000, true),
             f=>!f.principalStorage||f.principalStorage.startsWith('vSAN')),
-          ...makeNetFields('overlay',   'Overlay (TEP)', 1116, '10.11.16.1', '10.11.16.0/24', 9000, true),
+          ...makeNetFields('overlay',   'Overlay (TEP)', 1114, '10.11.14.1', '10.11.14.0/24', 9000, true),
         ]
       },
       {
         title:'vCenter Server',
         fields:[
           { key:'vcMgmtFqdn',    label:'vCenter FQDN',              type:'text', sample:'sfo-m01-vc01.sfo.rainpole.io', required:true },
-          { key:'vcMgmtIp',      label:'vCenter IP',                type:'ip',   sample:'10.11.10.3', required:true },
+          { key:'vcMgmtIp',      label:'vCenter IP',                type:'ip',   sample:'10.11.10.70', required:true },
           { key:'vcMgmtSize',    label:'vCenter Appliance Size',    type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-1/design/vmware-cloud-foundation-concepts/vcf-fleet-sizing-models(1).html', docLabel:'VCF Fleet Sizing Models (TechDocs)', options:['Tiny','Small','Medium','Large','XLarge'], sample:'Medium', required:true },
           { key:'vcSsoDomain',   label:'SSO Domain',                type:'text', sample:'vsphere.local', required:true },
           { key:'vcSsoAdminPw',  label:'SSO Admin Password',        type:'password', sample:'VMw@re1!VMw@re1!', required:true, notes:'Always required — VCF Installer does not auto-generate this password at bring-up time (min 8 chars, complexity required).' },
@@ -353,7 +439,7 @@ export const ALL_PAGES = [
       {
         title:'SDDC Manager',
         fields:[
-          { key:'sddcHostname',  label:'SDDC Manager Hostname',    type:'text', sample:'sfo-m01-sddc01', required:true },
+          { key:'sddcHostname',  label:'SDDC Manager Hostname',    type:'text', sample:'sfo-vcf01', required:true },
           { key:'sddcAdminPw',   label:'Admin Password',           type:'password', sample:'VMw@re1!VMw@re1!', required:true,
             notes:'Always required — VCF Installer does not auto-generate this password at bring-up time even when "Auto-generate passwords" is selected, and regardless of SDDC Manager Location.' },
           { key:'sddcRootPw',    label:'Root Password',            type:'password', sample:'VMw@re1!VMw@re1!', required:true,
@@ -368,25 +454,25 @@ export const ALL_PAGES = [
           { key:'vcfOpsHaMode',      label:'VCF Operations Deployment Model', type:'select', options:['Single Node','HA Cluster'], sample:'HA Cluster',
             notes:'Workbook "Deployment model": Simple (single node) or High Availability (Three-Node). Applies to newly deployed VCF Operations appliances.' },
           { key:'vcfOpsPrimaryFqdn', label:'VCF Operations Primary Node FQDN', type:'text', sample:'flt-ops01a.rainpole.io', required:true },
-          { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.10.52' },
+          { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.99.52' },
           { key:'vcfOpsReplicaFqdn', label:'VCF Operations Replica Node FQDN', type:'text', sample:'flt-ops01b.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
-          { key:'vcfOpsReplicaIp',   label:'VCF Operations Replica Node IP',   type:'ip',   sample:'10.11.10.53', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsReplicaIp',   label:'VCF Operations Replica Node IP',   type:'ip',   sample:'10.11.99.53', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
           { key:'vcfOpsDataFqdn',    label:'VCF Operations Data Node FQDN',    type:'text', sample:'flt-ops01c.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
-          { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.10.54', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.99.54', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
           { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'flt-ops01.rainpole.io', showWhen:f=>f.vcfOpsHaMode==='HA Cluster',
             notes:'Optional — VCF Operations has no built-in cluster/floating IP (without a load balancer you reach the cluster via the node FQDNs); a load-balancer VIP must come from an external load balancer (never provided by VCF).' },
-          { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.10.21', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
+          { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.99.21', showWhen:f=>f.vcfOpsHaMode==='HA Cluster' },
           { key:'vcfOpsSize',        label:'VCF Operations Size',              type:'select', options:['Small','Medium','Large'], sample:'Small' },
           { key:'vcfOpsAdminPw',     label:'Admin Password',                   type:'password', sample:'VMw@re1!VMw@re1!', required:true,
             notes:'Always required — VCF Installer does not auto-generate this password at bring-up time even when "Auto-generate passwords" is selected.' },
           { key:'vcfOpsRootPw',      label:'Root User Password',               type:'password', sample:'VMw@re1!VMw@re1!', required:true,
             notes:'Always required — VCF Installer does not auto-generate this password at bring-up time. Applies to every VCF Operations node (Primary/Replica/Data share one root credential from the appliance template).' },
-          { key:'vcfOpsCollectorInclude', label:'Deploy VCF Operations Remote Collector', type:'toggle', options:['Include','Exclude'], sample:'Include',
-            notes:'Lightweight appliance that collects metrics for VCF Operations from a remote/isolated site and forwards them to the main cluster. Included by default; set to Exclude to skip it.' },
-          { key:'vcfOpsCollectorFqdn', label:'VCF Operations Collector FQDN', type:'text', sample:'flt-ops-col01.rainpole.io', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
-          { key:'vcfOpsCollectorIp',   label:'VCF Operations Collector IP',   type:'ip',   sample:'10.11.10.55', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
-          { key:'vcfOpsCollectorSize', label:'VCF Operations Collector Size', type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
-          { key:'vcfOpsCollectorPw',   label:'VCF Operations Collector Root Password', type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude'&&f.autoGenPw==='Unselected' },
+          { key:'vcfOpsCollectorInclude', label:'Deploy Cloud Proxy (VCF Operations Collector)', type:'toggle', options:['Include','Exclude'], sample:'Include',
+            notes:'Workbook K163 / K377 — the VCF Operations cloud proxy (collector) deployed at bring-up (VCF Installer vcfOperationsCollectorSpec). Since v1.2.0 this is the single Cloud Proxy entry of the planner (the former separate "Cloud Proxy (VCF Operations)" section was merged here). Included by default; set to Exclude to skip it.' },
+          { key:'vcfOpsCollectorFqdn', label:'Cloud Proxy (Collector) FQDN', type:'text', sample:'sfo-cp01.sfo.rainpole.io', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
+          { key:'vcfOpsCollectorIp',   label:'Cloud Proxy (Collector) IP',   type:'ip',   sample:'10.11.10.12', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
+          { key:'vcfOpsCollectorSize', label:'Cloud Proxy (Collector) Size', type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
+          { key:'vcfOpsCollectorPw',   label:'Cloud Proxy (Collector) Root Password', type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude'&&f.autoGenPw==='Unselected' },
         ]
       },
       {
@@ -395,13 +481,13 @@ export const ALL_PAGES = [
         showWhen: f => f.deploymentType==='VMware Cloud Foundation',
         fields:[
           { key:'nsxMgr1Fqdn',   label:'NSX Manager 1 FQDN',      type:'text', sample:'sfo-m01-nsx01a.sfo.rainpole.io', required:true },
-          { key:'nsxMgr1Ip',     label:'NSX Manager 1 IP',         type:'ip',   sample:'10.11.10.71', required:true },
+          { key:'nsxMgr1Ip',     label:'NSX Manager 1 IP',         type:'ip',   sample:'10.11.10.72', required:true },
           { key:'nsxMgr2Fqdn',   label:'NSX Manager 2 FQDN',      type:'text', sample:'sfo-m01-nsx01b.sfo.rainpole.io' },
-          { key:'nsxMgr2Ip',     label:'NSX Manager 2 IP',         type:'ip',   sample:'10.11.10.72' },
+          { key:'nsxMgr2Ip',     label:'NSX Manager 2 IP',         type:'ip',   sample:'10.11.10.73' },
           { key:'nsxMgr3Fqdn',   label:'NSX Manager 3 FQDN',      type:'text', sample:'sfo-m01-nsx01c.sfo.rainpole.io' },
-          { key:'nsxMgr3Ip',     label:'NSX Manager 3 IP',         type:'ip',   sample:'10.11.10.73' },
+          { key:'nsxMgr3Ip',     label:'NSX Manager 3 IP',         type:'ip',   sample:'10.11.10.74' },
           { key:'nsxVipFqdn',    label:'NSX Cluster VIP FQDN',     type:'text', sample:'sfo-m01-nsx01.sfo.rainpole.io', required:true },
-          { key:'nsxVipIp',      label:'NSX Cluster VIP IP',       type:'ip',   sample:'10.11.10.74', required:true },
+          { key:'nsxVipIp',      label:'NSX Cluster VIP IP',       type:'ip',   sample:'10.11.10.71', required:true },
           { key:'nsxAdminPw',    label:'NSX Admin Password',       type:'password', sample:'VMw@re1!VMw@re1!', required:true },
           { key:'nsxAuditPw',    label:'NSX Audit Password',       type:'password', sample:'VMw@re1!VMw@re1!', required:true },
           { key:'nsxRootPw',     label:'NSX Manager Root Password', type:'password', sample:'VMw@re1!VMw@re1!', required:true,
@@ -414,21 +500,21 @@ export const ALL_PAGES = [
         showWhen: f => f.deploymentType==='VMware Cloud Foundation',
         fields:[
           { key:'nsxEdgeInclude', label:'Deploy NSX Edge Nodes',    type:'toggle', options:['Include','Exclude'], sample:'Include' },
-          { key:'nsxEdge1Fqdn',   label:'NSX Edge 1 FQDN',         type:'text', sample:'sfo-m01-nsx01-edge01.sfo.rainpole.io', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'nsxEdge1Ip',     label:'NSX Edge 1 Mgmt IP',      type:'ip',   sample:'10.11.10.81', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'nsxEdge2Fqdn',   label:'NSX Edge 2 FQDN',         type:'text', sample:'sfo-m01-nsx01-edge02.sfo.rainpole.io', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'nsxEdge2Ip',     label:'NSX Edge 2 Mgmt IP',      type:'ip',   sample:'10.11.10.82', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdge1Fqdn',   label:'NSX Edge 1 FQDN',         type:'text', sample:'sfo-m01-en01.sfo.rainpole.io', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdge1Ip',     label:'NSX Edge 1 Mgmt IP',      type:'ip',   sample:'10.11.10.75', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdge2Fqdn',   label:'NSX Edge 2 FQDN',         type:'text', sample:'sfo-m01-en02.sfo.rainpole.io', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdge2Ip',     label:'NSX Edge 2 Mgmt IP',      type:'ip',   sample:'10.11.10.76', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdgeSize',      label:'NSX Edge Appliance Size',  type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-9-0-and-later/9-0/advanced-network-management/administration-guide/installing-nsx-edge/edge-vm-system-requirements.html', docLabel:'NSX Edge VM System Requirements (TechDocs)', options:['Excluded','NSX Edge Small','NSX Edge Medium','NSX Edge Large','NSX Edge XLarge','VNA Small','VNA Medium','VNA Large','VNA XLarge'], sample:'NSX Edge Large', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'edgeHaMode',     label:'Edge HA Mode',             type:'select', options:['Active-Active','Active-Standby'], sample:'Active-Active', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'edgeTepVlan',    label:'TEP VLAN ID',              type:'number', sample:'1116', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'edgeTepIpStart', label:'TEP IP Pool Start',        type:'ip',     sample:'10.11.16.100', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'edgeTepIpEnd',   label:'TEP IP Pool End',          type:'ip',     sample:'10.11.16.200', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'edge1UplinkVlan1', label:'Edge 1 Uplink VLAN 1',  type:'number', sample:'2711', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'edge1UplinkVlan2', label:'Edge 1 Uplink VLAN 2',  type:'number', sample:'2712', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'edge2UplinkVlan1', label:'Edge 2 Uplink VLAN 1',  type:'number', sample:'2711', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'edge2UplinkVlan2', label:'Edge 2 Uplink VLAN 2',  type:'number', sample:'2712', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'nsxEdgeUplink1Vlan', label:'Edge Uplink 1 VLAN',  type:'number', sample:'2711', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-          { key:'nsxEdgeUplink2Vlan', label:'Edge Uplink 2 VLAN',  type:'number', sample:'2712', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edgeTepVlan',    label:'TEP VLAN ID',              type:'number', sample:'1119', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edgeTepIpStart', label:'TEP IP Pool Start',        type:'ip',     sample:'10.11.19.2', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edgeTepIpEnd',   label:'TEP IP Pool End',          type:'ip',     sample:'10.11.19.5', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edge1UplinkVlan1', label:'Edge 1 Uplink VLAN 1',  type:'number', sample:'1117', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edge1UplinkVlan2', label:'Edge 1 Uplink VLAN 2',  type:'number', sample:'1118', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edge2UplinkVlan1', label:'Edge 2 Uplink VLAN 1',  type:'number', sample:'1117', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'edge2UplinkVlan2', label:'Edge 2 Uplink VLAN 2',  type:'number', sample:'1118', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgeUplink1Vlan', label:'Edge Uplink 1 VLAN',  type:'number', sample:'1117', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
+          { key:'nsxEdgeUplink2Vlan', label:'Edge Uplink 2 VLAN',  type:'number', sample:'1118', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdgeBgpAsn',  label:'Edge BGP ASN',            type:'number', sample:'65101', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
           { key:'nsxEdgeAutoGenPw', label:'Auto generate passwords with VCF to manage Edge nodes', type:'toggle', options:['Selected','Unselected'], sample:'Selected', showWhen:f=>f.nsxEdgeInclude!=='Exclude',
             notes:'Workbook: Edge passwords are masked out when deploying with system-generated passwords' },
@@ -443,7 +529,7 @@ export const ALL_PAGES = [
               ? ['Default','Storage Traffic Separation','NSX Traffic Separation','Storage Traffic and NSX Traffic Separation','Custom Switch Configuration']
               : ['Default','Storage Traffic Separation','Custom Switch Configuration'],
             sample:'Default', required:true, notes:'Determines which VDS switches are deployed' },
-          { key:'dvsName',        label:'Primary VDS Name',         type:'text',   sample:'sfo-m01-cl01-dvs01', required:true },
+          { key:'dvsName',        label:'Primary VDS Name',         type:'text',   sample:'sfo-m01-cl01-vds01', required:true },
           { key:'dvsMtu',         label:'MTU',                      type:'number', sample:'9000' },
           { key:'dvsUplinkPolicy',label:'Teaming Policy (default)', type:'select',
             options:['Route based on IP hash','Route based on source MAC hash','Route based on source port ID','Use explicit failover order','Route Based on Physical NIC Load'],
@@ -519,15 +605,6 @@ export const ALL_PAGES = [
           { key:'apiNsxSize',     label:'NSX Manager Size (API)',   type:'select', docLink:'https://techdocs.broadcom.com/us/en/vmware-cis/nsx/vmware-nsx/9-0/nsx-manager-and-host-transport-node-system-requirements.html', docLabel:'NSX Manager System Requirements (TechDocs)', options:['Small','Medium','Large','XLarge'], sample:'Small' },
         ]
       },
-      {
-        title:'Cloud Proxy (VCF Operations)', amber:true,
-        fields:[
-          { key:'cloudProxyInclude', label:'Deploy Cloud Proxy',        type:'toggle',   options:['Include','Exclude'], sample:'Exclude' },
-          { key:'cloudProxyFqdn',    label:'Cloud Proxy FQDN',          type:'text',     sample:'sfo-m01-cpxy01.sfo.rainpole.io', showWhen:f=>f.cloudProxyInclude==='Include' },
-          { key:'cloudProxyIp',      label:'Cloud Proxy IP',            type:'ip',       sample:'10.11.10.91', showWhen:f=>f.cloudProxyInclude==='Include' },
-          { key:'cloudProxyPw',      label:'Cloud Proxy Root Password', type:'password', sample:'VMw@re1!VMw@re1!', showWhen:f=>f.cloudProxyInclude==='Include'&&f.autoGenPw==='Unselected' },
-        ]
-      },
     ]
   },
 
@@ -581,10 +658,10 @@ export const ALL_PAGES = [
           { key:'nsxConnectivity', label:'NSX Connectivity Type',   type:'select', options:['Exclude','Centralized Connectivity','Distributed Connectivity'], sample:'Centralized Connectivity' },
           { key:'nsxRoutingProtocol', label:'Routing Protocol',     type:'select', options:['BGP','STATIC'], sample:'BGP', showWhen:f=>f.nsxConnectivity&&f.nsxConnectivity!=='Exclude' },
           { key:'nsxT0Name',      label:'Tier-0 Gateway Name',      type:'text',   sample:'sfo-m01-ec01-t0-gw01', showWhen:f=>f.nsxConnectivity&&f.nsxConnectivity!=='Exclude' },
-          { key:'nsxT0Asn',       label:'Tier-0 BGP ASN',           type:'number', sample:'65001', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
-          { key:'nsxUpstreamAsn', label:'Upstream BGP ASN',         type:'number', sample:'65000', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
+          { key:'nsxT0Asn',       label:'Tier-0 BGP ASN',           type:'number', sample:'65101', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
+          { key:'nsxUpstreamAsn', label:'Upstream BGP ASN',         type:'number', sample:'65111', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
           { key:'nsxUpstreamIp1', label:'Upstream Peer IP 1',       type:'ip',     sample:'10.11.17.1', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
-          { key:'nsxUpstreamIp2', label:'Upstream Peer IP 2',       type:'ip',     sample:'10.11.17.2', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
+          { key:'nsxUpstreamIp2', label:'Upstream Peer IP 2',       type:'ip',     sample:'10.11.18.1', showWhen:f=>f.nsxRoutingProtocol==='BGP' },
           { key:'nsxExtIpBlock',  label:'External IP Block CIDR',   type:'cidr',   sample:'192.168.11.0/24', showWhen:f=>f.nsxConnectivity&&f.nsxConnectivity!=='Exclude' },
         ]
       },
@@ -654,12 +731,13 @@ export const ALL_PAGES = [
           ...makeNetFields('az2EsxMgmt', 'AZ2 ESX Management', 1211, '10.12.11.1', '10.12.11.0/24', 1500, false).map(fld => ({ ...fld, showWhen:f=>f.vsanStretchInclude==='Include' })),
           ...makeNetFields('az2Vmotion', 'AZ2 vMotion',        1212, '10.12.12.1', '10.12.12.0/24', 9000, true).map(fld => ({ ...fld, showWhen:f=>f.vsanStretchInclude==='Include' })),
           ...makeNetFields('az2Vsan',    'AZ2 vSAN',           1213, '10.12.13.1', '10.12.13.0/24', 9000, true).map(fld => ({ ...fld, showWhen:f=>f.vsanStretchInclude==='Include' })),
-          { key:'az2OverlayVlan',     label:'AZ2 Host Overlay VLAN',       type:'number', sample:'1414', required:true, showWhen:f=>f.vsanStretchInclude==='Include', notes:'Per-AZ host TEP VLAN for the stretched cluster' },
+          { key:'az2OverlayVlan',     label:'AZ2 Host Overlay VLAN',       type:'number', sample:'1214', required:true, showWhen:f=>f.vsanStretchInclude==='Include', notes:'Per-AZ host TEP VLAN for the stretched cluster' },
           // AZ2 hosts — workbook: "Commission Hosts" (FQDNs) + per-host management IPs
-          ...makeHostFields(16,'az2','10.12.11','1211').map(fld => ({ ...fld, label:`AZ2 ${fld.label}`, showWhen:f=>f.vsanStretchInclude==='Include' })),
+          // Workbook Configure Management Domain C350:C365 (sfo02-m01-r01-esxNN.sfo.rainpole.io)
+          ...makeHostFields(16,'az2','10.12.11','1211', { fqdnFn:(i,pad)=>`sfo02-m01-r01-esx${pad}.sfo.rainpole.io`, ipFn:i=>`10.12.11.${100+i}` }).map((fld, idx) => ({ ...fld, label:`AZ2 ${fld.label}`, showWhen:f=>f.vsanStretchInclude==='Include' && Math.floor(idx/2)+1 <= az2HostRows(f) })),
           // vSAN witness at the third site — workbook: "Deploy and Configure vSAN Witness"
-          { key:'vsanWitnessHost',    label:'Witness Host FQDN',           type:'text', sample:'sfo-m01-witness01.rainpole.io', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
-          { key:'vsanWitnessIp',      label:'Witness Host Management IP',  type:'ip',   sample:'192.168.10.1', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
+          { key:'vsanWitnessHost',    label:'Witness Host FQDN',           type:'text', sample:'sfo-m01-cl01-vsw01.sfo.rainpole.io', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
+          { key:'vsanWitnessIp',      label:'Witness Host Management IP',  type:'ip',   sample:'10.21.10.218', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
           { key:'vsanWitnessVcFqdn',  label:'Witness Hosting vCenter FQDN', type:'text', sample:'lax-m01-vc01.lax.rainpole.io', required:true, showWhen:f=>f.vsanStretchInclude==='Include', notes:'vCenter Server outside AZ1 and AZ2 that hosts the vSAN witness' },
           { key:'vsanWitnessDns1',    label:'Witness DNS Server #1',       type:'ip',   sample:'10.21.10.4', required:true, showWhen:f=>f.vsanStretchInclude==='Include' },
           { key:'vsanWitnessDns2',    label:'Witness DNS Server #2',       type:'ip',   sample:'10.21.10.5', showWhen:f=>f.vsanStretchInclude==='Include', notes:'Should be in a different fault domain to DNS Server 1' },
@@ -692,13 +770,13 @@ export const ALL_PAGES = [
           { key:'vcfOpsAutoMode',  label:'Deploy VCF Operations / Automation', type:'select', options:['Exclude','Deploy VCF Operations and Automation','Deploy VCF Automation'], sample:'Exclude',
             notes:'Day-N (deferred) deployment only — VCF Operations itself is normally deployed at bring-up by the VCF Installer (see Deploy Management Domain → VCF Operations). "Deploy VCF Automation" deploys Automation only, using VCF Operations as its API transport — VCF Operations itself is not provisioned in that mode. Day-N deployment is API-only (SDDC Manager API / VCF JSON Generator).' },
           { key:'vcfOpsHaMode',    label:'VCF Operations HA Mode',  type:'select', options:['Single Node','HA Cluster'], sample:'HA Cluster', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-          { key:'vcfOpsPrimaryFqdn', label:'VCF Operations Primary Node FQDN', type:'text', sample:'sfo-m01-vrops01a.sfo.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
+          { key:'vcfOpsPrimaryFqdn', label:'VCF Operations Primary Node FQDN', type:'text', sample:'flt-ops01a.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
           { key:'vcfOpsPrimaryIp',   label:'VCF Operations Primary Node IP',   type:'ip',   sample:'10.11.99.52', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-          { key:'vcfOpsReplicaFqdn', label:'VCF Operations Replica Node FQDN', type:'text', sample:'sfo-m01-vrops01b.sfo.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
+          { key:'vcfOpsReplicaFqdn', label:'VCF Operations Replica Node FQDN', type:'text', sample:'flt-ops01b.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
           { key:'vcfOpsReplicaIp',   label:'VCF Operations Replica Node IP',   type:'ip',   sample:'10.11.99.53', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-          { key:'vcfOpsDataFqdn',    label:'VCF Operations Data Node FQDN',    type:'text', sample:'sfo-m01-vrops01c.sfo.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
+          { key:'vcfOpsDataFqdn',    label:'VCF Operations Data Node FQDN',    type:'text', sample:'flt-ops01c.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
           { key:'vcfOpsDataIp',      label:'VCF Operations Data Node IP',      type:'ip',   sample:'10.11.99.54', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-          { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'sfo-m01-vrops01.sfo.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation', notes:'Optional in Single Node mode — useful for connecting an external load balancer in HA Cluster mode' },
+          { key:'vcfOpsLbFqdn',      label:'VCF Operations Load Balancer FQDN', type:'text', sample:'flt-ops01.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation', notes:'Optional in Single Node mode — useful for connecting an external load balancer in HA Cluster mode' },
           { key:'vcfOpsLbIp',        label:'VCF Operations Load Balancer IP',  type:'ip',   sample:'10.11.99.21', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
           { key:'vcfOpsSize',      label:'VCF Operations Size',     type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
           { key:'vcfOpsAdminPw',   label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
@@ -706,21 +784,17 @@ export const ALL_PAGES = [
       },
       {
         title:'VCF Automation',
-        description:'VCF Automation 9.1 requires 1 FQDN for its VIP, 1 FQDN for its dedicated VCF Services Runtime, and a /29 block of 5 IPs for its nodes (separate from the fleet-level VCF Services Runtime IP block under VCF Management Services).',
+        description:'VCF Automation 9.1 requires 1 FQDN for its VIP, 1 FQDN for its dedicated VCF Services Runtime, and an IP range of 5 addresses for its nodes (4 for active nodes + 1 used when recreating a node during rolling upgrades) — that range is entered on Deploy Management Domain, as in the workbook (K122/K123).',
         fields:[
-          { key:'vcfAutoFqdn',     label:'VCF Automation FQDN (VIP)', type:'text',   sample:'sfo-m01-vra01.sfo.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
+          { key:'vcfAutoFqdn',     label:'VCF Automation FQDN (VIP)', type:'text',   sample:'flt-auto01.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
             notes:'1 FQDN for the VCF Automation VIP. Do not use capital letters in the FQDN (lowercase only).' },
           { key:'vcfAutoInstallType', label:'Installation Type', type:'select', options:['New','Import 8.x appliance'], sample:'New', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
           { key:'vcfAutoIp',       label:'VCF Automation IP (VIP)',  type:'ip',     sample:'10.11.99.25', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoSvcRuntimeFqdn', label:'VCF Automation — Dedicated VCF Services Runtime FQDN', type:'text', sample:'sfo-vra-sr01.sfo.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
+          { key:'vcfAutoSvcRuntimeFqdn', label:'VCF Automation — Dedicated VCF Services Runtime FQDN', type:'text', sample:'flt-vcfa-sr01.rainpole.io', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
             notes:'1 dedicated VCF Services Runtime FQDN for VCF Automation, separate from the fleet-level "VCF Services Runtime FQDN" under VCF Management Services. Do not use capital letters in the FQDN (lowercase only).' },
-          { key:'vcfAutoSvcRuntimeIp',   label:'VCF Automation — Dedicated VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.45', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoIpPool1',  label:'VCF Automation Node IP Pool — Address 1', type:'ip',   sample:'10.11.99.46', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
-            notes:'VCF Automation 9.1 nodes use a dedicated /29 block of 5 IP addresses (this field + the 4 below): 3 are assigned to the VCF Automation nodes and the remaining 2 are kept as a buffer for redeploy / rolling-update operations. By default the nodes are deployed on the VM management network; they can alternatively be placed on a dedicated VLAN via the fleet lifecycle API.' },
-          { key:'vcfAutoIpPool2',  label:'VCF Automation Node IP Pool — Address 2', type:'ip',   sample:'10.11.99.47', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoIpPool3',  label:'VCF Automation Node IP Pool — Address 3', type:'ip',   sample:'10.11.99.48', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoIpPool4',  label:'VCF Automation Node IP Pool — Address 4 (buffer)', type:'ip',   sample:'10.11.99.49', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
-          { key:'vcfAutoIpPool5',  label:'VCF Automation Node IP Pool — Address 5 (buffer)', type:'ip',   sample:'10.11.99.50', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
+          { key:'vcfAutoSvcRuntimeIp',   label:'VCF Automation — Dedicated VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.24', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
+          { key:'_vcfAutoRangeRef', label:'VCF Automation IP Range (From – To)', type:'readonly', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation',
+            calc:(f)=> (f.vcfAutoRangeStart||f.vcfAutoRangeEnd) ? `${f.vcfAutoRangeStart||'?'} – ${f.vcfAutoRangeEnd||'?'}  (set on Deploy Management Domain → VCF Management Services & VCF Automation IP Ranges)` : 'Not set — enter it on Deploy Management Domain → VCF Management Services & VCF Automation IP Ranges (workbook J121–J123)' },
           { key:'vcfAutoAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation' },
         ]
       },
@@ -742,22 +816,24 @@ export const ALL_PAGES = [
       },
       {
         title:'Log Management',
-        description:'Log Management (VCF Operations for Logs) requires 1 FQDN. Its IP addresses are not separate allocations in the Management VM Network or Fleet VLAN — they are drawn from the VCF Services Runtime IP block (see "VCF Services Runtime IP" under VCF Management Services): 6 IPs for the initial deployment, plus 2 IPs for every additional replica beyond the first (set via "Log Management Replicas" on the Management Domain Sizing page).',
+        description:'Workbook "Deploy Fleet Management Day-N" B130–B143 (VCF 9.1): Log Management is a service hosted on the VCF Services Runtime — no separate appliance per replica. The workbook asks for the Installation Type, one Log Management FQDN, the Node Size, the Number Of Replicas and the Cluster Virtual IP (FQDN + IP). There are no per-replica FQDN/IP inputs: replica nodes take their addresses from the VCF Management Services IP range (6 IPs for the initial deployment + 2 per additional replica — TechDocs "First VCF Instance FQDNs and IP addresses").',
         fields:[
           { key:'vcfLogsInclude',  label:'Include Log Management',  type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
-          { key:'vcfLogsHaMode',   label:'Log Management HA Mode',  type:'select', options:['Single Node','HA Cluster'], sample:'Single Node', showWhen:f=>f.vcfLogsInclude==='Include' },
-          { key:'vcfLogsFqdn',     label:'Log Management FQDN', type:'text',   sample:'sfo-m01-vrli01a.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include',
-            notes:'1 FQDN for Log Management. Do not use capital letters in the FQDN (lowercase only).' },
-          { key:'vcfLogsIp',       label:'Log Management IP',   type:'ip',     sample:'10.11.99.43', showWhen:f=>f.vcfLogsInclude==='Include',
-            notes:'First of the 6 IPs allocated from the VCF Services Runtime IP block for the initial Log Management deployment.' },
-          { key:'vcfLogsReplicaFqdn', label:'Log Management Replica Node FQDN', type:'text', sample:'sfo-m01-vrli01b.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
-          { key:'vcfLogsReplicaIp',   label:'Log Management Replica Node IP',   type:'ip',   sample:'10.11.99.44', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster',
-            notes:'Part of the same VCF Services Runtime IP block — each additional replica beyond the first consumes 2 more IPs from that block (1 for Small/Medium replicas, 2 for Large).' },
-          { key:'vcfLogsLbFqdn',      label:'Log Management Additional VIP FQDN', type:'text', sample:'sfo-m01-vrli01.sfo.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster',
-            notes:'Optional additional Virtual IP, created post-deployment on the Integrated Load Balancer tab of the Log Collection configuration. Its IP is also allocated from the VCF Services Runtime IP block, not a separate Management VM Network / Fleet VLAN address.' },
-          { key:'vcfLogsLbIp',        label:'Log Management Additional VIP IP',   type:'ip',   sample:'10.11.99.45', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
-          { key:'vcfLogsSize',     label:'Log Management Size',     type:'select', options:['Small','Medium','Large'], sample:'Small', showWhen:f=>f.vcfLogsInclude==='Include' },
-          { key:'vcfLogsAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfLogsInclude==='Include' },
+          { key:'vcfLogsInstallType', label:'Installation Type', type:'select', options:['New Install','Import'], sample:'New Install', showWhen:f=>f.vcfLogsInclude==='Include',
+            notes:'Workbook C133 (list D133: New Install / Import). Import = bring an existing VCF Operations for Logs instance under fleet management.' },
+          { key:'vcfLogsExistingFqdn', label:'FQDN for one of the existing Logs appliances', type:'text', sample:'xint-logs01.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsInstallType==='Import',
+            notes:'Workbook C135 — only for an Import (masked for a New Install).' },
+          { key:'vcfLogsFqdn',     label:'Log Management FQDN', type:'text',   sample:'flt-logs01.rainpole.io', showWhen:f=>f.vcfLogsInclude==='Include',
+            notes:'Workbook C138 — 1 FQDN for Log Management, whatever the number of replicas (also used as the Cluster Virtual IP FQDN, C142). Lowercase only.' },
+          { key:'vcfLogsSize',     label:'Node Size',     type:'select', options:['Small','Medium','Large'], sample:'Medium', showWhen:f=>f.vcfLogsInclude==='Include',
+            notes:'Workbook C139 (Medium = 12 vCPU / 24 GB RAM / 550 GB storage per replica).' },
+          { key:'vcfLogsReplicaCount', label:'Number Of Replicas', type:'select', options:Array.from({length:19},(_,i)=>String(i+1)), sample:'3', showWhen:f=>f.vcfLogsInclude==='Include',
+            notes:'Workbook C140 (1–19). Minimum per size: Small 1, Medium 3, Large 6. Each replica beyond the first consumes 2 more IPs from the VCF Management Services IP range — no per-replica FQDN/IP to enter.' },
+          { key:'_vcfLogsReplicaCheck', label:'Replica count check', type:'readonly', showWhen:f=>f.vcfLogsInclude==='Include',
+            calc:(f)=>{ const min={Small:1,Medium:3,Large:6}[f.vcfLogsSize||'Medium']||1; const n=parseInt(f.vcfLogsReplicaCount||'3',10); return n<min ? `⚠ ${f.vcfLogsSize||'Medium'} requires at least ${min} replicas` : `OK — ${n} replica(s), ${6+2*Math.max(0,n-1)} IPs from the Management Services range` } },
+          { key:'vcfLogsIp',       label:'Cluster Virtual IP — IP Address',   type:'ip',     sample:'10.11.10.26', showWhen:f=>f.vcfLogsInclude==='Include',
+            notes:'Workbook C143. The Cluster Virtual IP FQDN is the Log Management FQDN above (C142 = C138).' },
+          { key:'vcfLogsAdminPw',  label:'Admin Password',          type:'password', sample:'AUTO-GENERATED', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsInstallType==='Import' },
         ]
       },
       {
@@ -777,7 +853,7 @@ export const ALL_PAGES = [
         title:'Identity Broker (Workspace ONE / vIDM)',
         fields:[
           { key:'idBrokerInclude', label:'Include Identity Broker', type:'toggle', options:['Include','Exclude'], sample:'Exclude' },
-          { key:'idBrokerFqdn',    label:'Identity Broker FQDN',    type:'text', sample:'sfo-m01-idm01.sfo.rainpole.io', showWhen:f=>f.idBrokerInclude==='Include',
+          { key:'idBrokerFqdn',    label:'Identity Broker FQDN',    type:'text', sample:'flt-idb01.rainpole.io', showWhen:f=>f.idBrokerInclude==='Include',
             notes:'1 FQDN. In the First VCF Instance this is one of the required Day-0 FQDNs alongside the Fleet Components, Instance Components, and VCF Services Runtime FQDNs (VCF Management Services section below). Do not use capital letters in the FQDN (lowercase only).' },
           { key:'idBrokerIp',      label:'Identity Broker IP',      type:'ip',     sample:'10.11.99.23', showWhen:f=>f.idBrokerInclude==='Include' },
           { key:'idBrokerSize',    label:'Identity Broker Size',    type:'select', options:['Small','Medium','Large','Extra-Large'], sample:'Medium', showWhen:f=>f.idBrokerInclude==='Include' },
@@ -785,27 +861,23 @@ export const ALL_PAGES = [
       },
       {
         title:'VCF Management Services',
-        description:'Fleet- and instance-level lifecycle components hosted on the VCF Services Runtime: Fleet Components, Instance Components and VCF Services Runtime each need 1 FQDN/IP, allocated from the VCF Services Runtime IP block. That block must sit on the VCF Management Network and provide a minimum of 12 IPs (/28) for the initial deployment, up to a recommended maximum of 30 IPs (/27) to leave room for Day-N scale-out — Log Management and Real-time Metrics IPs are also drawn from this same block (see the Log Management section above). License Server has its own FQDN/IP on the VCF Management Network and is tracked separately — it is not part of the VCF Management Services FQDN set (Fleet Components, Instance Components, VCF Services Runtime, Identity Broker).',
+        description:'Workbook "Deploy Management Domain" J116–J118 (IP range From/To) and J167–J170 (FQDNs), IPs per the reference table K366–K372. Fleet Components, Instance Components, Identity Broker and VCF Services Runtime each need 1 FQDN with its own IP address (DNS record) outside the node range. The VCF Management Services IP range (Range From / Range To — entered on Deploy Management Domain, as in the workbook) hosts the runtime nodes: minimum 12 IPs for the current scope, 30 recommended to allow more components and auto-scaling (VVF: 10). Add 6 IPs for Log Management (+2 per extra replica) and 6 for Real-time Metrics when deployed.',
         fields:[
           { key:'fleetComponentsFqdn',    label:'Fleet Components FQDN',     type:'text', sample:'flt-fc01.rainpole.io',
-            notes:'1 FQDN to access the hosted fleet-level components which do not require a separate FQDN, for example, the fleet lifecycle component. Do not use capital letters in the FQDN (lowercase only).' },
-          { key:'fleetComponentsIp',      label:'Fleet Components IP',       type:'ip',   sample:'10.11.99.20' },
+            notes:'Workbook K167. 1 FQDN to access the hosted fleet-level components which do not require a separate FQDN, for example, the fleet lifecycle component. Lowercase only.' },
+          { key:'fleetComponentsIp',      label:'Fleet Components IP',       type:'ip',   sample:'10.11.99.20', notes:'Workbook K366 — DNS record for the FQDN above, outside the node range.' },
           { key:'instanceComponentsFqdn', label:'Instance Components FQDN',  type:'text', sample:'sfo-ic01.sfo.rainpole.io',
-            notes:'1 FQDN to access the hosted instance-level components which do not require a separate FQDN, for example, the SDDC lifecycle and real-time metrics components. Do not use capital letters in the FQDN (lowercase only).' },
-          { key:'instanceComponentsIp',   label:'Instance Components IP',    type:'ip',   sample:'10.11.99.11' },
+            notes:'Workbook K168. 1 FQDN to access the hosted instance-level components which do not require a separate FQDN, for example, the SDDC lifecycle and real-time metrics components. Lowercase only.' },
+          { key:'instanceComponentsIp',   label:'Instance Components IP',    type:'ip',   sample:'10.11.99.11', notes:'Workbook K367.' },
           { key:'vcfSvcRuntimeFqdn',      label:'VCF Services Runtime FQDN', type:'text', sample:'sfo-sr01.sfo.rainpole.io',
-            notes:'1 FQDN to access the VCF services runtime component to troubleshoot issues, restart components, etc. The hostname from this FQDN is prefixed to the names of its node VMs and related objects. Do not use capital letters in the FQDN (lowercase only).' },
+            notes:'Workbook K170. 1 FQDN to access the VCF services runtime component to troubleshoot issues, restart components, etc. The hostname from this FQDN is prefixed to the names of its node VMs and related objects. Lowercase only.' },
           { key:'vcfSvcRuntimeIp',        label:'VCF Services Runtime IP',   type:'ip',   sample:'10.11.99.10',
-            notes:'First address of the VCF Services Runtime IP block. The block must be on the VCF Management Network with a minimum of 12 IPs (/28) for the initial deployment; reserve up to 30 IPs (/27) if Day-N components and scale-out (additional Log Management replicas, Real-time Metrics, etc.) are planned.' },
-          { key:'vcfSvcRuntimeIpEnd',     label:'VCF Services Runtime IP Range End', type:'ip', sample:'10.11.99.30',
-            notes:'Last address of the VCF Services Runtime IP block (see VCF Services Runtime IP above for the first address). Minimum /28 (12 IPs), recommended /27 (30 IPs).' },
+            notes:'Workbook K369 — IP of the VCF Services Runtime FQDN (DNS record), outside the node range below.' },
+          { key:'_vcfSvcRangeRef', label:'VCF Management Services IP Range (From – To)', type:'readonly',
+            calc:(f)=> (f.vcfSvcRangeStart||f.vcfSvcRangeEnd) ? `${f.vcfSvcRangeStart||'?'} – ${f.vcfSvcRangeEnd||'?'}  (set on Deploy Management Domain → VCF Management Services & VCF Automation IP Ranges)` : 'Not set — enter it on Deploy Management Domain → VCF Management Services & VCF Automation IP Ranges (workbook J116–J118)' },
           { key:'licenseServerFqdn',      label:'License Server FQDN',       type:'text', sample:'flt-lc01.rainpole.io',
-            notes:'1 FQDN, fleet-level and portable, on the VCF Management Network. Separate from the VCF Management Services FQDN set above (Fleet Components, Instance Components, VCF Services Runtime, Identity Broker) — not allocated from the VCF Services Runtime IP block.' },
-          { key:'licenseServerIp',        label:'License Server IP',         type:'ip',   sample:'10.11.99.22' },
-          { key:'mgmtSvcAdditionalIp1', label:'Additional IP #1', type:'ip', sample:'10.11.99.30',
-            notes:'Spare IP addresses reserved within the VCF Services Runtime IP block (/28 minimum, /27 recommended) for future component scale-out — e.g. additional Log Management replicas, Real-time Metrics, or other fleet-/instance-level services added post-deployment.' },
-          { key:'mgmtSvcAdditionalIp2', label:'Additional IP #2', type:'ip', sample:'10.11.99.31' },
-          { key:'mgmtSvcAdditionalIp3', label:'Additional IP #3', type:'ip', sample:'10.11.99.32' },
+            notes:'1 FQDN, fleet-level and portable, on the VCF Management Network — not allocated from the node range.' },
+          { key:'licenseServerIp',        label:'License Server IP',         type:'ip',   sample:'10.11.99.22', notes:'Workbook K370.' },
           { key:'vcfMgmtSvcSshPw',        label:'VSP / Cloud Proxy System User Password', type:'password', sample:'VMw@re1!VMw@re1!', required:true,
             notes:'Shared credential for the vmware-system-user account on the VCF Services Runtime (VSP) and Cloud Proxy nodes. Always required — VCF Installer rejects a blank value here even when "Auto-generate passwords" is selected (min 15 chars).' },
         ]

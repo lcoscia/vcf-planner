@@ -289,6 +289,7 @@
       <div x-show="open" x-transition x-cloak class="tb-menu absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
         <button @click="importTrigger(); open=false" class="tb-menu-item">Import JSON<span class="tb-menu-item-desc">Load a previously exported JSON file</span></button>
         <button @click="importVcfInstallerTrigger(); open=false" class="tb-menu-item">Import VCF Installer JSON<span class="tb-menu-item-desc">Best-effort import of a SddcSpec JSON</span></button>
+        <button @click="importNetworkPlannerTrigger(); open=false" class="tb-menu-item">Import VCF Network Planner JSON<span class="tb-menu-item-desc">VLANs, subnets, ranges, hosts &amp; appliance FQDNs/IPs from a Network Planner project</span></button>
         <button @click="importExcelTrigger(); open=false" class="tb-menu-item">Import Excel Workbook<span class="tb-menu-item-desc">Pre-fill the form from a filled-in Broadcom Planning &amp; Preparation .xlsx</span></button>
       </div>
     </div>
@@ -311,6 +312,7 @@
     <button @click="confirmReset()" class="tb-action danger" title="Reset all data"><span x-html="iconSvg('reset',14)"></span>Reset</button>
     <input type="file" id="import-file" accept=".json" class="hidden" @change="importJSON($event)">
     <input type="file" id="import-vcf-installer-file" accept=".json" class="hidden" @change="importVcfInstallerJson($event)">
+    <input type="file" id="import-np-file" accept=".json" class="hidden" @change="importNetworkPlannerJson($event)">
     <input type="file" id="import-excel-file" accept=".xlsx" class="hidden" @change="importExcelWorkbook($event)">
     <span x-show="excelImporting" x-cloak class="inline-flex items-center gap-1 text-xs px-3" style="color:rgba(255,255,255,.7);"><span x-html="iconSvg('excel',13)"></span>Parsing workbook…</span>
     <div x-show="saveIndicator" x-transition class="inline-flex items-center gap-1 text-xs px-3" style="color:rgba(255,255,255,.7);"><span x-html="iconSvg('check',13)"></span>Saved</div>
@@ -320,12 +322,12 @@
 <!-- EXCEL IMPORT REPORT -->
 <div x-show="showExcelImportReport" x-cloak class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto" @click.outside="showExcelImportReport=false">
-    <h2 class="text-lg font-bold text-gray-800 mb-1">Excel Import Report</h2>
+    <h2 class="text-lg font-bold text-gray-800 mb-1" x-text="(excelImportReport && excelImportReport.source ? excelImportReport.source : 'Excel') + ' — Import Report'">Excel Import Report</h2>
     <p class="text-xs text-gray-500 mb-4" x-show="excelImportReport && excelImportReport.detectedVersion">
       Detected workbook version: <span class="font-semibold" x-text="excelImportReport && excelImportReport.detectedVersion"></span>
       — using the <span class="font-semibold" x-text="excelImportReport && excelImportReport.mapVersion"></span> field map
     </p>
-    <p class="text-xs text-orange-600 mb-4" x-show="excelImportReport && !excelImportReport.detectedVersion">
+    <p class="text-xs text-orange-600 mb-4" x-show="excelImportReport && !excelImportReport.detectedVersion && !excelImportReport.source">
       Couldn't determine the workbook version (no "Version History" sheet found) — assumed the <span class="font-semibold" x-text="excelImportReport && excelImportReport.mapVersion"></span> field layout. Review the results below carefully.
     </p>
     <template x-if="excelImportReport">
@@ -366,7 +368,7 @@
                   <span class="text-gray-700" x-text="item.key"></span>
                   <span class="text-gray-400" x-text="item.sheet + '!' + item.cell"></span>
                 </div>
-                <div class="text-gray-400" x-text="'Raw value: ' + item.rawValue + ' — ' + item.reason"></div>
+                <div class="text-gray-400" x-text="(excelImportReport.source ? 'Applied: ' : 'Raw value: ') + item.rawValue + ' — ' + item.reason"></div>
               </div>
             </template>
             <div class="px-2 py-1 text-gray-400" x-show="excelImportReport.ambiguous.length === 0">None</div>
@@ -1593,6 +1595,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.2.0<br><span class="text-gray-300">2026-10-08</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Field feedback: FQDN auto-proposal, stretched deployment scales, workbook-aligned VLANs, Log Management &amp; Management Services, Network Planner import</p>
+            <p><strong>FQDNs are proposed automatically</strong> from Region / Site Code, Instance Name and DNS Domain Name using the workbook naming (sfo-m01-vc01, flt-ops01a, sfo01-m01-r01-esx01…) — only empty fields are filled, your own values are never overwritten (toggle on the Planning page). <strong>Deployment Scale</strong> now offers vSAN stretched and vMSC (stretch all Layer-2 networks, KB 417356), and a <strong>Number of Hosts</strong> (and AZ2 hosts) drives the host rows and ESXi FQDNs. <strong>Deploy Management Domain samples and the Demo data now match the 25-Jun-2026 workbook</strong>: ESX Management 1111 and VM Management 1110 were swapped, and the other VLANs/subnets/IPs were off too (VCF Mgmt 1199, vMotion 1112, vSAN 1113, Host TEP 1114, Edge TEP 1119, uplinks 1117/1118, NSX VIP .71). <strong>Log Management</strong> asks only what the 9.1 workbook asks (1 FQDN, node size, number of replicas, cluster VIP) — no per-replica rows. <strong>VCF Management Services</strong> gets its own IP per FQDN, and the workbook's <strong>IP Range From / To</strong> — together with the <strong>VCF Automation IP Range From / To</strong> — now sits on Deploy Management Domain as in the workbook, with a range-size check (reminders stay visible on Fleet Management Day-N). <strong>Cloud Proxy</strong> and VCF Operations Collector are merged into a single entry (sfo-cp01). The <strong>Dedicated VCF Management Network</strong> remains your choice; its help now explains the workbook samples use a dedicated network. New <strong>Import → VCF Network Planner JSON</strong>. Saved plans are migrated automatically.</p>
+          </div>
+        </div>
+        <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.1.28<br><span class="text-gray-300">2026-09-04</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Removed the Welcome page's stale "Version History" mini-table</p>
@@ -2002,7 +2011,7 @@ const PORTS_ENDPOINT_MAP = {
     { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
   ],
   'VCF Operations Cloud Proxy': [
-    { fqdnKey:'cloudProxyFqdn', ipKey:'cloudProxyIp', label:'Cloud Proxy', showWhen:f=>f.cloudProxyInclude==='Include' },
+    { fqdnKey:'vcfOpsCollectorFqdn', ipKey:'vcfOpsCollectorIp', label:'Cloud Proxy (Collector)', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
   ],
   'VCF Operations for Networks Management IP address': [
     { fqdnKey:'vcfNetOpsFqdn', ipKey:'vcfNetOpsIp', label:'VCF Operations for Networks', showWhen:f=>f.vcfNetOpsInclude==='Include' },
@@ -2023,16 +2032,13 @@ const PORTS_ENDPOINT_MAP = {
     { fqdnKey:'ccmHcxFqdn', ipKey:'ccmHcxIp', label:'HCX Manager', showWhen:f=>f.ccmInclude==='Include' },
   ],
   'VCF Operations for Logs Management IP address': [
-    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management Primary', showWhen:f=>f.vcfLogsInclude==='Include' },
-    { fqdnKey:'vcfLogsLbFqdn', ipKey:'vcfLogsLbIp', label:'Log Management Additional VIP', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
+    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management (Cluster VIP)', showWhen:f=>f.vcfLogsInclude==='Include' },
   ],
   'VCF Operations for Logs cluster (internal)': [
-    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management Primary', showWhen:f=>f.vcfLogsInclude==='Include' },
-    { fqdnKey:'vcfLogsReplicaFqdn', ipKey:'vcfLogsReplicaIp', label:'Log Management Replica', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
+    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management (Cluster VIP)', showWhen:f=>f.vcfLogsInclude==='Include' },
   ],
   'VCF Operations for Logs CPLF': [
-    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management Primary', showWhen:f=>f.vcfLogsInclude==='Include' },
-    { fqdnKey:'vcfLogsReplicaFqdn', ipKey:'vcfLogsReplicaIp', label:'Log Management Replica', showWhen:f=>f.vcfLogsInclude==='Include' && f.vcfLogsHaMode==='HA Cluster' },
+    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management (Cluster VIP)', showWhen:f=>f.vcfLogsInclude==='Include' },
   ],
   'VCF Automation Management IP address': [
     { fqdnKey:'vcfAutoFqdn', ipKey:'vcfAutoIp', label:'VCF Automation', showWhen:f=>(f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation') },
@@ -2398,11 +2404,11 @@ function buildSddcManagerSpec(f) {
 }
 
 function buildVspClusterSpec(f) {
-  if (!f.vcfSvcRuntimeFqdn || !f.vcfSvcRuntimeIp) return null
+  if (!f.vcfSvcRuntimeFqdn || !f.vcfSvcRangeStart) return null
   return {
     platformFqdn: f.vcfSvcRuntimeFqdn,
     systemUserPassword: f.vcfMgmtSvcSshPw || '',
-    ipv4Pool: { ipRange: { startIpAddress: f.vcfSvcRuntimeIp, endIpAddress: f.vcfSvcRuntimeIpEnd || f.vcfSvcRuntimeIp } },
+    ipv4Pool: { ipRange: { startIpAddress: f.vcfSvcRangeStart, endIpAddress: f.vcfSvcRangeEnd || f.vcfSvcRangeStart } },
     size: 'small',
     internalClusterCidrIpv4: f.fleetCidr || '198.18.0.0/15',
     instanceFqdn: f.instanceComponentsFqdn,
@@ -2628,6 +2634,18 @@ function applyVcfOperationsSpec(spec, form, warnings) {
   warnings.push('VCF Operations node IPs, Load Balancer FQDN/IP, HA mode, and the admin password are not present in the VCF Installer JSON — enter them manually.')
 }
 
+function applyVspClusterSpec(spec, form) {
+  const vsp = spec.vspClusterSpec
+  if (!vsp) return
+  if (vsp.platformFqdn) form.vcfSvcRuntimeFqdn = vsp.platformFqdn
+  if (vsp.instanceFqdn) form.instanceComponentsFqdn = vsp.instanceFqdn
+  if (vsp.fleetFqdn) form.fleetComponentsFqdn = vsp.fleetFqdn
+  const r = vsp.ipv4Pool && vsp.ipv4Pool.ipRange
+  if (r && r.startIpAddress) form.vcfSvcRangeStart = r.startIpAddress
+  if (r && r.endIpAddress) form.vcfSvcRangeEnd = r.endIpAddress
+  if (vsp.internalClusterCidrIpv4) form.fleetCidr = vsp.internalClusterCidrIpv4
+}
+
 function applySddcManagerSpec(spec, form) {
   const sddc = spec.sddcManagerSpec
   if (!sddc || !sddc.hostname) return
@@ -2756,8 +2774,8 @@ function vcfPlanner() {
     // so a version bump only needs updating here. The Version History list further
     // down intentionally keeps each past entry's version number as a literal —
     // those are frozen historical records, not "current version" indicators.
-    appVersion: 'v1.1.28',
-    appUpdated: 'September 4, 2026',
+    appVersion: 'v1.2.0',
+    appUpdated: 'October 8, 2026',
     copyFeedback: '',
     pwVisible: {},
     excelImporting: false,
@@ -3078,8 +3096,65 @@ function vcfPlanner() {
     sizingBreakdown() { return Core.sizingBreakdown(this.sizing) },
 
     // ─── PERSISTENCE ───
+    // Keeps derived form state consistent before persisting: Deployment Scale →
+    // vSAN Stretched Cluster toggle, and FQDN auto-proposals (core/fqdn.js — fills
+    // empty FQDN fields from Region / Site Code + Instance + DNS Domain Name, never
+    // overwrites a value you typed).
+    syncDerivedForm() {
+      const scale = this.form.deploymentScale || ''
+      if (scale !== this._lastScale) {
+        if (this._lastScale !== undefined) {
+          if (scale === Core.SCALE_VSAN_STRETCHED) this.form.vsanStretchInclude = 'Include'
+          else if (scale === Core.SCALE_VMSC || this._lastScale === Core.SCALE_VSAN_STRETCHED) this.form.vsanStretchInclude = 'Exclude'
+        }
+        this._lastScale = scale
+      }
+      Core.applyFqdnProposals(this.form)
+    },
+    // One-shot migrations of keys renamed in v1.2.0 (saved state / imported JSON).
+    migrateForm(f) {
+      // VCF Management Services: "VCF Services Runtime IP" + "IP Range End" used to be
+      // the node block (start/end); v1.2.0 splits the runtime FQDN's own IP from the
+      // workbook "IP Range From / To" (Deploy Management Domain K117/K118).
+      if (f.vcfSvcRuntimeIpEnd && !f.vcfSvcRangeStart && !f.vcfSvcRangeEnd) {
+        f.vcfSvcRangeStart = f.vcfSvcRuntimeIp || ''
+        f.vcfSvcRangeEnd = f.vcfSvcRuntimeIpEnd
+        f.vcfSvcRuntimeIp = ''
+      }
+      delete f.vcfSvcRuntimeIpEnd
+      // Log Management: HA mode + per-replica FQDN/IP replaced by the workbook's
+      // "Number Of Replicas" (no per-replica rows in the 9.1 workbook).
+      if (f.vcfLogsHaMode === 'HA Cluster' && !f.vcfLogsReplicaCount) f.vcfLogsReplicaCount = '3'
+      if (!f.vcfLogsIp && f.vcfLogsLbIp) f.vcfLogsIp = f.vcfLogsLbIp
+      for (const k of ['vcfLogsHaMode','vcfLogsReplicaFqdn','vcfLogsReplicaIp','vcfLogsLbFqdn','vcfLogsLbIp','mgmtSvcAdditionalIp1','mgmtSvcAdditionalIp2','mgmtSvcAdditionalIp3']) delete f[k]
+      // VCF Automation node IPs: 5 discrete fields → workbook "IP Range From / To"
+      // (Deploy Management Domain K122/K123).
+      const pool = [1,2,3,4,5].map(i => f[`vcfAutoIpPool${i}`]).filter(Boolean)
+      if (pool.length && !f.vcfAutoRangeStart && !f.vcfAutoRangeEnd) { f.vcfAutoRangeStart = pool[0]; f.vcfAutoRangeEnd = pool[pool.length-1] }
+      for (let i = 1; i <= 5; i++) delete f[`vcfAutoIpPool${i}`]
+      // Cloud Proxy: the separate "Cloud Proxy (VCF Operations)" section is merged
+      // into the VCF Operations Collector (workbook sfo-cp01, Installer
+      // vcfOperationsCollectorSpec). One value → kept; both → Collector kept, flagged.
+      const cpUsed = f.cloudProxyInclude === 'Include' && (f.cloudProxyFqdn || f.cloudProxyIp)
+      if (cpUsed || f.cloudProxyFqdn || f.cloudProxyIp) {
+        const colSet = !!(f.vcfOpsCollectorFqdn || f.vcfOpsCollectorIp)
+        if (!colSet) {
+          if (f.cloudProxyFqdn) f.vcfOpsCollectorFqdn = f.cloudProxyFqdn
+          if (f.cloudProxyIp) f.vcfOpsCollectorIp = f.cloudProxyIp
+          if (f.cloudProxyPw && !f.vcfOpsCollectorPw) f.vcfOpsCollectorPw = f.cloudProxyPw
+          if (f.cloudProxyInclude === 'Include') f.vcfOpsCollectorInclude = 'Include'
+        } else if ((f.cloudProxyFqdn && f.cloudProxyFqdn !== f.vcfOpsCollectorFqdn) || (f.cloudProxyIp && f.cloudProxyIp !== f.vcfOpsCollectorIp)) {
+          this.migrationNotes.push(`Cloud Proxy merged into "Cloud Proxy (VCF Operations Collector)": both were filled — kept the Collector (${f.vcfOpsCollectorFqdn||''} ${f.vcfOpsCollectorIp||''}), dropped the former Cloud Proxy entry (${f.cloudProxyFqdn||''} ${f.cloudProxyIp||''}).`)
+        }
+      }
+      for (const k of ['cloudProxyInclude','cloudProxyFqdn','cloudProxyIp','cloudProxyPw']) delete f[k]
+      if (f._fqdnAuto) delete f._fqdnAuto.cloudProxyFqdn
+      return f
+    },
+    migrationNotes: [],
     save() {
       try {
+        this.syncDerivedForm()
         localStorage.setItem('vcf-planner-v1', JSON.stringify({
           form: this.form,
           sizing: this.sizing,
@@ -3097,7 +3172,7 @@ function vcfPlanner() {
         const raw = localStorage.getItem('vcf-planner-v1')
         if (!raw) return
         const d = JSON.parse(raw)
-        if (d.form) this.form = d.form
+        if (d.form) this.form = this.migrateForm(d.form)
         if (d.sizing) Object.assign(this.sizing, d.sizing)
         if (d.openGroups) this.openGroups = d.openGroups
         if (d.openSections) this.openSections = d.openSections
@@ -3146,6 +3221,7 @@ function vcfPlanner() {
       reader.onload = (e) => {
         try {
           const d = JSON.parse(e.target.result)
+          if (Core.isNetworkPlannerExport(d)) { this.applyNetworkPlannerImport(d); event.target.value = ''; return }
           if (!d.form && !d.globalSettings) {
             alert('Import failed: this file does not appear to be a VCF Planner export (missing "form" key).')
             event.target.value = ''; return
@@ -3155,15 +3231,46 @@ function vcfPlanner() {
               event.target.value = ''; return
             }
           }
-          if (d.form) { Object.assign(this.form, d.form); this.applyToggleDefaults(); this.save() }
+          this.migrationNotes = []
+          if (d.form) { Object.assign(this.form, this.migrateForm({ ...d.form })); this.applyToggleDefaults(); this.save() }
           if (d.sizing) { Object.assign(this.sizing, d.sizing) }
-          alert('Import successful!')
+          alert('Import successful!' + (this.migrationNotes.length ? '\n\nNote:\n- ' + this.migrationNotes.join('\n- ') : ''))
         } catch(err) {
           alert('Import failed: ' + err.message)
         }
         event.target.value = ''
       }
       reader.readAsText(file)
+    },
+    importNetworkPlannerTrigger() {
+      document.getElementById('import-np-file').click()
+    },
+    importNetworkPlannerJson(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        try {
+          const d = JSON.parse(e.target.result)
+          if (!Core.isNetworkPlannerExport(d)) {
+            alert('Import failed: this file does not look like a VCF Network Planner export (expected project / managementDomain / vlans / appliances keys).')
+          } else this.applyNetworkPlannerImport(d)
+        } catch(err) { alert('Import failed: ' + err.message) }
+        event.target.value = ''
+      }
+      reader.readAsText(file)
+    },
+    // VCF Network Planner JSON → P&P form (mapping in core/np-import.js, documented in README).
+    applyNetworkPlannerImport(d) {
+      if (!confirm('Import a VCF Network Planner project: VLANs, subnets, IP ranges, host and appliance FQDNs/IPs and the topology will overwrite the matching fields of your current configuration. Continue?')) return
+      const report = Core.applyNetworkPlannerJson(d, this.form)
+      this.applyToggleDefaults()
+      if (this.form.principalStorage) this.sizing.storageType = this.form.principalStorage
+      this._lastScale = this.form.deploymentScale || ''
+      this.syncSizingWorkbookVersion()
+      this.save()
+      this.excelImportReport = report
+      this.showExcelImportReport = true
     },
     importVcfInstallerTrigger() {
       document.getElementById('import-vcf-installer-file').click()
@@ -3195,6 +3302,7 @@ function vcfPlanner() {
           applyNsxtSpec(spec, this.form, warnings)
           applyVcfOperationsSpec(spec, this.form, warnings)
           applySddcManagerSpec(spec, this.form)
+          applyVspClusterSpec(spec, this.form)
 
           this.applyToggleDefaults()
           if (this.form.principalStorage) this.sizing.storageType = this.form.principalStorage
@@ -3369,6 +3477,7 @@ function vcfPlanner() {
         deploymentInstance: 'm01',
         primarySiteName: 'sfo',
         deploymentScale: 'Standard (4+ hosts)',
+        mgmtHostCount: '4',
         deploymentRegion: 'sfo',
 
         // VCF Installer Export Settings
@@ -3399,76 +3508,86 @@ function vcfPlanner() {
         // General Information
         domainName: 'rainpole.io',
         subDomainName: 'sfo.rainpole.io',
-        vcfSddcFqdn: 'sfo-m01-sddc01.sfo.rainpole.io',
-        vcfSddcIp: '10.11.10.4',
-        ntpServer1: 'ntp.sfo.rainpole.io',
-        dnsServer1: '10.11.0.2',
-        dnsServer2: '10.11.0.3',
+        vcfSddcFqdn: 'sfo-vcf01.sfo.rainpole.io',
+        vcfSddcIp: '10.11.10.13',
+        ntpServer1: 'ntp0.sfo.rainpole.io',
+        ntpServer2: 'ntp1.sfo.rainpole.io',
+        dnsServer1: '10.11.10.4',
+        dnsServer2: '10.11.10.5',
 
         // Hosts (Management Cluster) — 4 nodes
-        m01Host1Fqdn: 'sfo-m01-esxi01.sfo.rainpole.io', m01Host1Ip: '10.11.10.11',
-        m01Host2Fqdn: 'sfo-m01-esxi02.sfo.rainpole.io', m01Host2Ip: '10.11.10.12',
-        m01Host3Fqdn: 'sfo-m01-esxi03.sfo.rainpole.io', m01Host3Ip: '10.11.10.13',
-        m01Host4Fqdn: 'sfo-m01-esxi04.sfo.rainpole.io', m01Host4Ip: '10.11.10.14',
+        // (workbook Deploy Management Domain K82-K85 / K395-K398)
+        m01Host1Fqdn: 'sfo01-m01-r01-esx01.sfo.rainpole.io', m01Host1Ip: '10.11.11.101',
+        m01Host2Fqdn: 'sfo01-m01-r01-esx02.sfo.rainpole.io', m01Host2Ip: '10.11.11.102',
+        m01Host3Fqdn: 'sfo01-m01-r01-esx03.sfo.rainpole.io', m01Host3Ip: '10.11.11.103',
+        m01Host4Fqdn: 'sfo01-m01-r01-esx04.sfo.rainpole.io', m01Host4Ip: '10.11.11.104',
 
         // Networks — Management
-        esxMgmtVlan: '1110', esxMgmtGateway: '10.11.10.1', esxMgmtCidr: '10.11.10.0/24', esxMgmtMtu: '1500',
-        vmMgmtVlan: '1111', vmMgmtGateway: '10.11.11.1', vmMgmtCidr: '10.11.11.0/24', vmMgmtMtu: '1500',
+        // Networks — workbook Deploy Management Domain K102-K151 (ESX Mgmt 1111, VM Mgmt 1110, VCF Mgmt 1199, vMotion 1112, vSAN 1113, Host TEP 1114)
+        esxMgmtVlan: '1111', esxMgmtGateway: '10.11.11.1', esxMgmtCidr: '10.11.11.0/24', esxMgmtMtu: '1500',
+        vmMgmtVlan: '1110', vmMgmtGateway: '10.11.10.1', vmMgmtCidr: '10.11.10.0/24', vmMgmtMtu: '1500',
         vcfMgmtInclude: 'Include',
-        vcfMgmtVlan: '1112', vcfMgmtGateway: '10.11.12.1', vcfMgmtCidr: '10.11.12.0/24', vcfMgmtMtu: '1500',
+        vcfMgmtVlan: '1199', vcfMgmtGateway: '10.11.99.1', vcfMgmtCidr: '10.11.99.0/24', vcfMgmtMtu: '1500',
 
         // Networks — vMotion, vSAN & Overlay
-        vmotionVlan: '1113', vmotionGateway: '10.11.13.1', vmotionCidr: '10.11.13.0/24', vmotionMtu: '9000', vmotionIpStart: '10.11.13.101', vmotionIpEnd: '10.11.13.110',
-        vsan1Vlan: '1114', vsan1Gateway: '10.11.14.1', vsan1Cidr: '10.11.14.0/24', vsan1Mtu: '9000', vsan1IpStart: '10.11.14.101', vsan1IpEnd: '10.11.14.110',
-        overlayVlan: '1116', overlayGateway: '10.11.16.1', overlayCidr: '10.11.16.0/24', overlayMtu: '9000', overlayIpStart: '10.11.16.101', overlayIpEnd: '10.11.16.110',
+        vmotionVlan: '1112', vmotionGateway: '10.11.12.1', vmotionCidr: '10.11.12.0/24', vmotionMtu: '9000', vmotionIpStart: '10.11.12.101', vmotionIpEnd: '10.11.12.116',
+        vsan1Vlan: '1113', vsan1Gateway: '10.11.13.1', vsan1Cidr: '10.11.13.0/24', vsan1Mtu: '9000', vsan1IpStart: '10.11.13.101', vsan1IpEnd: '10.11.13.116',
+        overlayVlan: '1114', overlayGateway: '10.11.14.1', overlayCidr: '10.11.14.0/24', overlayMtu: '9000', overlayIpStart: '10.11.14.101', overlayIpEnd: '10.11.14.132',
 
         // vCenter Server (appliance passwords auto-generated by the Installer)
         autoGenPw: 'Selected',
-        vcMgmtFqdn: 'sfo-m01-vc01.sfo.rainpole.io', vcMgmtIp: '10.11.10.3',
+        vcMgmtFqdn: 'sfo-m01-vc01.sfo.rainpole.io', vcMgmtIp: '10.11.10.70',
         vcMgmtSize: 'Medium', vcSsoDomain: 'vsphere.local',
         vcDatacenter: 'sfo-m01-dc01', vcCluster: 'sfo-m01-cl01', vcDatastore: 'sfo-m01-cl01-ds-vsan01',
 
         // SDDC Manager (Installer appliance credentials - set by you, not generated)
-        sddcHostname: 'sfo-m01-sddc01', sddcAdminPw: 'VMw@re1!VMw@re1!', sddcRootPw: 'VMw@re1!VMw@re1!',
+        sddcHostname: 'sfo-vcf01', sddcAdminPw: 'VMw@re1!VMw@re1!', sddcRootPw: 'VMw@re1!VMw@re1!',
         esxiRootPw: 'VMw@re1!', sddcLocation: 'Deployed on one of the management domain hosts',
 
         // VCF Operations (deployed at bring-up)
         vcfOpsHaMode: 'HA Cluster',
-        vcfOpsPrimaryFqdn: 'flt-ops01a.rainpole.io', vcfOpsPrimaryIp: '10.11.10.52',
-        vcfOpsReplicaFqdn: 'flt-ops01b.rainpole.io', vcfOpsReplicaIp: '10.11.10.53',
-        vcfOpsDataFqdn: 'flt-ops01c.rainpole.io', vcfOpsDataIp: '10.11.10.54',
+        vcfOpsPrimaryFqdn: 'flt-ops01a.rainpole.io', vcfOpsPrimaryIp: '10.11.99.52',
+        vcfOpsReplicaFqdn: 'flt-ops01b.rainpole.io', vcfOpsReplicaIp: '10.11.99.53',
+        vcfOpsDataFqdn: 'flt-ops01c.rainpole.io', vcfOpsDataIp: '10.11.99.54',
         vcfOpsSize: 'Small',
 
         // NSX Manager Cluster
-        nsxMgr1Fqdn: 'sfo-m01-nsx01a.sfo.rainpole.io', nsxMgr1Ip: '10.11.10.71',
-        nsxMgr2Fqdn: 'sfo-m01-nsx01b.sfo.rainpole.io', nsxMgr2Ip: '10.11.10.72',
-        nsxMgr3Fqdn: 'sfo-m01-nsx01c.sfo.rainpole.io', nsxMgr3Ip: '10.11.10.73',
-        nsxVipFqdn: 'sfo-m01-nsx01.sfo.rainpole.io', nsxVipIp: '10.11.10.74',
+        nsxMgr1Fqdn: 'sfo-m01-nsx01a.sfo.rainpole.io', nsxMgr1Ip: '10.11.10.72',
+        nsxMgr2Fqdn: 'sfo-m01-nsx01b.sfo.rainpole.io', nsxMgr2Ip: '10.11.10.73',
+        nsxMgr3Fqdn: 'sfo-m01-nsx01c.sfo.rainpole.io', nsxMgr3Ip: '10.11.10.74',
+        nsxVipFqdn: 'sfo-m01-nsx01.sfo.rainpole.io', nsxVipIp: '10.11.10.71',
         nsxMgrSize: 'Medium',
 
         // NSX Edge Nodes (2-node cluster)
         nsxEdgeInclude: 'Include',
-        nsxEdge1Fqdn: 'sfo-m01-nsx01-edge01.sfo.rainpole.io', nsxEdge1Ip: '10.11.10.81',
-        nsxEdge2Fqdn: 'sfo-m01-nsx01-edge02.sfo.rainpole.io', nsxEdge2Ip: '10.11.10.82',
+        nsxEdge1Fqdn: 'sfo-m01-en01.sfo.rainpole.io', nsxEdge1Ip: '10.11.10.75',
+        nsxEdge2Fqdn: 'sfo-m01-en02.sfo.rainpole.io', nsxEdge2Ip: '10.11.10.76',
         nsxEdgeSize: 'NSX Edge Large', edgeHaMode: 'Active-Active',
-        edgeTepVlan: '1116', edgeTepIpStart: '10.11.16.100', edgeTepIpEnd: '10.11.16.200',
-        edge1UplinkVlan1: '2711', edge1UplinkVlan2: '2712',
-        edge2UplinkVlan1: '2711', edge2UplinkVlan2: '2712',
-        nsxEdgeUplink1Vlan: '2711', nsxEdgeUplink2Vlan: '2712',
+        edgeTepVlan: '1119', edgeTepIpStart: '10.11.19.2', edgeTepIpEnd: '10.11.19.5',
+        edge1UplinkVlan1: '1117', edge1UplinkVlan2: '1118',
+        edge2UplinkVlan1: '1117', edge2UplinkVlan2: '1118',
+        nsxEdgeUplink1Vlan: '1117', nsxEdgeUplink2Vlan: '1118',
         nsxEdgeBgpAsn: '65101', nsxEdgeAutoGenPw: 'Selected',
 
         // Distributed Switch Profile
-        dvsProfile: 'Default', dvsName: 'sfo-m01-cl01-dvs01',
+        dvsProfile: 'Default', dvsName: 'sfo-m01-cl01-vds01',
         dvsUplinkPolicy: 'Route based on IP hash', dvsLacpEnabled: 'Exclude',
         dvsUplink1Name: 'vmnic0', dvsUplink2Name: 'vmnic1', dvsMtu: '9000',
 
         // Distributed PortGroups (per network traffic)
-        esxMgmtPgName: 'sfo-m01-cl01-dvs01-pg-esx-mgmt', esxMgmtPgLb: 'Route Based on Physical NIC Load', esxMgmtPgUplink1: 'Active', esxMgmtPgUplink2: 'Active',
-        vmMgmtPgName: 'sfo-m01-cl01-dvs01-pg-vm-mgmt', vmMgmtPgLb: 'Route Based on Physical NIC Load', vmMgmtPgUplink1: 'Active', vmMgmtPgUplink2: 'Active',
-        vcfMgmtPgName: 'sfo-m01-cl01-dvs01-pg-vcf-mgmt', vcfMgmtPgLb: 'Route Based on Physical NIC Load', vcfMgmtPgUplink1: 'Active', vcfMgmtPgUplink2: 'Active',
-        vmotionPgName: 'sfo-m01-cl01-dvs01-pg-vmotion', vmotionPgLb: 'Route Based on Physical NIC Load', vmotionPgUplink1: 'Active', vmotionPgUplink2: 'Active',
-        vsan1PgName: 'sfo-m01-cl01-dvs01-pg-vsan', vsan1PgLb: 'Route Based on Physical NIC Load', vsan1PgUplink1: 'Active', vsan1PgUplink2: 'Active',
+        esxMgmtPgName: 'sfo-m01-cl01-vds01-pg-esx-mgmt', esxMgmtPgLb: 'Route Based on Physical NIC Load', esxMgmtPgUplink1: 'Active', esxMgmtPgUplink2: 'Active',
+        vmMgmtPgName: 'sfo-m01-cl01-vds01-pg-vm-mgmt', vmMgmtPgLb: 'Route Based on Physical NIC Load', vmMgmtPgUplink1: 'Active', vmMgmtPgUplink2: 'Active',
+        vcfMgmtPgName: 'sfo-m01-cl01-vds01-pg-vcf-mgmt', vcfMgmtPgLb: 'Route Based on Physical NIC Load', vcfMgmtPgUplink1: 'Active', vcfMgmtPgUplink2: 'Active',
+        vmotionPgName: 'sfo-m01-cl01-vds01-pg-vmotion', vmotionPgLb: 'Route Based on Physical NIC Load', vmotionPgUplink1: 'Active', vmotionPgUplink2: 'Active',
+        vsan1PgName: 'sfo-m01-cl01-vds01-pg-vsan', vsan1PgLb: 'Route Based on Physical NIC Load', vsan1PgUplink1: 'Active', vsan1PgUplink2: 'Active',
         nsxApplyDefaultOpMode: 'Selected', nsxPgLb: 'Route based on source port ID', nsxPgUplink1: 'Active', nsxPgUplink2: 'Active',
+
+        // VCF Management Services (workbook Deploy Management Domain K117/K118, K366-K370)
+        fleetComponentsIp: '10.11.99.20', instanceComponentsIp: '10.11.99.11', vcfSvcRuntimeIp: '10.11.99.10',
+        vcfSvcRangeStart: '10.11.99.31', vcfSvcRangeEnd: '10.11.99.45', licenseServerIp: '10.11.99.22',
+        vcfAutoRangeStart: '10.11.99.46', vcfAutoRangeEnd: '10.11.99.50',
+        // Cloud Proxy (VCF Operations Collector) — workbook K163 / K377
+        vcfOpsCollectorInclude: 'Include', vcfOpsCollectorFqdn: 'sfo-cp01.sfo.rainpole.io', vcfOpsCollectorIp: '10.11.10.12',
       })
 
       this.applyToggleDefaults()
@@ -3714,7 +3833,7 @@ function vcfPlanner() {
       if (!f.subDomainName) missing.push('Child Domain Name (DNS subdomain)')
       if (!f.dnsServer1) missing.push('DNS Server 1')
       if (![f.esxMgmtVlan, f.vmMgmtVlan, f.vmotionVlan].every(Boolean)) missing.push('Core network VLANs (Management / VM Management / vMotion)')
-      if (!f.vcfSvcRuntimeFqdn || !f.vcfSvcRuntimeIp || !f.vcfSvcRuntimeIpEnd) missing.push('VCF Services Runtime FQDN/IP range (VCF Management Services section)')
+      if (!f.vcfSvcRuntimeFqdn || !f.vcfSvcRangeStart || !f.vcfSvcRangeEnd) missing.push('VCF Services Runtime FQDN / VCF Management Services IP Range From–To (VCF Management Services section)')
       if (!f.licenseServerFqdn) missing.push('License Server FQDN (VCF Management Services section)')
       if (f.idBrokerInclude === 'Include' && !f.idBrokerFqdn) missing.push('Identity Broker FQDN')
       if (f.vcfOpsCollectorInclude !== 'Exclude' && !f.vcfOpsCollectorFqdn) missing.push('VCF Operations Collector FQDN')
@@ -3791,6 +3910,9 @@ function vcfPlanner() {
     init() {
       this.load()
       this.applyToggleDefaults()
+      this._lastScale = this.form.deploymentScale || ''
+      this.syncDerivedForm()
+      if (this.migrationNotes.length) { const notes = this.migrationNotes.slice(); this.save(); setTimeout(() => alert('Your saved plan was updated to v1.2.0:\n\n- ' + notes.join('\n- ')), 300) }
       // Ensure instance profile size respects the cluster model coupling on load
       this.syncInstanceProfileSize()
       // Reconcile sizing storage type with a previously-saved Principal Storage Type
