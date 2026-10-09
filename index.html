@@ -1597,8 +1597,8 @@
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.2.1<br><span class="text-gray-300">2026-10-09</span></span>
           <div class="text-gray-600">
-            <p class="font-semibold text-gray-700">Fixed a console error when changing selects; sizing regression tests re-baselined on the workbook</p>
-            <p>Changing a select that shows or hides fields (e.g. Product Type) raised "Cannot read properties of undefined (reading 'after')": the As-Built DNS checklist used the field label as its list key, and labels repeat across pages ("Host 1 FQDN"…), which breaks Alpine's keyed list update. The checklist is now keyed on the field and lists each FQDN once. The sizing calculator's three oldest regression scenarios had stale expected values (from before the v1.1.4 lookup-table update: vCenter disk tiers, single "Include" SSP tier, License Hub 725 GB); they now match the 25-Jun-2026 workbook, including its own default-state results (Management Domain Sizing K33/M33, R8, R20, R21). No change to the calculator itself.</p>
+            <p class="font-semibold text-gray-700">Fixed a console error when changing selects; sizing regression tests re-baselined on the workbook; Primary Site Name mirrors Region / Site Code</p>
+            <p>Changing a select that shows or hides fields (e.g. Product Type) raised "Cannot read properties of undefined (reading 'after')": the As-Built DNS checklist used the field label as its list key, and labels repeat across pages ("Host 1 FQDN"…), which breaks Alpine's keyed list update. The checklist is now keyed on the field and lists each FQDN once. The sizing calculator's three oldest regression scenarios had stale expected values (from before the v1.1.4 lookup-table update: vCenter disk tiers, single "Include" SSP tier, License Hub 725 GB); they now match the 25-Jun-2026 workbook, including its own default-state results (Management Domain Sizing K33/M33, R8, R20, R21). No change to the calculator itself. <strong>Primary Site Name</strong>, which duplicated Region / Site Code, is now read-only and always mirrors it (saved plans and imports are migrated — if both held different values, Region / Site Code is kept and a notice is shown).</p>
           </div>
         </div>
         <div class="flex gap-4">
@@ -3116,6 +3116,8 @@ function vcfPlanner() {
         }
         this._lastScale = scale
       }
+      // Primary Site Name is a read-only mirror of Region / Site Code (v1.2.1).
+      if ((this.form.primarySiteName || '') !== (this.form.deploymentRegion || '')) this.form.primarySiteName = this.form.deploymentRegion || ''
       Core.applyFqdnProposals(this.form)
     },
     // One-shot migrations of keys renamed in v1.2.0 (saved state / imported JSON).
@@ -3156,6 +3158,15 @@ function vcfPlanner() {
       }
       for (const k of ['cloudProxyInclude','cloudProxyFqdn','cloudProxyIp','cloudProxyPw']) delete f[k]
       if (f._fqdnAuto) delete f._fqdnAuto.cloudProxyFqdn
+      // Primary Site Name / Region-Site Code duplicate (v1.2.1): Primary Site Name is now
+      // a read-only mirror. Empty Region → takes the old Primary Site Name; both set
+      // and different → Region wins, flagged.
+      const site = String(f.primarySiteName || '').trim(), region = String(f.deploymentRegion || '').trim()
+      if (site && !region) f.deploymentRegion = site
+      else if (site && region && site.toLowerCase() !== region.toLowerCase()) {
+        this.migrationNotes.push(`Primary Site Name is now a read-only copy of Region / Site Code: both were filled with different values — kept Region / Site Code "${region}", dropped Primary Site Name "${site}".`)
+      }
+      f.primarySiteName = f.deploymentRegion || ''
       return f
     },
     migrationNotes: [],
@@ -3204,7 +3215,7 @@ function vcfPlanner() {
           vcfVersion: this.form.vcfVersion || '9.1.0.0',
           deploymentType: this.form.deploymentType || 'VMware Cloud Foundation',
           deploymentMode: this.form.deploymentMode,
-          siteName: this.form.primarySiteName,
+          siteName: this.form.deploymentRegion || this.form.primarySiteName,
         },
         form: this.form,
         sizing: this.sizing,
@@ -3482,7 +3493,6 @@ function vcfPlanner() {
         deploymentMode: 'New VCF Fleet',
         deploymentOperation: 'Deploy a new VCF fleet',
         deploymentInstance: 'm01',
-        primarySiteName: 'sfo',
         deploymentScale: 'Standard (4+ hosts)',
         mgmtHostCount: '4',
         deploymentRegion: 'sfo',
@@ -3928,7 +3938,7 @@ function vcfPlanner() {
       this.applyToggleDefaults()
       this._lastScale = this.form.deploymentScale || ''
       this.syncDerivedForm()
-      if (this.migrationNotes.length) { const notes = this.migrationNotes.slice(); this.save(); setTimeout(() => alert('Your saved plan was updated to v1.2.0:\n\n- ' + notes.join('\n- ')), 300) }
+      if (this.migrationNotes.length) { const notes = this.migrationNotes.slice(); this.save(); setTimeout(() => alert('Your saved plan was updated to the current version:\n\n- ' + notes.join('\n- ')), 300) }
       // Ensure instance profile size respects the cluster model coupling on load
       this.syncInstanceProfileSize()
       // Reconcile sizing storage type with a previously-saved Principal Storage Type

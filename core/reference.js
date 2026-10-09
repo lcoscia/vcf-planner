@@ -186,7 +186,9 @@ export const ALL_PAGES = [
             showWhen: f => !!f.deploymentMode,
             notes:'Specific deployment operation within the selected mode' },
           { key:'deploymentInstance', label:'Instance Name (prefix)', type:'text', sample:'m01', required:true, notes:'e.g. m01 for first instance' },
-          { key:'primarySiteName', label:'Primary Site Name',   type:'text', sample:'sfo', required:true, notes:'Short site identifier, used in all FQDNs' },
+          { key:'primarySiteName', label:'Primary Site Name',   type:'readonly', sample:'sfo',
+            calc:(f)=>f.deploymentRegion || '— (reprend Region / Site Code)',
+            notes:'Read-only — mirrors Region / Site Code (below). Kept for compatibility (JSON export globalSettings.siteName, As-Built summary); enter the site code in Region / Site Code.' },
           { key:'deploymentScale', label:'Deployment Scale', type:'select',
             optionsFn: f => {
               if (f.deploymentMode==='New VCF Fleet' || f.deploymentMode==='Additional VCF Instance') return ['Standard (4+ hosts)','Consolidated (3 hosts — lab only)',SCALE_VSAN_STRETCHED,SCALE_VMSC]
