@@ -1297,7 +1297,7 @@
         <div class="err-banner">
           <div class="font-semibold mb-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg> VLAN Conflicts (<span x-text="vlanWarnings().length"></span>)</div>
           <ul class="list-disc list-inside space-y-0.5">
-            <template x-for="w in vlanWarnings()" :key="w"><li x-text="w"></li></template>
+            <template x-for="(w, wi) in vlanWarnings()" :key="wi + ':' + w"><li x-text="w"></li></template>
           </ul>
         </div>
       </div>
@@ -1307,7 +1307,7 @@
         <div class="err-banner">
           <div class="font-semibold mb-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg> IP Address Conflicts (<span x-text="ipConflicts().length"></span>)</div>
           <ul class="list-disc list-inside space-y-0.5">
-            <template x-for="c in ipConflicts()" :key="c"><li x-text="c"></li></template>
+            <template x-for="(c, ci) in ipConflicts()" :key="ci + ':' + c"><li x-text="c"></li></template>
           </ul>
         </div>
       </div>
@@ -1317,7 +1317,7 @@
         <div class="warn-banner">
           <div class="font-semibold mb-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 3l9.5 16.5H2.5z"></path><path d="M12 9.5v4.5"></path><path d="M12 17.5h.01"></path></svg> CIDR Overlaps (<span x-text="cidrOverlaps().length"></span>)</div>
           <ul class="list-disc list-inside space-y-0.5">
-            <template x-for="o in cidrOverlaps()" :key="o"><li x-text="o"></li></template>
+            <template x-for="(o, oi) in cidrOverlaps()" :key="oi + ':' + o"><li x-text="o"></li></template>
           </ul>
         </div>
       </div>
@@ -1379,7 +1379,7 @@
               <th class="text-left px-4 py-2 hidden md:table-cell">Source Page</th>
             </tr></thead>
             <tbody>
-              <template x-for="c in dnsChecklist()" :key="'dns-'+c.label">
+              <template x-for="c in dnsChecklist()" :key="'dns-'+c.key">
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                   <td class="px-4 py-1.5 text-center">
                     <span x-show="c.ok" class="text-green-500">✓</span>
@@ -1594,6 +1594,13 @@
     <div class="bg-white rounded-xl p-6 shadow border border-gray-100">
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
+        <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.2.1<br><span class="text-gray-300">2026-10-09</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Fixed a console error when changing selects; sizing regression tests re-baselined on the workbook</p>
+            <p>Changing a select that shows or hides fields (e.g. Product Type) raised "Cannot read properties of undefined (reading 'after')": the As-Built DNS checklist used the field label as its list key, and labels repeat across pages ("Host 1 FQDN"…), which breaks Alpine's keyed list update. The checklist is now keyed on the field and lists each FQDN once. The sizing calculator's three oldest regression scenarios had stale expected values (from before the v1.1.4 lookup-table update: vCenter disk tiers, single "Include" SSP tier, License Hub 725 GB); they now match the 25-Jun-2026 workbook, including its own default-state results (Management Domain Sizing K33/M33, R8, R20, R21). No change to the calculator itself.</p>
+          </div>
+        </div>
         <div class="flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.2.0<br><span class="text-gray-300">2026-10-08</span></span>
           <div class="text-gray-600">
@@ -2774,8 +2781,8 @@ function vcfPlanner() {
     // so a version bump only needs updating here. The Version History list further
     // down intentionally keeps each past entry's version number as a literal —
     // those are frozen historical records, not "current version" indicators.
-    appVersion: 'v1.2.0',
-    appUpdated: 'October 8, 2026',
+    appVersion: 'v1.2.1',
+    appUpdated: 'October 9, 2026',
     copyFeedback: '',
     pwVisible: {},
     excelImporting: false,
@@ -3872,16 +3879,25 @@ function vcfPlanner() {
       }
       return vlans.sort((a,b) => parseInt(a.vlan)-parseInt(b.vlan))
     },
+    // One row per FQDN field. Keyed on the field key, not the label: labels repeat
+    // across pages ("Host 1 FQDN" on Mgmt / WLD / Cluster), and duplicate x-for keys
+    // break Alpine 3.14's keyed reorder ("Cannot read properties of undefined
+    // (reading 'after')" whenever a select changed the visible field set). A field
+    // declared on two pages (e.g. vcfOps*Fqdn) is one DNS record → listed once.
     dnsChecklist() {
       const checks = []
+      const seen = new Set()
       for (const page of this.allPages) {
         if (!this.isPageVisible(page.id)) continue
         for (const section of (page.sections||[])) {
           if (!this.isSectionVisible(section)) continue
           for (const field of (section.fields||[])) {
             if (field.type==='text' && field.label && field.label.includes('FQDN') && this.isFieldVisible(field)) {
+              if (seen.has(field.key)) continue
+              seen.add(field.key)
               const val = this.form[field.key] || ''
               checks.push({
+                key: field.key,
                 label: field.label,
                 page: page.title,
                 value: val,

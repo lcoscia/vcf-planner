@@ -29,7 +29,7 @@ function baseSizing() {
       wldNsxModel: 'Dedicated - HA Cluster', wldNsxSize: 'Large',
       nsx_manager: 'Medium', nsx_manager_model: 'Mandatory - HA Cluster',
       nsx_edge: 'NSX Edge Medium', vcf_operations: 'Small', vcf_logs: 'Small',
-      avi_lb: 'Small', vcfa: 'Small', cloud_proxy: 'Medium', ssp: 'Medium',
+      avi_lb: 'Small', vcfa: 'Small', cloud_proxy: 'Medium', ssp: 'Excluded',
       identity_broker: 'Small', vcf_ops_networks: 'Small', vcf_ops_networks_collector: 'Small',
       vrms: 'Light', srm: 'Light',
     },
@@ -54,7 +54,11 @@ test('Scenario 1 — Management Domain HA vSAN-ESA standard (Excel default)', ()
   const s = baseSizing()
   Object.assign(s, { hostCores: 128, hostRAM: 1024, storageType: 'vSAN-ESA', instanceProfileSize: 'Medium' })
   Object.assign(s.components, { sddc_manager: true, vcenter: true, nsx_manager: true, vcf_svc_runtime: true })
-  assertScenario(s, { rawCPU: 114, rawRAM: 292, rawDisk: 7072, hosts: 4, totalDisk: 15796, diskPerHost: 5266 })
+  // = the 25-Jun-2026 workbook's own default state, read from its cached results:
+  // Management Domain Sizing K33/L33/M33 (114 vCPU / 292 GB / 7647 GB), R8 = 4,
+  // R20 = 17031, R21 = 5677. rawDisk was 7072 before v1.1.4 (58f28e5) recalibrated
+  // vcenter_disk_tiers.Medium.Large 1658 → 2233 (workbook G40).
+  assertScenario(s, { rawCPU: 114, rawRAM: 292, rawDisk: 7647, hosts: 4, totalDisk: 17031, diskPerHost: 5677 })
 })
 
 test('Scenario 2 — Simple deployment (1-node, minimal, vSAN-OSA)', () => {
@@ -65,7 +69,9 @@ test('Scenario 2 — Simple deployment (1-node, minimal, vSAN-OSA)', () => {
   })
   Object.assign(s.components, { sddc_manager: true, vcenter: true, nsx_manager: true, vcf_svc_runtime: true })
   Object.assign(s.compSizes, { vcenter: 'Small', vcenterStorage: 'Default', nsx_manager: 'Small', nsx_manager_model: 'Mandatory - Single Node' })
-  assertScenario(s, { rawCPU: 52, rawRAM: 135, rawDisk: 4908, hosts: 3, totalDisk: 14424, diskPerHost: 7212 })
+  // vCenter Small / Default disk 694 → 734 since v1.1.4 (58f28e5, Static Reference Tables,
+  // checked by tools/check_lt_constants.py): rawDisk 4908 → 4948, chain re-derived in tools/sizing_scenarios.md.
+  assertScenario(s, { rawCPU: 52, rawRAM: 135, rawDisk: 4948, hosts: 3, totalDisk: 14538, diskPerHost: 7269 })
 })
 
 test('Scenario 3 — Fleet/VCFMS + additional components (HA vSAN-ESA Large)', () => {
@@ -75,8 +81,11 @@ test('Scenario 3 — Fleet/VCFMS + additional components (HA vSAN-ESA Large)', (
     sddc_manager: true, vcenter: true, nsx_manager: true, vcf_operations: true,
     vcf_logs: true, ssp: true, cloud_proxy: true, vcf_svc_runtime: true,
   })
-  Object.assign(s.compSizes, { vcf_operations: 'Medium', vcf_logs: 'Medium', ssp: 'Medium', cloud_proxy: 'Medium' })
-  assertScenario(s, { rawCPU: 360, rawRAM: 1020, rawDisk: 14943, hosts: 4, totalDisk: 34242, diskPerHost: 11414 })
+  // SSP has a single 'Include' tier since v1.1.4 (58f28e5: 8 nodes / 96 vCPU / 350 GB / 3867 GB —
+  // the old 'Medium' tier no longer exists and silently counted 0), License Hub disk 710 → 725,
+  // vCenter Medium/Large disk 1658 → 2233.
+  Object.assign(s.compSizes, { vcf_operations: 'Medium', vcf_logs: 'Medium', ssp: 'Include', cloud_proxy: 'Medium' })
+  assertScenario(s, { rawCPU: 344, rawRAM: 956, rawDisk: 15304, hosts: 4, totalDisk: 34878, diskPerHost: 11626 })
 })
 
 test('Scenario 4 — Workload Domain vCenter + NSX Manager (default Dedicated - HA Cluster), independent of the Management Domain NSX toggle', () => {
