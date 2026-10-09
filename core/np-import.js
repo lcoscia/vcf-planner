@@ -120,7 +120,7 @@ export function applyNetworkPlannerJson(d, form) {
   const lc = v => String(v || '').trim().toLowerCase().replace(/^\.+|\.+$/g, '')
   // NP v1.31.0+: explicit site code / instance / parent domain (workbook FQDN convention)
   const siteCode = lc(project.siteCode), instanceName = lc(project.instanceName), parentDomain = lc(project.parentDomain)
-  if (siteCode) { set('deploymentRegion', siteCode, 'project.siteCode'); setIfEmpty('primarySiteName', siteCode, 'project.siteCode', 'Primary Site Name filled from the NP site code') }
+  if (siteCode) set('deploymentRegion', siteCode, 'project.siteCode')   // primarySiteName mirrors it (index.html syncDerivedForm)
   if (instanceName) set('deploymentInstance', instanceName, 'project.instanceName')
   if (parentDomain) set('domainName', parentDomain, 'project.parentDomain')
   if (suffix) set('subDomainName', suffix, 'project.fqdnSuffix')
