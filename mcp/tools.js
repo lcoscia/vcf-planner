@@ -262,9 +262,10 @@ export function registerTools(server) {
     {
       title: 'Search Ports & Protocols',
       description:
-        'Filter the VCF ports/protocols firewall matrix by product, port, protocol, direction, and/or a free-text query (matches across all fields).',
+        'Filter the VCF 9.x ports/protocols firewall matrix (from ports.broadcom.com) by VCF version, product, port, protocol, direction, and/or a free-text query (matches across all fields). Each row carries vcfVersions (9.0 / 9.1 / 9.1.1) and the product releases.',
       inputSchema: {
-        product: z.string().optional().describe('Filter by product (substring, case-insensitive).'),
+        vcfVersion: z.enum(['9.0', '9.1', '9.1.1']).optional().describe('Only rows that apply to this VCF version (9.1.1 includes the 9.1 rows).'),
+        product: z.string().optional().describe('Filter by product (substring, case-insensitive), e.g. "Avi", "vDefend", "Identity Broker".'),
         port: z.union([z.string(), z.number()]).optional().describe('Filter by exact port number.'),
         protocol: z.string().optional().describe('Filter by protocol, e.g. "TCP", "UDP".'),
         direction: z.string().optional().describe('Filter by direction, e.g. "Inbound", "Outbound".'),
@@ -272,10 +273,11 @@ export function registerTools(server) {
         limit: z.number().optional().describe('Max rows to return (default 100).'),
       },
     },
-    async ({ product, port, protocol, direction, query, limit }) => {
+    async ({ vcfVersion, product, port, protocol, direction, query, limit }) => {
       const cap = limit ?? 100
       const lc = (s) => String(s ?? '').toLowerCase()
       let rows = PORTS_DATA
+      if (vcfVersion) rows = rows.filter((r) => r.vcfVersions.includes(vcfVersion))
       if (product) rows = rows.filter((r) => lc(r.product).includes(lc(product)))
       if (port !== undefined) rows = rows.filter((r) => String(r.port) === String(port))
       if (protocol) rows = rows.filter((r) => lc(r.protocol) === lc(protocol))

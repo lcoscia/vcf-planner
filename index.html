@@ -763,6 +763,20 @@
               <button @click="exportPortsCsv()" class="px-3 py-2 text-sm rounded border bg-gray-50 hover:bg-gray-100 inline-flex items-center gap-1.5"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 4v12"></path><path d="M8 12l4 4 4-4"></path><path d="M4 18v1a2 2 0 002 2h12a2 2 0 002-2v-1"></path></svg>CSV</button>
             </div>
             <div class="flex flex-wrap gap-2 items-center">
+              <span class="text-xs font-semibold text-gray-500 uppercase">VCF version:</span>
+              <template x-for="ver in portsVersions" :key="ver">
+                <button @click="portsFilter.version = ver; portsFilter.products = []; portsFilter.visibleCount = 100"
+                        class="px-2 py-1 text-xs rounded border"
+                        :class="portsVersion() === ver ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 hover:bg-gray-100'"
+                        x-text="ver"></button>
+              </template>
+              <span class="text-xs text-gray-500"><span x-text="basePorts().length"></span> flows · source <a href="https://ports.broadcom.com/" target="_blank" rel="noopener" class="underline hover:no-underline">ports.broadcom.com</a></span>
+              <label class="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer ml-auto">
+                <input type="checkbox" x-model="portsFilter.onlyPlan" @change="portsFilter.products = []" class="rounded">
+                Only components in my plan
+              </label>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
               <span class="text-xs font-semibold text-gray-500 uppercase">Direction:</span>
               <template x-for="dir in ['Inbound','Outbound','Bidirectional','Unspecified']" :key="dir">
                 <button @click="toggleArrayValue(portsFilter.directions, dir)"
@@ -787,7 +801,7 @@
               </label>
               <div class="text-xs text-gray-500" x-show="anyPortsFilterActive()">
                 <span x-text="filteredPorts().length"></span> matching rows
-                <button @click="portsFilter.search=''; portsFilter.products=[]; portsFilter.directions=[]; portsFilter.visibleCount=100"
+                <button @click="portsFilter.search=''; portsFilter.products=[]; portsFilter.directions=[]; portsFilter.visibleCount=100; portsFilter.onlyPlan=false"
                         class="ml-2 underline hover:no-underline">Clear filters</button>
               </div>
             </div>
@@ -824,7 +838,7 @@
                       <tbody>
                         <template x-for="(row, ri) in grp.rows" :key="ri">
                           <tr class="border-b border-gray-100 hover:bg-gray-50">
-                            <td class="px-3 py-2 font-mono" x-text="row.port"></td>
+                            <td class="px-3 py-2 font-mono" x-text="row.port" :title="portReleasesTitle(row)"></td>
                             <td class="px-3 py-2" x-text="row.protocol"></td>
                             <td class="px-3 py-2 text-gray-600">
                               <div x-text="row.source"></div>
@@ -889,7 +903,7 @@
                               <tbody>
                                 <template x-for="(row, ri) in pgrp.rows" :key="ri">
                                   <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                    <td class="px-3 py-2 font-mono" x-text="row.port"></td>
+                                    <td class="px-3 py-2 font-mono" x-text="row.port" :title="portReleasesTitle(row)"></td>
                                     <td class="px-3 py-2" x-text="row.protocol"></td>
                                     <td class="px-3 py-2 text-gray-600">
                                       <div x-text="row.source"></div>
@@ -944,7 +958,7 @@
                   <template x-for="(row, ri) in displayedPorts()" :key="ri">
                     <tr class="border-b border-gray-100 hover:bg-gray-50">
                       <td class="px-3 py-2 font-medium text-gray-800" x-text="row.product"></td>
-                      <td class="px-3 py-2 font-mono" x-text="row.port"></td>
+                      <td class="px-3 py-2 font-mono" x-text="row.port" :title="portReleasesTitle(row)"></td>
                       <td class="px-3 py-2" x-text="row.protocol"></td>
                       <td class="px-3 py-2 text-gray-600">
                         <div x-text="row.source"></div>
@@ -1595,6 +1609,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.3.0<br><span class="text-gray-300">2026-10-12</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Ports &amp; Protocols refreshed from ports.broadcom.com — VCF 9.0 / 9.1 / 9.1.1</p>
+            <p>The Ports &amp; Protocols matrix has been rebuilt from the Broadcom Ports and Protocols Tool (fetched 2026-10-12): <strong>1679 flows across 21 components</strong>, now including <strong>Identity Broker</strong> and <strong>VCF Operations Fleet Manager</strong>, with up-to-date <strong>Avi Load Balancer</strong> and <strong>VMware vDefend</strong> (SSP, License Hub, Malware Prevention…) flows. A new <strong>VCF version</strong> selector (9.0 / 9.1 / 9.1.1, defaulting to the plan's VCF Version) filters the matrix — 9.1.1 includes the 9.1 flows; Avi and vDefend, which follow their own release trains, apply to every version. A new <strong>Only components in my plan</strong> checkbox hides the optional components that are not part of the plan (Avi, vDefend SSP, Log Management, HCX, VCF Automation, DR…). Hovering a port shows the product releases; the CSV export adds <em>VCF Versions</em> and <em>Releases</em> columns. "Show my configured values" now also resolves VCF Installer, fleet management, VCF Management Services (incl. IP range), VCF Automation, Identity Broker, Cloud Proxy, License Server, SFTP/NFS, DR and Cyber Recovery endpoints, and fixes the missing NSX Manager Node 1 IP. Protocols and directions are normalized (TCP / UDP / ICMP / ESP; Inbound / Outbound / Bidirectional / Unspecified). The data is regenerated by the new <code class="bg-gray-100 px-1 rounded text-xs">tools/refresh_ports.mjs</code> script; the MCP <code class="bg-gray-100 px-1 rounded text-xs">search_ports_protocols</code> tool gains a <code class="bg-gray-100 px-1 rounded text-xs">vcfVersion</code> filter.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.2.1<br><span class="text-gray-300">2026-10-09</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Fixed a console error when changing selects; sizing regression tests re-baselined on the workbook; Primary Site Name mirrors Region / Site Code</p>
@@ -1900,7 +1921,8 @@
 // ./mcp/) so there is one source of truth. Served over HTTP (GitHub Pages / a local
 // web server) — opening index.html via file:// will not load these ES modules.
 import * as Core from './core/index.js'
-const { PORTS_DATA, PREREQ_DATA, ALL_PAGES } = Core
+const { PORTS_DATA, PREREQ_DATA, ALL_PAGES, PORTS_CATEGORY_MAP, PORTS_CATEGORY_ORDER, PORTS_VCF_VERSIONS,
+        PORTS_PLAN_PREDICATES, portsVersionForPlan, resolvePortsEndpoint } = Core
 // ============================================================
 // LOOKUP TABLES (from Static Reference Tables sheet)
 // ============================================================
@@ -1912,179 +1934,13 @@ const { PORTS_DATA, PREREQ_DATA, ALL_PAGES } = Core
 // ============================================================
 
 // ============================================================
-// PORTS & PROTOCOLS DATA
+// PORTS & PROTOCOLS
 // ============================================================
-// Source: Broadcom Ports and Protocols Tool (https://ports.broadcom.com/)
-// Scope: VCF 9.1.0 product/release mappings (19 components), scraped 2026-06-11.
-// direction is normalized to: 'Inbound' | 'Outbound' | 'Bidirectional' | 'Unspecified'
-
-// ============================================================
-// PORTS & PROTOCOLS — COMPONENT → CATEGORY GROUPING
-// ============================================================
-const PORTS_CATEGORY_MAP = {
-  'SDDC Manager':'Core Infrastructure', 'vCenter':'Core Infrastructure', 'ESX':'Core Infrastructure',
-  'vSAN':'Core Infrastructure', 'NSX':'Core Infrastructure', 'Avi Load Balancer':'Core Infrastructure',
-  'VCF Operations':'Fleet Management & Operations', 'VCF Operations for Networks':'Fleet Management & Operations',
-  'VCF Operations HCX':'Fleet Management & Operations', 'Log Management':'Fleet Management & Operations',
-  'VCF Management Services':'Fleet Management & Operations',
-  'VCF Automation':'Automation & Security', 'DSM Data Services':'Automation & Security', 'VMware vDefend':'Automation & Security',
-  'Protection and Recovery':'Recovery & Disaster Recovery', 'Protection and Recovery Service for VCF Automation':'Recovery & Disaster Recovery',
-  'vSphere Replication':'Recovery & Disaster Recovery', 'VMware Live Recovery cloud':'Recovery & Disaster Recovery',
-  'VMware Private AI Services':'Private AI',
-}
-const PORTS_CATEGORY_ORDER = ['Core Infrastructure','Fleet Management & Operations','Automation & Security','Recovery & Disaster Recovery','Private AI']
-
-// ============================================================
-// PORTS & PROTOCOLS — ROLE LABEL → FORM FIELD RESOLUTION MAP
-// ============================================================
-// Maps PORTS_DATA `source`/`destination` role labels to the form fields
-// (FQDN/IP) the user has actually configured, so the Ports & Protocols
-// page can show real endpoints instead of generic role names.
-// Resolver shapes:
-//   { fqdnKey, ipKey, label, showWhen }  -> single instance
-//   { hosts:'m01'|'w01'|'w01cl02', label, showWhen } -> 16-host array (makeHostFields naming)
-const PORTS_ENDPOINT_MAP = {
-  'vCenter Server Management IP address': [
-    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
-    { fqdnKey:'wldVcFqdn',  ipKey:'wldVcIp',  label:'WLD vCenter', showWhen:f=>f.wldInclude!=='Exclude' },
-  ],
-  'vCenter Server (internal/loopback)': [
-    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
-  ],
-  'Remote vCenter Server Management IP address': [
-    { fqdnKey:'wldVcFqdn', ipKey:'wldVcIp', label:'WLD vCenter', showWhen:f=>f.wldInclude!=='Exclude' },
-  ],
-  'vCenter Server': [
-    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
-  ],
-  'vCenter': [
-    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
-  ],
-  'Local vCenter Server': [
-    { fqdnKey:'vcMgmtFqdn', ipKey:'vcMgmtIp', label:'Management vCenter' },
-  ],
-  'ESX Management IP addresses': [
-    { hosts:'m01', label:'Mgmt Domain ESXi Host' },
-    { hosts:'w01', label:'WLD ESXi Host', showWhen:f=>f.wldInclude!=='Exclude' },
-  ],
-  'ESXi Management IP addresses': [
-    { hosts:'m01', label:'Mgmt Domain ESXi Host' },
-    { hosts:'w01', label:'WLD ESXi Host', showWhen:f=>f.wldInclude!=='Exclude' },
-  ],
-  'ESXi': [
-    { hosts:'m01', label:'Mgmt Domain ESXi Host' },
-  ],
-  'Remote ESX Management IP addresses': [
-    { hosts:'w01cl02', label:'Additional Cluster ESXi Host', showWhen:f=>f.clusterInclude==='Include' },
-  ],
-  'NSX Manager': [
-    { fqdnKey:'nsxVipFqdn',  ipKey:'nsxVipIp',  label:'NSX Manager VIP' },
-    { fqdnKey:'nsxMgr1Fqdn', ipKey:undefined,   label:'NSX Manager Node 1' },
-    { fqdnKey:'nsxMgr2Fqdn', ipKey:'nsxMgr2Ip', label:'NSX Manager Node 2' },
-    { fqdnKey:'nsxMgr3Fqdn', ipKey:'nsxMgr3Ip', label:'NSX Manager Node 3' },
-  ],
-  'NSX Local Manager': [
-    { fqdnKey:'nsxVipFqdn', ipKey:'nsxVipIp', label:'NSX Manager VIP' },
-  ],
-  'NSX Edge nodes': [
-    { fqdnKey:'nsxEdge1Fqdn', ipKey:'nsxEdge1Ip', label:'NSX Edge 1', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-    { fqdnKey:'nsxEdge2Fqdn', ipKey:'nsxEdge2Ip', label:'NSX Edge 2', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-  ],
-  'NSX Edge / Host': [
-    { fqdnKey:'nsxEdge1Fqdn', ipKey:'nsxEdge1Ip', label:'NSX Edge 1', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-    { fqdnKey:'nsxEdge2Fqdn', ipKey:'nsxEdge2Ip', label:'NSX Edge 2', showWhen:f=>f.nsxEdgeInclude!=='Exclude' },
-    { hosts:'m01', label:'Mgmt Domain ESXi Host' },
-  ],
-  'SDDC Manager Management IP address': [
-    { fqdnKey:'vcfSddcFqdn', ipKey:'vcfSddcIp', label:'SDDC Manager' },
-  ],
-  'SDDC Manager (internal/loopback)': [
-    { fqdnKey:'vcfSddcFqdn', ipKey:'vcfSddcIp', label:'SDDC Manager' },
-  ],
-  'SDDC Manager IP address': [
-    { fqdnKey:'vcfSddcFqdn', ipKey:'vcfSddcIp', label:'SDDC Manager' },
-  ],
-  'VCF Operations Management IP address': [
-    { fqdnKey:'vcfOpsLbFqdn', ipKey:'vcfOpsLbIp', label:'VCF Operations LB', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-  ],
-  'VCF Operations Cluster Nodes': [
-    { fqdnKey:'vcfOpsPrimaryFqdn', ipKey:'vcfOpsPrimaryIp', label:'VCF Operations Primary', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-    { fqdnKey:'vcfOpsReplicaFqdn', ipKey:'vcfOpsReplicaIp', label:'VCF Operations Replica', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-    { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-  ],
-  'VCF Operations Cluster (internal)': [
-    { fqdnKey:'vcfOpsPrimaryFqdn', ipKey:'vcfOpsPrimaryIp', label:'VCF Operations Primary', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-    { fqdnKey:'vcfOpsReplicaFqdn', ipKey:'vcfOpsReplicaIp', label:'VCF Operations Replica', showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-    { fqdnKey:'vcfOpsDataFqdn',    ipKey:'vcfOpsDataIp',    label:'VCF Operations Data',    showWhen:f=>f.vcfOpsAutoMode==='Deploy VCF Operations and Automation' },
-  ],
-  'VCF Operations Cloud Proxy': [
-    { fqdnKey:'vcfOpsCollectorFqdn', ipKey:'vcfOpsCollectorIp', label:'Cloud Proxy (Collector)', showWhen:f=>f.vcfOpsCollectorInclude!=='Exclude' },
-  ],
-  'VCF Operations for Networks Management IP address': [
-    { fqdnKey:'vcfNetOpsFqdn', ipKey:'vcfNetOpsIp', label:'VCF Operations for Networks', showWhen:f=>f.vcfNetOpsInclude==='Include' },
-  ],
-  'VCF Operations for Networks': [
-    { fqdnKey:'vcfNetOpsFqdn', ipKey:'vcfNetOpsIp', label:'VCF Operations for Networks', showWhen:f=>f.vcfNetOpsInclude==='Include' },
-  ],
-  'VCF Operations for Networks (internal/loopback)': [
-    { fqdnKey:'vcfNetOpsFqdn', ipKey:'vcfNetOpsIp', label:'VCF Operations for Networks', showWhen:f=>f.vcfNetOpsInclude==='Include' },
-  ],
-  'VCF Operations HCX Management IP address': [
-    { fqdnKey:'ccmHcxFqdn', ipKey:'ccmHcxIp', label:'HCX Manager', showWhen:f=>f.ccmInclude==='Include' },
-  ],
-  'VCF Operations HCX (internal/loopback)': [
-    { fqdnKey:'ccmHcxFqdn', ipKey:'ccmHcxIp', label:'HCX Manager', showWhen:f=>f.ccmInclude==='Include' },
-  ],
-  'HCX Manager': [
-    { fqdnKey:'ccmHcxFqdn', ipKey:'ccmHcxIp', label:'HCX Manager', showWhen:f=>f.ccmInclude==='Include' },
-  ],
-  'VCF Operations for Logs Management IP address': [
-    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management (Cluster VIP)', showWhen:f=>f.vcfLogsInclude==='Include' },
-  ],
-  'VCF Operations for Logs cluster (internal)': [
-    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management (Cluster VIP)', showWhen:f=>f.vcfLogsInclude==='Include' },
-  ],
-  'VCF Operations for Logs CPLF': [
-    { fqdnKey:'vcfLogsFqdn', ipKey:'vcfLogsIp', label:'Log Management (Cluster VIP)', showWhen:f=>f.vcfLogsInclude==='Include' },
-  ],
-  'VCF Automation Management IP address': [
-    { fqdnKey:'vcfAutoFqdn', ipKey:'vcfAutoIp', label:'VCF Automation', showWhen:f=>(f.vcfOpsAutoMode==='Deploy VCF Operations and Automation'||f.vcfOpsAutoMode==='Deploy VCF Automation') },
-  ],
-  'VCF Identity Broker': [
-    { fqdnKey:'idBrokerFqdn', ipKey:'idBrokerIp', label:'Identity Broker', showWhen:f=>f.idBrokerInclude==='Include' },
-  ],
-  'Avi Controller': [
-    { fqdnKey:'aviClusterFqdn', ipKey:'aviClusterIp', label:'AVI Cluster VIP', showWhen:f=>f.aviInclude==='Include' },
-    { fqdnKey:'aviCtrl1Fqdn', ipKey:'aviCtrl1Ip', label:'AVI Controller 1', showWhen:f=>f.aviInclude==='Include' },
-    { fqdnKey:'aviCtrl2Fqdn', ipKey:'aviCtrl2Ip', label:'AVI Controller 2', showWhen:f=>f.aviInclude==='Include' },
-    { fqdnKey:'aviCtrl3Fqdn', ipKey:'aviCtrl3Ip', label:'AVI Controller 3', showWhen:f=>f.aviInclude==='Include' },
-  ],
-  'Avi VIP (Service Engine Data interface)': [
-    { fqdnKey:'aviClusterFqdn', ipKey:'aviClusterIp', label:'AVI Cluster VIP', showWhen:f=>f.aviInclude==='Include' },
-  ],
-  'Microsoft Active Directory Domain Controllers': [
-    { fqdnKey:'adDcFqdn', ipKey:'adDcIp', label:'AD Domain Controller', showWhen:f=>f.adInclude==='Include' },
-  ],
-  'DNS Resolvers': [
-    { fqdnKey:undefined, ipKey:'dnsServer1', label:'DNS Server 1' },
-    { fqdnKey:undefined, ipKey:'dnsServer2', label:'DNS Server 2', showWhen:f=>!!f.dnsServer2 },
-  ],
-  'DNS server': [
-    { fqdnKey:undefined, ipKey:'dnsServer1', label:'DNS Server 1' },
-    { fqdnKey:undefined, ipKey:'dnsServer2', label:'DNS Server 2', showWhen:f=>!!f.dnsServer2 },
-  ],
-  'NTP Server': [
-    { fqdnKey:'ntpServer1', ipKey:undefined, label:'NTP Server 1' },
-    { fqdnKey:'ntpServer2', ipKey:undefined, label:'NTP Server 2', showWhen:f=>!!f.ntpServer2 },
-  ],
-  'NTP Servers': [
-    { fqdnKey:'ntpServer1', ipKey:undefined, label:'NTP Server 1' },
-    { fqdnKey:'ntpServer2', ipKey:undefined, label:'NTP Server 2', showWhen:f=>!!f.ntpServer2 },
-  ],
-  'vSAN Witness IP address': [
-    { fqdnKey:'vsanWitnessHost', ipKey:'vsanWitnessIp', label:'vSAN Witness', showWhen:f=>f.vsanStretchInclude==='Include' },
-  ],
-}
+// PORTS_DATA (core/ports.js) is generated from https://ports.broadcom.com/ by
+// tools/refresh_ports.mjs; category grouping, plan predicates, VCF version buckets and
+// the role label → form field map live in core/ports-meta.js.
+// Version/plan-filtered rows, kept outside Alpine's reactive state (see basePorts()).
+const portsCache = { key: null, rows: [] }
 
 // ============================================================
 // FORM SCHEMA — all pages and their fields
@@ -2772,7 +2628,8 @@ function vcfPlanner() {
     openPortGroups: [],
     openPortCategoryGroups: [],
     openPortCategoryProductGroups: [],
-    portsFilter: { search:'', products:[], directions:[], visibleCount:100, showResolved:false, groupBy:'component' },
+    portsFilter: { search:'', products:[], directions:[], visibleCount:100, showResolved:false, groupBy:'component', version:null, onlyPlan:false },
+    portsVersions: PORTS_VCF_VERSIONS,
     saveIndicator: false,
     darkMode: false,
     // Single source of truth for the app's version/last-updated display — bind via
@@ -2781,8 +2638,8 @@ function vcfPlanner() {
     // so a version bump only needs updating here. The Version History list further
     // down intentionally keeps each past entry's version number as a literal —
     // those are frozen historical records, not "current version" indicators.
-    appVersion: 'v1.2.1',
-    appUpdated: 'October 9, 2026',
+    appVersion: 'v1.3.0',
+    appUpdated: 'October 12, 2026',
     copyFeedback: '',
     pwVisible: {},
     excelImporting: false,
@@ -3676,12 +3533,33 @@ function vcfPlanner() {
     },
 
     // ─── PORTS & PROTOCOLS ───
+    // Selected VCF version bucket: explicit choice, else derived from the plan's VCF Version.
+    portsVersion() {
+      return this.portsFilter.version || portsVersionForPlan(this.form.vcfVersion)
+    },
+    // Rows of the selected VCF version (and, optionally, only components in the plan).
+    // Cached on a key built from the inputs, since several bindings call it per render.
+    basePorts() {
+      const v = this.portsVersion()
+      let planKey = ''
+      if (this.portsFilter.onlyPlan) {
+        planKey = Object.entries(PORTS_PLAN_PREDICATES)
+          .map(([prod, pred]) => pred(this.form, this.sizing) ? '' : prod).filter(Boolean).join('|')
+      }
+      const key = `${v}#${planKey}#${this.portsFilter.onlyPlan}`
+      if (portsCache.key !== key) {
+        const hidden = new Set(planKey ? planKey.split('|') : [])
+        portsCache.rows = PORTS_DATA.filter(r => r.vcfVersions.includes(v) && !hidden.has(r.product))
+        portsCache.key = key
+      }
+      return portsCache.rows
+    },
     portsProducts() {
-      return [...new Set(PORTS_DATA.map(r => r.product))].sort()
+      return [...new Set(this.basePorts().map(r => r.product))].sort()
     },
     portsByProduct() {
       const groups = {}
-      for (const row of PORTS_DATA) {
+      for (const row of this.basePorts()) {
         if (!groups[row.product]) groups[row.product] = []
         groups[row.product].push(row)
       }
@@ -3690,9 +3568,12 @@ function vcfPlanner() {
     anyPortsFilterActive() {
       return !!(this.portsFilter.search || this.portsFilter.products.length || this.portsFilter.directions.length)
     },
+    portReleasesTitle(row) {
+      return `${row.product} releases: ${row.releases.join(', ')} — VCF ${row.vcfVersions.join(' / ')}${row.description ? '\n' + row.description : ''}`
+    },
     filteredPorts() {
       const q = this.portsFilter.search.trim().toLowerCase()
-      return PORTS_DATA.filter(row => {
+      return this.basePorts().filter(row => {
         if (this.portsFilter.products.length && !this.portsFilter.products.includes(row.product)) return false
         if (this.portsFilter.directions.length && !this.portsFilter.directions.includes(row.direction)) return false
         if (q) {
@@ -3751,27 +3632,7 @@ function vcfPlanner() {
       else arr.splice(i, 1)
     },
     resolveEndpoint(roleLabel) {
-      const specs = PORTS_ENDPOINT_MAP[roleLabel]
-      if (!specs) return []
-      const f = this.form
-      const out = []
-      for (const spec of specs) {
-        if (spec.showWhen && !spec.showWhen(f)) continue
-        if (spec.hosts) {
-          for (let i=1; i<=16; i++) {
-            const fqdn = f[`${spec.hosts}Host${i}Fqdn`]
-            const ip   = f[`${spec.hosts}Host${i}Ip`]
-            if (!fqdn && !ip) continue
-            out.push({ label: `${spec.label} ${i}`, fqdn: fqdn||'', ip: ip||'' })
-          }
-        } else {
-          const fqdn = spec.fqdnKey ? (f[spec.fqdnKey]||'') : ''
-          const ip   = spec.ipKey   ? (f[spec.ipKey]||'')   : ''
-          if (!fqdn && !ip) continue
-          out.push({ label: spec.label, fqdn, ip })
-        }
-      }
-      return out
+      return resolvePortsEndpoint(roleLabel, this.form)
     },
     formatResolvedEndpoints(roleLabel) {
       return this.resolveEndpoint(roleLabel)
@@ -3780,11 +3641,11 @@ function vcfPlanner() {
     },
     exportPortsCsv() {
       const esc = v => `"${(v||'').replace(/"/g,'""')}"`
-      const header = ['Component','Port','Protocol','Source','Destination','Direction','Purpose','Description']
+      const header = ['Component','Port','Protocol','Source','Destination','Direction','Purpose','Description','VCF Versions','Releases']
       if (this.portsFilter.showResolved) header.push('Resolved Source','Resolved Destination')
       const rows = [header]
       for (const row of this.filteredPorts()) {
-        const r = [esc(row.product),esc(row.port),esc(row.protocol),esc(row.source),esc(row.destination),esc(row.direction),esc(row.purpose),esc(row.description)]
+        const r = [esc(row.product),esc(row.port),esc(row.protocol),esc(row.source),esc(row.destination),esc(row.direction),esc(row.purpose),esc(row.description),esc(row.vcfVersions.join(' ')),esc(row.releases.join(' '))]
         if (this.portsFilter.showResolved) {
           r.push(esc(this.formatResolvedEndpoints(row.source)), esc(this.formatResolvedEndpoints(row.destination)))
         }
@@ -3793,7 +3654,7 @@ function vcfPlanner() {
       const csv = rows.map(r=>r.join(',')).join('\n')
       const blob = new Blob([csv], {type:'text/csv'})
       const url = URL.createObjectURL(blob)
-      const a = Object.assign(document.createElement('a'), {href:url, download:`vcf-ports-protocols-${new Date().toISOString().slice(0,10)}.csv`})
+      const a = Object.assign(document.createElement('a'), {href:url, download:`vcf-${this.portsVersion()}-ports-protocols-${new Date().toISOString().slice(0,10)}.csv`})
       document.body.appendChild(a); a.click(); document.body.removeChild(a)
       URL.revokeObjectURL(url)
     },
