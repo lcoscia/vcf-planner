@@ -16,7 +16,7 @@ as callable tools. It works as a **custom connector for both Claude and ChatGPT*
 | `calculate_management_domain_sizing` | Compute host count and raw/total CPU, RAM, disk (plus a per-component breakdown) from a partial sizing object merged with Excel-workbook defaults. |
 | `lookup_component_specs` | Return the vCPU/RAM/disk spec for a component (flat or per-size tier). |
 | `list_component_catalog` | List every component key, its shape (flat / tiered / scalar), and available sizes. |
-| `search_ports_protocols` | Filter the firewall ports/protocols matrix by product, port, protocol, direction, or free text. |
+| `search_ports_protocols` | Filter the VCF 9.x firewall ports/protocols matrix (ports.broadcom.com) by VCF version (`9.0` / `9.1` / `9.1.1`), product, port, protocol, direction, or free text. |
 | `list_prerequisites` | List deployment prerequisites, filterable by category and free text. |
 | `validate_network` | Detect VLAN duplicates, IP duplicates, and CIDR overlaps. |
 | `search` | **ChatGPT Deep Research** — search the knowledge corpus; returns `{ results: [{id,title,url}] }`. |

@@ -46,7 +46,7 @@ function buildCorpus() {
 
   // Ports & protocols
   PORTS_DATA.forEach((p, i) => {
-    const title = `${p.product} — ${p.protocol} ${p.port} (${p.direction})`
+    const title = `${p.product} — ${p.protocol} ${p.port} (${p.direction}) · VCF ${p.vcfVersions.join('/')}`
     const text = [
       `Product: ${p.product}`,
       `Port: ${p.port}/${p.protocol}`,
@@ -54,6 +54,8 @@ function buildCorpus() {
       `Source: ${p.source}`,
       `Destination: ${p.destination}`,
       `Purpose: ${p.purpose}`,
+      `VCF versions: ${p.vcfVersions.join(', ')}`,
+      `Releases: ${p.releases.join(', ')}`,
       p.description || '',
     ]
       .filter(Boolean)
