@@ -17,6 +17,7 @@ as callable tools. It works as a **custom connector for both Claude and ChatGPT*
 | `lookup_component_specs` | Return the vCPU/RAM/disk spec for a component (flat or per-size tier). |
 | `list_component_catalog` | List every component key, its shape (flat / tiered / scalar), and available sizes. |
 | `search_ports_protocols` | Filter the VCF 9.x firewall ports/protocols matrix (ports.broadcom.com) by VCF version (`9.0` / `9.1` / `9.1.1`), product, port, protocol, direction, or free text. |
+| `compare_ports_upgrade` | VCF 5.2 → 9.1 / 9.1.1 upgrade: flows to open (added / changed), keep for the upgrade window (transient), check (review) or close (removed, with when-to-close notes), plus upgrade pitfalls with sources. |
 | `list_prerequisites` | List deployment prerequisites, filterable by category and free text. |
 | `validate_network` | Detect VLAN duplicates, IP duplicates, and CIDR overlaps. |
 | `search` | **ChatGPT Deep Research** — search the knowledge corpus; returns `{ results: [{id,title,url}] }`. |
@@ -108,7 +109,7 @@ Your public MCP endpoint is then `https://<your-domain>/`.
 1. Settings → **Connectors** → **Add custom connector**.
 2. **URL:** `https://<your-domain>/`
 3. Authentication: **None**.
-4. Save, then enable the connector in a chat. The 8 tools become available.
+4. Save, then enable the connector in a chat. The 9 tools become available.
 
 ### ChatGPT
 

@@ -756,6 +756,153 @@
       <!-- Ports & Protocols page is special -->
       <template x-if="page.id==='ports'">
         <div class="p-6 max-w-7xl">
+          <div class="flex gap-1 mb-3">
+            <template x-for="m in [['matrix','Ports matrix'],['upgrade','Upgrade from VCF 5.2']]" :key="m[0]">
+              <button @click="setPortsMode(m[0])"
+                      class="px-3 py-1.5 text-sm rounded border"
+                      :class="portsFilter.mode === m[0] ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white hover:bg-gray-50'"
+                      x-text="m[1]"></button>
+            </template>
+          </div>
+
+          <!-- UPGRADE FROM VCF 5.2 VIEW -->
+          <template x-if="portsFilter.mode==='upgrade'">
+            <div>
+              <div x-show="!portsUpgradeReady" class="bg-white rounded-lg shadow border p-4 text-sm text-gray-500">Loading the VCF 5.2 comparison…</div>
+              <template x-if="portsUpgradeReady">
+                <div>
+                  <div class="bg-white rounded-lg shadow border p-4 mb-4 space-y-3">
+                    <p class="text-xs text-gray-500">Flows to open, change or close when upgrading a VCF 5.2 environment to VCF <span x-text="portsUpgradeTarget()"></span>, compared on port, protocol, source and destination (products renamed between 5.2 and 9.x are matched, e.g. Aria Operations → VCF Operations).</p>
+                    <div class="flex flex-wrap gap-3 items-center">
+                      <input type="text" x-model="portsUpgrade.search" @input="portsUpgrade.visibleCount = 100" placeholder="Search port, protocol, source, destination, purpose…"
+                             class="flex-1 min-w-[240px] border rounded px-3 py-2 text-sm" />
+                      <button @click="exportPortsUpgradeCsv()" class="px-3 py-2 text-sm rounded border bg-gray-50 hover:bg-gray-100 inline-flex items-center gap-1.5"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px;flex:none;"><path d="M12 4v12"></path><path d="M8 12l4 4 4-4"></path><path d="M4 18v1a2 2 0 002 2h12a2 2 0 002-2v-1"></path></svg>CSV</button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 items-center">
+                      <span class="text-xs font-semibold text-gray-500 uppercase">From VCF 5.2 to:</span>
+                      <template x-for="ver in portsUpgradeTargets()" :key="ver">
+                        <button @click="portsUpgrade.target = ver; portsUpgrade.products = []; portsUpgrade.visibleCount = 100"
+                                class="px-2 py-1 text-xs rounded border"
+                                :class="portsUpgradeTarget() === ver ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 hover:bg-gray-100'"
+                                x-text="ver"></button>
+                      </template>
+                      <span class="text-xs text-gray-500"><span x-text="portsUpgradeResult().total"></span> flows · source <a href="https://ports.broadcom.com/" target="_blank" rel="noopener" class="underline hover:no-underline">ports.broadcom.com</a></span>
+                      <label class="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer ml-auto" title="9.x flows of components not in the plan are hidden; the VCF 5.2 flows are always shown">
+                        <input type="checkbox" x-model="portsFilter.onlyPlan" @change="portsUpgrade.products = []" class="rounded">
+                        Only components in my plan
+                      </label>
+                    </div>
+                    <div class="flex flex-wrap gap-2 items-center">
+                      <span class="text-xs font-semibold text-gray-500 uppercase">Status:</span>
+                      <template x-for="st in portsUpgradeStatuses()" :key="st.id">
+                        <button @click="toggleArrayValue(portsUpgrade.statuses, st.id); portsUpgrade.visibleCount = 100" :title="st.hint"
+                                class="px-2 py-1 text-xs rounded border"
+                                :class="portsUpgrade.statuses.includes(st.id) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 hover:bg-gray-100'"
+                                x-text="st.label + ' (' + portsUpgradeResult().counts[st.id] + ')'"></button>
+                      </template>
+                    </div>
+                    <div class="flex flex-wrap gap-2 items-center">
+                      <span class="text-xs font-semibold text-gray-500 uppercase">Component:</span>
+                      <template x-for="prod in portsUpgradeProducts()" :key="prod">
+                        <button @click="toggleArrayValue(portsUpgrade.products, prod); portsUpgrade.visibleCount = 100"
+                                class="px-2 py-1 text-xs rounded border"
+                                :class="portsUpgrade.products.includes(prod) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 hover:bg-gray-100'"
+                                x-text="prod"></button>
+                      </template>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex flex-wrap gap-4">
+                        <label class="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
+                          <input type="checkbox" x-model="portsUpgrade.includeInternal" @change="portsUpgrade.visibleCount = 100" class="rounded">
+                          Include internal / loopback flows
+                        </label>
+                        <label class="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
+                          <input type="checkbox" x-model="portsUpgrade.includeIcmp" @change="portsUpgrade.visibleCount = 100" class="rounded">
+                          Include ICMP
+                        </label>
+                        <label class="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
+                          <input type="checkbox" x-model="portsFilter.showResolved" class="rounded">
+                          Show my configured values
+                        </label>
+                      </div>
+                      <div class="text-xs text-gray-500"><span x-text="portsUpgradeRows().length"></span> matching rows</div>
+                    </div>
+                  </div>
+
+                  <details class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 text-sm">
+                    <summary class="font-semibold text-amber-800 cursor-pointer">Before you upgrade: paths, new IPs and pitfalls</summary>
+                    <div class="mt-3 space-y-3">
+                      <template x-for="n in portsUpgradeNotes()" :key="n.title">
+                        <div>
+                          <div class="font-medium text-gray-800" x-text="n.title"></div>
+                          <div class="text-gray-700" x-text="n.text"></div>
+                          <div class="text-xs mt-0.5">
+                            <template x-for="ref in n.refs" :key="ref[1]">
+                              <a :href="ref[1]" target="_blank" rel="noopener" class="underline hover:no-underline text-indigo-700 mr-3" x-text="ref[0]"></a>
+                            </template>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </details>
+
+                  <div class="bg-white rounded-lg shadow border overflow-hidden">
+                    <table class="w-full text-sm">
+                      <thead><tr class="bg-gray-50 text-xs text-gray-500 border-b">
+                        <th class="text-left px-3 py-2">Status</th>
+                        <th class="text-left px-3 py-2">Component</th>
+                        <th class="text-left px-3 py-2">Port</th>
+                        <th class="text-left px-3 py-2">Source</th>
+                        <th class="text-left px-3 py-2">Destination</th>
+                        <th class="text-left px-3 py-2">Purpose</th>
+                        <th class="text-left px-3 py-2">VCF 5.2 / action</th>
+                      </tr></thead>
+                      <tbody>
+                        <template x-for="(row, ri) in displayedPortsUpgrade()" :key="ri">
+                          <tr class="border-b border-gray-100 hover:bg-gray-50 align-top">
+                            <td class="px-3 py-2">
+                              <span class="px-2 py-0.5 rounded text-xs whitespace-nowrap" :class="portsUpgradeBadge(row.status)" x-text="portsUpgradeLabel(row.status)"></span>
+                            </td>
+                            <td class="px-3 py-2 font-medium text-gray-800" x-text="row.product"></td>
+                            <td class="px-3 py-2 font-mono whitespace-nowrap" x-text="row.port + '/' + row.protocol" :title="row.direction + (row.description ? '\n' + row.description : '')"></td>
+                            <td class="px-3 py-2 text-gray-600">
+                              <div x-text="row.source"></div>
+                              <template x-if="portsFilter.showResolved && row.status !== 'removed'">
+                                <template x-for="ep in resolveEndpoint(row.source)" :key="ep.label">
+                                  <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                                </template>
+                              </template>
+                            </td>
+                            <td class="px-3 py-2 text-gray-600">
+                              <div x-text="row.destination"></div>
+                              <template x-if="portsFilter.showResolved && row.status !== 'removed'">
+                                <template x-for="ep in resolveEndpoint(row.destination)" :key="ep.label">
+                                  <div class="text-xs text-indigo-600 mt-0.5" x-text="ep.label + ': ' + ep.fqdn + (ep.ip ? ' (' + ep.ip + ')' : '')"></div>
+                                </template>
+                              </template>
+                            </td>
+                            <td class="px-3 py-2 text-gray-500 text-xs" x-text="row.purpose"></td>
+                            <td class="px-3 py-2 text-xs text-gray-600">
+                              <template x-for="(w, wi) in (row.was || [])" :key="wi">
+                                <div x-text="'5.2: ' + w.source + ' → ' + w.destination"></div>
+                              </template>
+                              <div x-show="row.note" x-text="row.note"></div>
+                              <a x-show="row.ref" :href="row.ref" target="_blank" rel="noopener" class="underline hover:no-underline text-indigo-700">source</a>
+                            </td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                    <div class="p-3 text-center" x-show="portsUpgradeRows().length > portsUpgrade.visibleCount">
+                      <button @click="portsUpgrade.visibleCount += 100" class="px-3 py-1.5 text-sm rounded border bg-gray-50 hover:bg-gray-100">Show 100 more (<span x-text="portsUpgradeRows().length - displayedPortsUpgrade().length"></span> remaining)</button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <div x-show="portsFilter.mode!=='upgrade'">
           <div class="bg-white rounded-lg shadow border p-4 mb-4 space-y-3">
             <div class="flex flex-wrap gap-3 items-center">
               <input type="text" x-model="portsFilter.search" placeholder="Search port, protocol, source, destination, purpose…"
@@ -991,6 +1138,7 @@
               </div>
             </div>
           </template>
+          </div>
         </div>
       </template>
 
@@ -1609,6 +1757,13 @@
       <div class="text-base font-bold text-gray-800 mb-3">Version History</div>
       <div class="space-y-3 text-sm">
         <div class="flex gap-4">
+          <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.4.0<br><span class="text-gray-300">2026-10-30</span></span>
+          <div class="text-gray-600">
+            <p class="font-semibold text-gray-700">Ports &amp; Protocols — Upgrade from VCF 5.2</p>
+            <p>The Ports &amp; Protocols page gains an <strong>Upgrade from VCF 5.2</strong> view listing the firewall flows to open, change or close when upgrading a VCF 5.2 environment to <strong>VCF 9.1 / 9.1.1</strong>. Each flow is tagged <strong>New in 9.x</strong>, <strong>Changed</strong> (same port, new source or destination, with the 5.2 flow it replaces), <strong>Upgrade only</strong> (VCF Installer, migration from the legacy Log Insight cluster, VCF Download Tool…), <strong>Needs review</strong> (could not be matched automatically), <strong>Removed</strong> (with when to close it: Workspace ONE Access, Aria Suite Lifecycle, Aria Operations for Logs 8.x, Cloud Builder…) or Unchanged. Products renamed between 5.2 and 9.x are matched (Aria Operations → VCF Operations, Workspace ONE Access → VCF Identity Broker…); internal / loopback and ICMP flows are hidden unless asked; "Only components in my plan" and "Show my configured values" apply. A "Before you upgrade" panel sums up the supported paths, the new VCF Management Services / License Server IPs, the 9.1 depot URLs and the licensing / syslog / AD Global Catalog pitfalls, with Broadcom sources; the CSV export carries the status, the 5.2 equivalent and the action. The VCF 5.2 side is generated by the new <code class="bg-gray-100 px-1 rounded text-xs">tools/refresh_ports_legacy.mjs</code> from the legacy ports.broadcom.com listings of the 5.2 bill of materials (<code class="bg-gray-100 px-1 rounded text-xs">core/ports-5x.js</code>, loaded only when the view is opened); new MCP tool <code class="bg-gray-100 px-1 rounded text-xs">compare_ports_upgrade</code>.</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-100 pt-3 flex gap-4">
           <span class="font-mono text-xs text-gray-400 shrink-0 w-28">v1.3.0<br><span class="text-gray-300">2026-10-12</span></span>
           <div class="text-gray-600">
             <p class="font-semibold text-gray-700">Ports &amp; Protocols refreshed from ports.broadcom.com — VCF 9.0 / 9.1 / 9.1.1</p>
@@ -1941,6 +2096,9 @@ const { PORTS_DATA, PREREQ_DATA, ALL_PAGES, PORTS_CATEGORY_MAP, PORTS_CATEGORY_O
 // the role label → form field map live in core/ports-meta.js.
 // Version/plan-filtered rows, kept outside Alpine's reactive state (see basePorts()).
 const portsCache = { key: null, rows: [] }
+// "Upgrade from VCF 5.2" comparison: core/ports-upgrade.js (+ the 5.2 dataset core/ports-5x.js) is
+// imported on first use only; the last computed comparison is cached on its inputs.
+const portsUpgradeCache = { mod: null, key: null, result: null }
 
 // ============================================================
 // FORM SCHEMA — all pages and their fields
@@ -2628,7 +2786,9 @@ function vcfPlanner() {
     openPortGroups: [],
     openPortCategoryGroups: [],
     openPortCategoryProductGroups: [],
-    portsFilter: { search:'', products:[], directions:[], visibleCount:100, showResolved:false, groupBy:'component', version:null, onlyPlan:false },
+    portsFilter: { search:'', products:[], directions:[], visibleCount:100, showResolved:false, groupBy:'component', version:null, onlyPlan:false, mode:'matrix' },
+    portsUpgrade: { target:null, statuses:['added','changed','transient','review','removed'], products:[], search:'', includeInternal:false, includeIcmp:false, visibleCount:100 },
+    portsUpgradeReady: false,
     portsVersions: PORTS_VCF_VERSIONS,
     saveIndicator: false,
     darkMode: false,
@@ -2638,8 +2798,8 @@ function vcfPlanner() {
     // so a version bump only needs updating here. The Version History list further
     // down intentionally keeps each past entry's version number as a literal —
     // those are frozen historical records, not "current version" indicators.
-    appVersion: 'v1.3.0',
-    appUpdated: 'October 12, 2026',
+    appVersion: 'v1.4.0',
+    appUpdated: 'October 30, 2026',
     copyFeedback: '',
     pwVisible: {},
     excelImporting: false,
@@ -3655,6 +3815,106 @@ function vcfPlanner() {
       const blob = new Blob([csv], {type:'text/csv'})
       const url = URL.createObjectURL(blob)
       const a = Object.assign(document.createElement('a'), {href:url, download:`vcf-${this.portsVersion()}-ports-protocols-${new Date().toISOString().slice(0,10)}.csv`})
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    },
+
+    // ─── PORTS & PROTOCOLS — UPGRADE FROM VCF 5.2 ───
+    async setPortsMode(mode) {
+      this.portsFilter.mode = mode
+      if (mode !== 'upgrade' || portsUpgradeCache.mod) return
+      try {
+        portsUpgradeCache.mod = await import('./core/ports-upgrade.js')
+        this.portsUpgradeReady = true
+      } catch (e) {
+        console.warn('VCF 5.2 comparison failed to load', e)
+        this.portsFilter.mode = 'matrix'
+      }
+    },
+    portsUpgradeTargets() {
+      return portsUpgradeCache.mod ? portsUpgradeCache.mod.PORTS_UPGRADE_TARGETS : []
+    },
+    // Explicit choice, else the matrix version when it is a 9.1 bucket, else 9.1.1.
+    portsUpgradeTarget() {
+      const targets = this.portsUpgradeTargets()
+      if (this.portsUpgrade.target) return this.portsUpgrade.target
+      const v = this.portsVersion()
+      return targets.includes(v) ? v : '9.1.1'
+    },
+    portsUpgradeStatuses() {
+      return portsUpgradeCache.mod ? portsUpgradeCache.mod.PORTS_UPGRADE_STATUSES : []
+    },
+    portsUpgradeNotes() {
+      return portsUpgradeCache.mod ? portsUpgradeCache.mod.PORTS_UPGRADE_NOTES : []
+    },
+    portsUpgradeLabel(status) {
+      const st = this.portsUpgradeStatuses().find(s => s.id === status)
+      return st ? st.label : status
+    },
+    portsUpgradeBadge(status) {
+      return {
+        added: 'bg-green-50 text-green-700', changed: 'bg-amber-50 text-amber-700', transient: 'bg-blue-50 text-blue-700',
+        review: 'bg-purple-50 text-purple-700', removed: 'bg-red-50 text-red-700', unchanged: 'bg-gray-100 text-gray-500',
+      }[status] || 'bg-gray-100 text-gray-500'
+    },
+    // Full comparison (before the status / component / search filters), cached like basePorts().
+    portsUpgradeResult() {
+      const empty = { total: 0, counts: {}, rows: [] }
+      const mod = portsUpgradeCache.mod
+      if (!this.portsUpgradeReady || !mod) return empty
+      const target = this.portsUpgradeTarget()
+      const { onlyPlan } = this.portsFilter, { includeInternal, includeIcmp } = this.portsUpgrade
+      let planKey = ''
+      if (onlyPlan) {
+        planKey = Object.entries(PORTS_PLAN_PREDICATES)
+          .map(([prod, pred]) => pred(this.form, this.sizing) ? '' : prod).filter(Boolean).join('|')
+      }
+      const key = `${target}#${onlyPlan}#${planKey}#${includeInternal}#${includeIcmp}`
+      if (portsUpgradeCache.key !== key) {
+        portsUpgradeCache.result = mod.portsUpgradeDiff({ target, form: this.form, sizing: this.sizing, onlyPlan, includeInternal, includeIcmp })
+        portsUpgradeCache.key = key
+      }
+      return portsUpgradeCache.result
+    },
+    portsUpgradeProducts() {
+      return [...new Set(this.portsUpgradeResult().rows.map(r => r.product))].sort()
+    },
+    portsUpgradeRows() {
+      const { statuses, products, search } = this.portsUpgrade
+      const q = search.trim().toLowerCase()
+      return this.portsUpgradeResult().rows.filter(row => {
+        if (!statuses.includes(row.status)) return false
+        if (products.length && !products.includes(row.product)) return false
+        if (q) {
+          const was = (row.was || []).map(w => `${w.source} ${w.destination}`).join(' ')
+          const haystack = `${row.product} ${row.port} ${row.protocol} ${row.source} ${row.destination} ${row.purpose} ${row.description} ${was}`.toLowerCase()
+          if (!haystack.includes(q)) return false
+        }
+        return true
+      })
+    },
+    displayedPortsUpgrade() {
+      return this.portsUpgradeRows().slice(0, this.portsUpgrade.visibleCount)
+    },
+    exportPortsUpgradeCsv() {
+      const esc = v => `"${String(v ?? '').replace(/"/g,'""')}"`
+      const header = ['Status','Component','Port','Protocol','Source','Destination','Direction','Purpose','Description','VCF 5.2 equivalent','Action / note','Reference','Releases']
+      if (this.portsFilter.showResolved) header.push('Resolved Source','Resolved Destination')
+      const rows = [header]
+      for (const row of this.portsUpgradeRows()) {
+        const was = (row.was || []).map(w => `${w.product}: ${w.source} -> ${w.destination}`).join('; ')
+        const r = [this.portsUpgradeLabel(row.status), row.product, row.port, row.protocol, row.source, row.destination,
+          row.direction, row.purpose, row.description, was, row.note, row.ref, (row.releases || []).join(' ')].map(esc)
+        if (this.portsFilter.showResolved) {
+          const res = label => row.status === 'removed' ? '' : this.formatResolvedEndpoints(label)
+          r.push(esc(res(row.source)), esc(res(row.destination)))
+        }
+        rows.push(r)
+      }
+      const csv = rows.map(r=>r.join(',')).join('\n')
+      const blob = new Blob([csv], {type:'text/csv'})
+      const url = URL.createObjectURL(blob)
+      const a = Object.assign(document.createElement('a'), {href:url, download:`vcf-5.2-to-${this.portsUpgradeTarget()}-ports-upgrade-${new Date().toISOString().slice(0,10)}.csv`})
       document.body.appendChild(a); a.click(); document.body.removeChild(a)
       URL.revokeObjectURL(url)
     },
