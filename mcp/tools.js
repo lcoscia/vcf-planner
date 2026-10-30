@@ -1,4 +1,4 @@
-// tools.js — registers all 8 MCP tools on an McpServer. All domain logic comes
+// tools.js — registers all 9 MCP tools on an McpServer. All domain logic comes
 // from ../core (single source of truth); this file only adapts shapes/inputs.
 import { z } from 'zod'
 import {
@@ -10,6 +10,12 @@ import {
   findIpConflicts,
   findCidrOverlaps,
 } from '../core/index.js'
+import {
+  PORTS_UPGRADE_TARGETS,
+  PORTS_UPGRADE_STATUSES,
+  PORTS_UPGRADE_NOTES,
+  portsUpgradeDiff,
+} from '../core/ports-upgrade.js'
 import { CORPUS, searchCorpus, getById } from './corpus.js'
 
 // --- sizing defaults (mirror the Excel workbook / index.html defaults) --------
@@ -292,6 +298,55 @@ export function registerTools(server) {
       const total = rows.length
       const results = rows.slice(0, cap)
       return ok({ total, returned: results.length, capped: total > cap, results })
+    },
+  )
+
+  // 4b. VCF 5.2 → 9.x upgrade comparison of the ports matrix
+  server.registerTool(
+    'compare_ports_upgrade',
+    {
+      title: 'Compare Ports: VCF 5.2 → 9.x Upgrade',
+      description:
+        'Which firewall flows to open, change or close when upgrading VCF 5.2 to VCF 9.1 / 9.1.1. Compares the VCF 5.2 ports (legacy ports.broadcom.com listings of the 5.2 BOM) with the 9.x matrix. Status: added (new in 9.x), changed (same port, new source/destination; `was` = the 5.2 flow), transient (upgrade window only), review (could not be matched automatically), removed (5.2 flow with no 9.x equivalent; `note` = when to close), unchanged. Also returns upgrade pitfalls (paths, new IPs, depot URLs) with sources. Internal/loopback and ICMP flows are excluded unless asked.',
+      inputSchema: {
+        targetVersion: z.enum(PORTS_UPGRADE_TARGETS).optional().describe('Target VCF version (default 9.1.1).'),
+        status: z.array(z.enum(PORTS_UPGRADE_STATUSES.map((s) => s.id))).optional().describe('Only these statuses (default: all except unchanged).'),
+        product: z.string().optional().describe('Filter by product (substring, case-insensitive; 9.x or 5.2 names, e.g. "Identity Broker", "Aria").'),
+        port: z.union([z.string(), z.number()]).optional().describe('Filter by exact port number.'),
+        query: z.string().optional().describe('Free-text substring matched across all fields.'),
+        includeInternal: z.boolean().optional().describe('Include internal / loopback flows (default false).'),
+        includeIcmp: z.boolean().optional().describe('Include ICMP flows (default false).'),
+        limit: z.number().optional().describe('Max rows to return (default 100).'),
+      },
+    },
+    async ({ targetVersion, status, product, port, query, includeInternal, includeIcmp, limit }) => {
+      const cap = limit ?? 100
+      const lc = (s) => String(s ?? '').toLowerCase()
+      const diff = portsUpgradeDiff({ target: targetVersion ?? '9.1.1', includeInternal, includeIcmp })
+      const wanted = status?.length ? status : PORTS_UPGRADE_STATUSES.map((s) => s.id).filter((s) => s !== 'unchanged')
+      let rows = diff.rows.filter((r) => wanted.includes(r.status))
+      if (product) rows = rows.filter((r) => lc(r.product).includes(lc(product)))
+      if (port !== undefined) rows = rows.filter((r) => String(r.port) === String(port))
+      if (query) {
+        const q = lc(query)
+        rows = rows.filter((r) =>
+          [r.product, r.port, r.protocol, r.source, r.destination, r.direction, r.purpose, r.description, r.note]
+            .some((f) => lc(f).includes(q)),
+        )
+      }
+      const total = rows.length
+      const results = rows.slice(0, cap)
+      return ok({
+        from: diff.from,
+        target: diff.target,
+        counts: diff.counts,
+        statuses: PORTS_UPGRADE_STATUSES,
+        notes: PORTS_UPGRADE_NOTES.map(({ title, text, refs }) => ({ title, text, refs: refs.map(([label, url]) => ({ label, url })) })),
+        total,
+        returned: results.length,
+        capped: total > cap,
+        results,
+      })
     },
   )
 

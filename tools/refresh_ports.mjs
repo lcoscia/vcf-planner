@@ -22,15 +22,16 @@
 //     only maps to VCF 9.1; their flows are version-independent of VCF, so they get all buckets;
 //   - releases with no VCF mapping (e.g. SaaS editions) are ignored.
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import {
+  API, api as apiGet, clean, normProtocols, normDirection, normPort, releaseVersion, firstPortNum, cmp, verCmp,
+} from './ports-api.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUT = join(ROOT, 'core', 'ports.js')
-const API = 'https://ports.esp.spespg1.vmw.saas.broadcom.com/manage/view/v1/'
-const CLIENT_ID = 'aed572517d2db4d2bb7fc504796972f4'
 const BUCKETS = ['9.0', '9.1', '9.1.1']
 const DECOUPLED = new Set(['Avi Load Balancer', 'VMware vDefend'])
 const MUST_HAVE = ['Avi Load Balancer', 'VMware vDefend']
@@ -41,64 +42,7 @@ const opt = n => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null
 const DRY = flag('--dry-run'), REPORT = flag('--report'), FORCE = flag('--force')
 const SAVE_RAW = opt('--save-raw'), FROM_RAW = opt('--from-raw')
 
-const sleep = ms => new Promise(r => setTimeout(r, ms))
-
-async function api(path, rawName) {
-  if (FROM_RAW) return JSON.parse(await readFile(join(FROM_RAW, rawName), 'utf8'))
-  let lastErr
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    try {
-      const res = await fetch(API + path, { headers: { 'X-ClientId': CLIENT_ID, Accept: 'application/json' } })
-      if (!res.ok) throw new Error(`HTTP ${res.status} on ${path}`)
-      const data = await res.json()
-      if (SAVE_RAW) { await mkdir(SAVE_RAW, { recursive: true }); await writeFile(join(SAVE_RAW, rawName), JSON.stringify(data)) }
-      return data
-    } catch (e) { lastErr = e; await sleep(500 * 2 ** attempt) }
-  }
-  throw lastErr
-}
-
-// ─── normalization ───
-const clean = v => String(v ?? '').replace(/\s+/g, ' ').trim()
-
-function normProtocols(p) {
-  const u = clean(p).toUpperCase()
-  if (!u) return ['TCP']
-  const tokens = u.split(/[\s,/()]+|\bAND\b/).filter(Boolean)
-  const hasTcp = tokens.includes('TCP'), hasUdp = tokens.includes('UDP')
-  if (hasTcp && hasUdp) return ['TCP', 'UDP']
-  if (tokens.includes('ICMP')) return ['ICMP']
-  if (tokens.includes('ESP')) return ['ESP']
-  if (hasUdp) return ['UDP']
-  // TCP, HTTPS, HTTP, SSL, TLS, SOAP, LDAP(S), gRPC, CFAPI, NFS… all ride on TCP
-  return ['TCP']
-}
-
-function normDirection(c) {
-  const u = clean(c).toLowerCase()
-  if (/^(both|bi-?directional|inbound \+ outbound)$/.test(u)) return 'Bidirectional'
-  if (/^(outbound|outgoing|outgong)/.test(u)) return 'Outbound'
-  if (/^(inbound|incoming)/.test(u)) return 'Inbound'
-  return 'Unspecified'
-}
-
-function normPort(p) {
-  const s = clean(p)
-  const icmp = s.match(/^Type\s*(\d+)\s*,?\s*Code\s*(\d+)$/i)
-  if (icmp) return `Type ${icmp[1]}, Code ${icmp[2]}`
-  return s || 'N/A'
-}
-
-const releaseVersion = rel => {
-  const m = `${rel.displayName || ''} ${rel.releaseName || ''}`.match(/\d+(?:\.\d+){1,3}/)
-  if (!m) return clean(rel.displayName || rel.releaseName)
-  const parts = m[0].split('.')
-  while (parts.length > 3 && parts[parts.length - 1] === '0') parts.pop() // 9.1.0.0 → 9.1.0
-  return parts.join('.')
-}
-
-// numeric ports first (by first number), then ICMP types / 'Any' / 'user-configurable'
-const firstPortNum = p => { const m = String(p).match(/^\d+/); return m ? Number(m[0]) : Number.MAX_SAFE_INTEGER }
+const api = (path, rawName) => apiGet(path, rawName, { fromRaw: FROM_RAW, saveRaw: SAVE_RAW })
 
 // ─── main ───
 const products = (await api('vmwareproducts', 'products.json')).filter(p => p.vcfFlag && p.active !== false)
@@ -153,12 +97,6 @@ for (const p of products) {
   }
 }
 
-const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
-const verCmp = (a, b) => {
-  const pa = a.split('.').map(Number), pb = b.split('.').map(Number)
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d }
-  return cmp(a, b)
-}
 const data = [...merged.values()].map(({ _b, _r, ...row }) => ({
   ...row,
   vcfVersions: BUCKETS.filter(b => _b.has(b)),
